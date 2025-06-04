@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D 지형 - Three.js</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: linear-gradient(to bottom, #87CEEB 0%, #98FB98 100%);
+            font-family: Arial, sans-serif;
+        }
+        
+        #container {
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 14px;
+            z-index: 100;
+        }
+        
+        #controls {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            color: white;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+    <div id="container"></div>
+    <div id="info">
+        <h3>3D 지형 시뮬레이션</h3>
+        <p>Three.js로 만든 간단한 3D 지형</p>
+    </div>
+    <div id="controls">
+        <p><strong>조작법:</strong></p>
+        <p>마우스 드래그: 카메라 회전</p>
+        <p>마우스 휠: 줌 인/아웃</p>
+        <p>우클릭 드래그: 카메라 이동</p>
+    </div>
+
+    <!-- Three.js 라이브러리 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- OrbitControls -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- 메인 스크립트 -->
+    <script src="terrain.js"></script>
+</body>
+</html> 

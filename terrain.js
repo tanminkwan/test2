@@ -285,7 +285,7 @@ function createVehicle() {
     vehicleGroup = new THREE.Group();
     
     // 메인 바디 (유선형 형태)
-    const bodyGeometry = new THREE.CapsuleGeometry(2, 8, 4, 8);
+    const bodyGeometry = new THREE.CylinderGeometry(1.5, 2, 8, 16);
     const bodyMaterial = new THREE.MeshPhongMaterial({ 
         color: 0x2c3e50,
         shininess: 100,
@@ -555,6 +555,10 @@ function updateVehicle(deltaTime) {
 
 // 윈도우 리사이즈 처리
 function onWindowResize() {
+    if (!camera || !renderer) {
+        return; // 아직 초기화되지 않았으면 리턴
+    }
+    
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);

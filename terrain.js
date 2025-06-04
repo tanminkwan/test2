@@ -1,6 +1,9 @@
 // 전역 변수
 let scene, camera, renderer, controls;
 let terrain, sky, clouds = [];
+let vehicle, vehicleGroup;
+let isFirstPerson = false;
+let keys = {};
 let animationId;
 let clock = new THREE.Clock();
 
@@ -53,6 +56,12 @@ function init() {
     
     // 나무들 생성
     createTrees();
+    
+    // 비행체 생성
+    createVehicle();
+    
+    // 키보드 이벤트 설정
+    setupControls();
     
     // 애니메이션 시작
     animate();
@@ -271,11 +280,166 @@ function getTerrainHeight(x, z) {
     return Math.sin(x * 0.01) * 10 + Math.cos(z * 0.01) * 10 + Math.sin(x * 0.02) * 5 + Math.cos(z * 0.02) * 5;
 }
 
+// 비행체 생성
+function createVehicle() {
+    vehicleGroup = new THREE.Group();
+    
+    // 메인 바디 (유선형 형태)
+    const bodyGeometry = new THREE.CapsuleGeometry(2, 8, 4, 8);
+    const bodyMaterial = new THREE.MeshPhongMaterial({ 
+        color: 0x2c3e50,
+        shininess: 100,
+        specular: 0x111111
+    });
+    const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+    body.rotation.z = Math.PI / 2;
+    body.castShadow = true;
+    vehicleGroup.add(body);
+    
+    // 조종석 (투명한 돔)
+    const cockpitGeometry = new THREE.SphereGeometry(1.5, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+    const cockpitMaterial = new THREE.MeshPhongMaterial({ 
+        color: 0x3498db,
+        transparent: true,
+        opacity: 0.3,
+        shininess: 100
+    });
+    const cockpit = new THREE.Mesh(cockpitGeometry, cockpitMaterial);
+    cockpit.position.set(0, 1.5, 2);
+    vehicleGroup.add(cockpit);
+    
+    // 엔진 (좌우)
+    const engineGeometry = new THREE.CylinderGeometry(0.8, 1.2, 3, 8);
+    const engineMaterial = new THREE.MeshPhongMaterial({ 
+        color: 0x34495e,
+        emissive: 0x001122
+    });
+    
+    const leftEngine = new THREE.Mesh(engineGeometry, engineMaterial);
+    leftEngine.position.set(-3, -0.5, -2);
+    leftEngine.rotation.z = Math.PI / 2;
+    leftEngine.castShadow = true;
+    vehicleGroup.add(leftEngine);
+    
+    const rightEngine = new THREE.Mesh(engineGeometry, engineMaterial);
+    rightEngine.position.set(3, -0.5, -2);
+    rightEngine.rotation.z = Math.PI / 2;
+    rightEngine.castShadow = true;
+    vehicleGroup.add(rightEngine);
+    
+    // 엔진 글로우 효과
+    const glowGeometry = new THREE.SphereGeometry(0.5, 8, 8);
+    const glowMaterial = new THREE.MeshBasicMaterial({ 
+        color: 0x00ffff,
+        transparent: true,
+        opacity: 0.6
+    });
+    
+    const leftGlow = new THREE.Mesh(glowGeometry, glowMaterial);
+    leftGlow.position.set(-4.5, -0.5, -2);
+    vehicleGroup.add(leftGlow);
+    
+    const rightGlow = new THREE.Mesh(glowGeometry, glowMaterial);
+    rightGlow.position.set(4.5, -0.5, -2);
+    vehicleGroup.add(rightGlow);
+    
+    // 날개
+    const wingGeometry = new THREE.BoxGeometry(8, 0.2, 2);
+    const wingMaterial = new THREE.MeshPhongMaterial({ 
+        color: 0x2c3e50,
+        shininess: 50
+    });
+    const wings = new THREE.Mesh(wingGeometry, wingMaterial);
+    wings.position.set(0, 0, -1);
+    wings.castShadow = true;
+    vehicleGroup.add(wings);
+    
+    // 안테나/센서
+    const antennaGeometry = new THREE.CylinderGeometry(0.1, 0.1, 2, 6);
+    const antennaMaterial = new THREE.MeshPhongMaterial({ color: 0xe74c3c });
+    const antenna = new THREE.Mesh(antennaGeometry, antennaMaterial);
+    antenna.position.set(0, 2, 1);
+    vehicleGroup.add(antenna);
+    
+    // 비행체 초기 위치 설정
+    vehicleGroup.position.set(0, 80, 0);
+    vehicleGroup.userData = {
+        velocity: new THREE.Vector3(0, 0, 0),
+        speed: 0,
+        maxSpeed: 2,
+        acceleration: 0.1,
+        rotationSpeed: 0.02
+    };
+    
+    vehicle = vehicleGroup;
+    scene.add(vehicleGroup);
+}
+
+// 컨트롤 설정
+function setupControls() {
+    // 키보드 이벤트
+    document.addEventListener('keydown', (event) => {
+        keys[event.code] = true;
+        
+        // V키로 1인칭/3인칭 시점 전환
+        if (event.code === 'KeyV') {
+            toggleFirstPerson();
+        }
+    });
+    
+    document.addEventListener('keyup', (event) => {
+        keys[event.code] = false;
+    });
+    
+    // 마우스 이벤트 (1인칭 시점에서 시선 조절)
+    document.addEventListener('mousemove', (event) => {
+        if (isFirstPerson) {
+            const movementX = event.movementX || 0;
+            const movementY = event.movementY || 0;
+            
+            vehicleGroup.rotation.y -= movementX * 0.002;
+            vehicleGroup.rotation.x -= movementY * 0.002;
+            
+            // 상하 회전 제한
+            vehicleGroup.rotation.x = Math.max(-Math.PI/4, Math.min(Math.PI/4, vehicleGroup.rotation.x));
+        }
+    });
+}
+
+// 1인칭/3인칭 시점 전환
+function toggleFirstPerson() {
+    isFirstPerson = !isFirstPerson;
+    
+    if (isFirstPerson) {
+        // 1인칭 시점: 카메라를 비행체 내부로
+        controls.enabled = false;
+        camera.position.set(0, 1, 2);
+        camera.rotation.set(0, 0, 0);
+        vehicleGroup.add(camera);
+        
+        // 마우스 포인터 잠금
+        renderer.domElement.requestPointerLock();
+    } else {
+        // 3인칭 시점: 카메라를 씬으로 복귀
+        vehicleGroup.remove(camera);
+        scene.add(camera);
+        camera.position.set(0, 50, 100);
+        controls.enabled = true;
+        
+        // 마우스 포인터 잠금 해제
+        document.exitPointerLock();
+    }
+}
+
 // 애니메이션 루프
 function animate() {
     animationId = requestAnimationFrame(animate);
     
     const elapsedTime = clock.getElapsedTime();
+    const deltaTime = clock.getDelta();
+    
+    // 비행체 업데이트
+    updateVehicle(deltaTime);
     
     // 구름 애니메이션
     clouds.forEach((cloudGroup, index) => {
@@ -300,11 +464,93 @@ function animate() {
         }
     });
     
-    // 컨트롤 업데이트
-    controls.update();
+    // 컨트롤 업데이트 (3인칭 시점일 때만)
+    if (!isFirstPerson) {
+        controls.update();
+    }
     
     // 렌더링
     renderer.render(scene, camera);
+}
+
+// 비행체 업데이트
+function updateVehicle(deltaTime) {
+    if (!vehicle) return;
+    
+    const userData = vehicle.userData;
+    const forward = new THREE.Vector3(0, 0, -1);
+    const right = new THREE.Vector3(1, 0, 0);
+    const up = new THREE.Vector3(0, 1, 0);
+    
+    // 비행체의 현재 방향 벡터 계산
+    forward.applyQuaternion(vehicle.quaternion);
+    right.applyQuaternion(vehicle.quaternion);
+    up.applyQuaternion(vehicle.quaternion);
+    
+    // 키보드 입력 처리
+    let thrust = 0;
+    let yaw = 0;
+    let pitch = 0;
+    let roll = 0;
+    let verticalThrust = 0;
+    
+    if (keys['KeyW'] || keys['ArrowUp']) thrust = 1;           // 전진
+    if (keys['KeyS'] || keys['ArrowDown']) thrust = -0.5;      // 후진
+    if (keys['KeyA'] || keys['ArrowLeft']) yaw = 1;            // 좌회전
+    if (keys['KeyD'] || keys['ArrowRight']) yaw = -1;          // 우회전
+    if (keys['KeyQ']) roll = -1;                               // 좌측 롤
+    if (keys['KeyE']) roll = 1;                                // 우측 롤
+    if (keys['Space']) verticalThrust = 1;                     // 상승
+    if (keys['ShiftLeft']) verticalThrust = -1;                // 하강
+    if (keys['KeyR']) pitch = -1;                              // 기수 올리기
+    if (keys['KeyF']) pitch = 1;                               // 기수 내리기
+    
+    // 회전 적용 (1인칭 시점이 아닐 때만)
+    if (!isFirstPerson) {
+        vehicle.rotation.y += yaw * userData.rotationSpeed;
+        vehicle.rotation.x += pitch * userData.rotationSpeed;
+        vehicle.rotation.z += roll * userData.rotationSpeed * 0.5;
+    }
+    
+    // 추진력 계산
+    const thrustForce = forward.clone().multiplyScalar(thrust * userData.acceleration);
+    const verticalForce = up.clone().multiplyScalar(verticalThrust * userData.acceleration * 0.5);
+    
+    // 속도 업데이트
+    userData.velocity.add(thrustForce);
+    userData.velocity.add(verticalForce);
+    
+    // 공기 저항 (감속)
+    userData.velocity.multiplyScalar(0.98);
+    
+    // 최대 속도 제한
+    if (userData.velocity.length() > userData.maxSpeed) {
+        userData.velocity.normalize().multiplyScalar(userData.maxSpeed);
+    }
+    
+    // 위치 업데이트
+    vehicle.position.add(userData.velocity);
+    
+    // 지형 충돌 방지 (최소 높이 제한)
+    const minHeight = 15;
+    if (vehicle.position.y < minHeight) {
+        vehicle.position.y = minHeight;
+        userData.velocity.y = Math.max(0, userData.velocity.y);
+    }
+    
+    // 엔진 글로우 효과 애니메이션
+    const glowIntensity = Math.abs(thrust) * 0.3 + 0.3;
+    vehicle.children.forEach(child => {
+        if (child.material && child.material.color && child.material.color.getHex() === 0x00ffff) {
+            child.material.opacity = glowIntensity + Math.sin(Date.now() * 0.01) * 0.2;
+        }
+    });
+    
+    // 3인칭 시점에서 카메라가 비행체를 따라가도록
+    if (!isFirstPerson) {
+        const targetPosition = vehicle.position.clone().add(new THREE.Vector3(0, 20, 30));
+        controls.target.copy(vehicle.position);
+    }
 }
 
 // 윈도우 리사이즈 처리

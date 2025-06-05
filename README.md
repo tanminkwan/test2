@@ -1,165 +1,206 @@
-# 3D Vehicle Simulation Game
+# Multiplayer 3D Vehicle Combat Game
 
-A modern 3D flying vehicle shooting game built with the latest Three.js (r160) using ES6 modules.
+SOLID 원칙을 적용한 실시간 멀티플레이어 3D 비행체 전투 게임입니다.
 
-## 🚀 Features
+## 🎮 게임 특징
 
-### 🛸 Vehicle System
-- **Advanced Flight Physics**: Realistic 6-DOF (6 Degrees of Freedom) flight controls
-- **Dual View Modes**: Seamless switching between 1st person and 3rd person views
-- **Dynamic Engine Effects**: Visual engine glow effects that respond to thrust input
-- **Smooth Camera System**: Intelligent camera following with smooth interpolation
+- **멀티플레이어**: 최대 8명까지 동시 플레이 (최소 1명으로 게임 시작 가능)
+- **3D 비행체 전투**: Three.js 기반 3D 그래픽
+- **실시간 동기화**: Socket.IO를 통한 실시간 플레이어 동기화
+- **플레이어별 고유 색상**: 각 플레이어마다 다른 색상의 비행체
+- **물리 엔진**: 현실적인 비행 물리 법칙 적용
+- **충돌 감지**: 총알, 비행체, 지형 간 충돌 감지
+- **폭발 효과**: 충돌 시 파티클 폭발 효과
+- **리스폰 시스템**: 파괴된 비행체 자동 재생성
+- **카메라 시점**: 1인칭/3인칭 시점 전환 (C키)
 
-### 🎯 Combat System
-- **Machine Gun**: High-rate-of-fire weapon system
-- **Smart Targeting**: Visual targeting system with range and angle detection
-- **Destructible Targets**: 10 randomly placed targets with explosion effects
-- **Particle Effects**: Dynamic explosion animations with physics
+## 🏗️ 아키텍처
 
-### 🌍 Environment
-- **Procedural Terrain**: Complex multi-octave noise-generated landscape
-- **Dynamic Water System**: Flowing rivers with animated water surfaces
-- **Volumetric Clouds**: Realistic 3D cloud clusters with movement
-- **Advanced Lighting**: Directional shadows and ambient lighting
+### SOLID 원칙 적용
 
-### 🎮 Controls
+- **Single Responsibility**: 각 클래스는 하나의 책임만 가짐
+- **Open/Closed**: 새로운 엔티티는 기존 코드 수정 없이 확장 가능
+- **Liskov Substitution**: 모든 엔티티는 GameEntity를 대체 가능
+- **Interface Segregation**: 클라이언트는 필요한 인터페이스만 의존
+- **Dependency Inversion**: 고수준 모듈은 추상화에 의존
 
-#### Camera (3rd Person)
-- **Mouse Drag**: Rotate camera
-- **Mouse Wheel**: Zoom in/out
-- **Right Click + Drag**: Pan camera
-
-#### Vehicle Controls
-- **V**: Toggle 1st/3rd person view
-- **W/↑**: Pitch up (nose up)
-- **S/↓**: Pitch down (nose down)
-- **A/←**: Yaw left (turn left)
-- **D/→**: Yaw right (turn right)
-- **Q**: Roll left
-- **E**: Roll right
-- **Shift**: Accelerate (engine thrust)
-- **Ctrl**: Decelerate/Reverse
-- **Space**: Ascend
-- **X**: Descend
-
-#### Combat
-- **P**: Fire machine gun
-- **Left Mouse Click**: Fire machine gun
-
-#### 1st Person Mode
-- **Mouse**: Look around (with pointer lock)
-- All vehicle controls remain the same
-
-## 🛠 Technical Implementation
-
-### Modern Three.js Architecture
-- **ES6 Modules**: Latest import/export syntax
-- **Three.js r160**: Most recent stable version
-- **Import Maps**: Browser-native module resolution
-- **Modern Material System**: Updated material type checking
-- **Optimized Geometry Updates**: Efficient vertex buffer management
-
-### Performance Features
-- **Efficient Rendering**: Optimized draw calls and geometry updates
-- **Memory Management**: Proper cleanup and disposal
-- **Smooth Animations**: 60fps target with delta time calculations
-- **Responsive Design**: Automatic window resize handling
-
-## 🚀 Getting Started
-
-### Prerequisites
-- Modern web browser with ES6 module support
-- Node.js (for development server)
-
-### Installation & Running
-
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd test2
-   ```
-
-2. **Start development server**
-   ```bash
-   npx serve . -p 3000
-   ```
-
-3. **Open in browser**
-   ```
-   http://localhost:3000
-   ```
-
-## 📁 Project Structure
+### 프로젝트 구조
 
 ```
-test2/
-├── index.html          # Main HTML file with ES6 module setup
-├── terrain.js          # Main game logic with modern Three.js
-├── README.md          # This file
-└── .git/              # Git repository
+├── server/                 # 백엔드 서버
+│   ├── entities/           # 게임 엔티티 클래스들
+│   │   ├── GameEntity.js   # 기본 엔티티 클래스
+│   │   ├── Vehicle.js      # 비행체 클래스
+│   │   ├── Bullet.js       # 총알 클래스
+│   │   └── Explosion.js    # 폭발 효과 클래스
+│   ├── services/           # 서비스 레이어
+│   │   └── GameManager.js  # 게임 매니저
+│   ├── config/             # 설정 파일
+│   │   └── game-config.yaml # 게임 설정
+│   └── index.js            # 메인 서버 파일
+├── client/                 # 프론트엔드 클라이언트
+│   ├── index.html          # 메인 HTML
+│   └── js/
+│       └── GameClient.js   # 게임 클라이언트 로직
+└── package.json            # 프로젝트 설정
 ```
 
-## 🔧 Code Architecture
+## 🚀 설치 및 실행
 
-### ES6 Module System
-```javascript
-import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+### 필요 조건
+
+- Node.js 14.0 이상
+- npm 또는 yarn
+
+### 설치
+
+```bash
+# 저장소 클론
+git clone <repository-url>
+cd multiplayer-vehicle-game
+
+# 의존성 설치
+npm install
 ```
 
-### Modern Three.js Patterns
-- **Material Type Checking**: `material.isMeshPhongMaterial`
-- **Geometry Updates**: `computeBoundingBox()`, `computeBoundingSphere()`
-- **Event Handling**: `DOMContentLoaded` instead of `window.load`
-- **Import Maps**: Browser-native module resolution
+### 실행
 
-### Game Systems
-- **Physics Engine**: Custom 6-DOF flight dynamics
-- **Collision Detection**: Sphere-based bullet-target collision
-- **Particle System**: Custom explosion effects
-- **Terrain Generation**: Multi-octave Perlin noise
-- **Water Simulation**: Vertex-based wave animation
+```bash
+# 서버 시작
+npm start
 
-## 🎯 Gameplay
+# 또는
+node server/index.js
+```
 
-1. **Take Off**: Use Shift to accelerate and Space to gain altitude
-2. **Navigate**: Use WASD for directional control, QE for rolling
-3. **Switch Views**: Press V to toggle between 1st and 3rd person
-4. **Target Practice**: Green glowing targets indicate they're in range
-5. **Shoot**: Use P key or left mouse click to fire
-6. **Survive**: Avoid crashing into terrain (minimum altitude enforced)
+서버가 시작되면 다음 주소로 접속:
+- **게임 클라이언트**: http://localhost:3001
+- **서버 상태**: http://localhost:3001/api/status
 
-## 🔄 Recent Updates
+## 🎯 게임 조작법
 
-### v2.0 - Modern Three.js Implementation
-- ✅ Upgraded to Three.js r160
-- ✅ Implemented ES6 module system
-- ✅ Added Import Maps for module resolution
-- ✅ Modernized material type checking
-- ✅ Improved geometry update methods
-- ✅ Enhanced DOM loading patterns
+### 키보드 조작
 
-### v1.0 - Core Game Features
-- ✅ 3D flying vehicle with realistic physics
-- ✅ Dual camera system (1st/3rd person)
-- ✅ Machine gun shooting mechanics
-- ✅ Target system with visual feedback
-- ✅ Procedural terrain and water
-- ✅ Particle explosion effects
-- ✅ Engine glow effects
+- **W/S**: 비행체 상하 회전 (피치)
+- **A/D**: 비행체 좌우 회전 (요)
+- **Q/E**: 비행체 롤링
+- **스페이스바**: 기관총 발사
+- **C**: 1인칭/3인칭 시점 전환
 
-## 🐛 Known Issues
+### 마우스 조작
 
-- None currently reported
+- **마우스 이동**: 카메라 회전 (3인칭 모드)
+- **마우스 클릭**: 미사일 발사
 
-## 🤝 Contributing
+## 🛠️ 기술 스택
 
-Feel free to submit issues and enhancement requests!
+### 백엔드
+- **Node.js**: 서버 런타임
+- **Express**: 웹 서버 프레임워크
+- **Socket.IO**: 실시간 통신
+- **YAML**: 설정 파일 관리
+- **UUID**: 고유 ID 생성
 
-## 📄 License
+### 프론트엔드
+- **Three.js**: 3D 그래픽 렌더링
+- **Socket.IO Client**: 서버 통신
+- **HTML5 Canvas**: 렌더링 컨텍스트
 
-This project is open source and available under the [MIT License](LICENSE).
+## ⚙️ 게임 설정
 
----
+`server/config/game-config.yaml` 파일에서 게임 설정을 변경할 수 있습니다:
 
-**Built with ❤️ using Three.js r160 and modern web technologies** 
+```yaml
+game:
+  maxPlayers: 8
+  minPlayers: 1
+  respawnTime: 3000
+  
+world:
+  size: 2000
+  gravity: 0
+  
+vehicle:
+  speed: 50
+  rotationSpeed: 2.5
+  health: 100
+  
+weapons:
+  bullet:
+    speed: 200
+    damage: 25
+    lifetime: 3000
+  missile:
+    speed: 150
+    damage: 50
+    lifetime: 5000
+```
+
+## 🎨 게임 특징 상세
+
+### 비행체 시스템
+- 현실적인 비행 물리 법칙
+- 관성과 가속도 적용
+- 3축 회전 (피치, 요, 롤)
+- 플레이어별 고유 색상
+
+### 무기 시스템
+- **기관총**: 연속 발사 가능, 빠른 속도
+- **미사일**: 강력한 데미지, 느린 속도
+
+### 지형 시스템
+- 절차적 생성 지형
+- 높이맵 기반 충돌 감지
+- 나무와 환경 오브젝트 배치
+
+### 멀티플레이어
+- 실시간 플레이어 동기화
+- 지연 보상 시스템
+- 안정적인 서버-클라이언트 통신
+
+## 🐛 문제 해결
+
+### 일반적인 문제들
+
+1. **게임이 로드되지 않음**
+   - 브라우저 콘솔에서 오류 확인
+   - 서버가 정상 실행 중인지 확인
+
+2. **조작이 안됨**
+   - 게임 화면을 클릭하여 포커스 설정
+   - 키보드 레이아웃 확인
+
+3. **연결 문제**
+   - 방화벽 설정 확인
+   - 포트 3001이 사용 가능한지 확인
+
+## 📝 개발 로그
+
+이 게임은 단일 파일 3D 비행체 시뮬레이션을 멀티플레이어 게임으로 발전시킨 프로젝트입니다. 개발 과정에서 해결한 주요 문제들:
+
+- Three.js Quaternion 호환성 문제
+- 키보드 입력 처리 최적화
+- 카메라 시스템 개선
+- 비행체 물리 법칙 조정
+- 지형 충돌 감지 정확도 향상
+
+## 🤝 기여하기
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## 📄 라이선스
+
+이 프로젝트는 MIT 라이선스 하에 배포됩니다.
+
+## 🎯 향후 계획
+
+- [ ] 팀 모드 추가
+- [ ] 다양한 무기 시스템
+- [ ] 업그레이드 시스템
+- [ ] 맵 에디터
+- [ ] 리플레이 시스템
+- [ ] 랭킹 시스템 

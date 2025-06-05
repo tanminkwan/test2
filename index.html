@@ -57,11 +57,12 @@
         
         <p><strong>비행체 조작:</strong></p>
         <p>V: 1인칭/3인칭 시점 전환</p>
-        <p>W/↑: 전진 | S/↓: 후진</p>
+        <p>W/↑: 기수 올리기 | S/↓: 기수 내리기</p>
         <p>A/←: 좌회전 | D/→: 우회전</p>
         <p>Q: 좌측 롤 | E: 우측 롤</p>
-        <p>R: 기수 올리기 | F: 기수 내리기</p>
-        <p>Space: 상승 | Shift: 하강</p>
+        <p>Shift: 가속 (엔진 추진) | Ctrl: 감속/후진</p>
+        <p>Space: 상승 | X: 하강</p>
+        <p>P: 기관총 발사 | 마우스 좌클릭: 기관총 발사</p>
         
         <p><strong>1인칭 시점:</strong></p>
         <p>마우스: 시선 조절</p>
@@ -71,6 +72,24 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <!-- OrbitControls -->
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    
+    <!-- 테스트 스크립트 -->
+    <script>
+        // Three.js 로딩 확인
+        console.log('Three.js version:', THREE.REVISION);
+        console.log('OrbitControls available:', typeof THREE.OrbitControls !== 'undefined');
+        
+        // 간단한 테스트
+        try {
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            const renderer = new THREE.WebGLRenderer();
+            console.log('Three.js 초기화 성공');
+        } catch (error) {
+            console.error('Three.js 초기화 실패:', error);
+        }
+    </script>
+    
     <!-- 메인 스크립트 -->
     <script src="terrain.js"></script>
 </body>

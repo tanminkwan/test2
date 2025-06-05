@@ -244,8 +244,17 @@
                 <input type="text" id="playerName" placeholder="플레이어 이름" maxlength="20">
                 <br>
                 <button onclick="joinGame()">게임 시작</button>
+                <br>
+                <button onclick="toggleNetworkInfo()" style="background: #2196F3; margin-top: 10px;">네트워크 정보</button>
             </div>
             <div id="connectionStatus">서버에 연결 중...</div>
+            
+            <!-- 네트워크 정보 패널 -->
+            <div id="networkInfo" class="hidden" style="background: rgba(0,0,0,0.8); padding: 20px; border-radius: 10px; margin-top: 20px; max-width: 500px;">
+                <h3>🌐 네트워크 접속 정보</h3>
+                <div id="networkDetails">로딩 중...</div>
+                <button onclick="toggleNetworkInfo()" style="background: #f44336; margin-top: 10px;">닫기</button>
+            </div>
         </div>
         
         <!-- 게임 캔버스 -->
@@ -314,6 +323,7 @@
             socket.on('connect', () => {
                 console.log('서버에 연결됨');
                 document.getElementById('connectionStatus').textContent = '서버 연결됨';
+                loadNetworkInfo(); // 네트워크 정보 로드
             });
             
             socket.on('disconnect', () => {
@@ -330,6 +340,73 @@
                 console.log('게임 참가 실패', data);
                 alert(`게임 참가 실패: ${data.reason}`);
             });
+        }
+        
+        // 네트워크 정보 로드
+        async function loadNetworkInfo() {
+            try {
+                const response = await fetch('/api/network');
+                const networkData = await response.json();
+                displayNetworkInfo(networkData);
+            } catch (error) {
+                console.error('네트워크 정보 로드 실패:', error);
+                document.getElementById('networkDetails').innerHTML = '네트워크 정보를 불러올 수 없습니다.';
+            }
+        }
+        
+        // 네트워크 정보 표시
+        function displayNetworkInfo(data) {
+            const networkDetails = document.getElementById('networkDetails');
+            
+            let html = `
+                <div style="text-align: left; font-size: 14px;">
+                    <p><strong>🔗 서버 상태:</strong> ${data.externalAccess ? '외부 접근 허용' : '로컬 접근만'}</p>
+                    <p><strong>🏠 호스트:</strong> ${data.host}</p>
+                    <p><strong>🔌 포트:</strong> ${data.port}</p>
+            `;
+            
+            if (data.externalAccess && data.interfaces.length > 0) {
+                html += `
+                    <p><strong>🌐 외부 접속 주소:</strong></p>
+                    <ul style="margin: 5px 0; padding-left: 20px;">
+                `;
+                
+                data.accessUrls.forEach((url, index) => {
+                    const interfaceName = data.interfaces[index]?.name || 'Unknown';
+                    html += `<li><a href="${url}" target="_blank" style="color: #4CAF50;">${url}</a> (${interfaceName})</li>`;
+                });
+                
+                html += `</ul>`;
+                
+                if (data.publicUrl) {
+                    html += `<p><strong>🌍 공개 URL:</strong> <a href="${data.publicUrl}" target="_blank" style="color: #4CAF50;">${data.publicUrl}</a></p>`;
+                }
+                
+                html += `
+                    <div style="background: rgba(255,193,7,0.2); padding: 10px; border-radius: 5px; margin-top: 10px;">
+                        <p style="margin: 0; font-size: 12px;"><strong>⚠️ 보안 주의사항:</strong></p>
+                        <p style="margin: 5px 0 0 0; font-size: 12px;">• 외부 네트워크에서 접근 가능합니다</p>
+                        <p style="margin: 0; font-size: 12px;">• 방화벽 설정을 확인하세요</p>
+                    </div>
+                `;
+            } else {
+                html += `
+                    <div style="background: rgba(76,175,80,0.2); padding: 10px; border-radius: 5px; margin-top: 10px;">
+                        <p style="margin: 0; font-size: 12px;"><strong>🔒 로컬 접근만:</strong></p>
+                        <p style="margin: 5px 0 0 0; font-size: 12px;">• 같은 컴퓨터에서만 접근 가능</p>
+                        <p style="margin: 0; font-size: 12px;">• 외부 접근을 허용하려면 설정을 변경하세요</p>
+                    </div>
+                `;
+            }
+            
+            html += `</div>`;
+            networkDetails.innerHTML = html;
+        }
+        
+        // 네트워크 정보 패널 토글
+        function toggleNetworkInfo() {
+            const networkInfo = document.getElementById('networkInfo');
+            networkInfo.classList.toggle('hidden');
         }
         
         // 게임 참가

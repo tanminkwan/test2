@@ -8,7 +8,16 @@ game:
   
 server:
   port: 3001
+  host: "0.0.0.0"  # 모든 인터페이스에서 접근 허용 (외부 접근용)
   tickRate: 60  # 서버 업데이트 주기 (Hz)
+  
+# 네트워크 설정
+network:
+  allowExternalAccess: true  # 외부 접근 허용 여부
+  cors:
+    enabled: true
+    origins: "*"  # 허용할 도메인 (* = 모든 도메인)
+  publicUrl: ""  # 공개 URL (비어있으면 자동 감지)
   
 world:
   size: 400

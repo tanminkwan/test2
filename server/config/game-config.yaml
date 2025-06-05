@@ -25,6 +25,26 @@ world:
   waterLevel: -5
   gravity: -9.81
   
+# 광고판 설정
+billboards:
+  enabled: true
+  count: 5  # 광고판 개수
+  width: 40  # 광고판 너비
+  height: 20  # 광고판 높이
+  thickness: 2  # 광고판 두께
+  health: 80  # 광고판 체력 (총알 8발 정도로 파괴)
+  minDistance: 80  # 광고판 간 최소 거리
+  images:
+    front: "assets/billboards/front.svg"  # 앞면 이미지
+    back: "assets/billboards/back.svg"    # 뒷면 이미지
+    # 여러 이미지 사용 시 배열로 설정 가능
+    # front: 
+    #   - "assets/billboards/ad1.jpg"
+    #   - "assets/billboards/ad2.jpg"
+    # back:
+    #   - "assets/billboards/ad3.jpg"
+    #   - "assets/billboards/ad4.jpg"
+  
 vehicles:
   maxSpeed: 100
   acceleration: 50

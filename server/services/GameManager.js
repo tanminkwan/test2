@@ -2,6 +2,7 @@ const { v4: uuidv4 } = require('uuid');
 const Vehicle = require('../entities/Vehicle');
 const Bullet = require('../entities/Bullet');
 const Explosion = require('../entities/Explosion');
+const Billboard = require('../entities/Billboard');
 
 /**
  * 게임 매니저 클래스 (Dependency Inversion Principle)
@@ -18,6 +19,7 @@ class GameManager {
         this.vehicles = new Map();
         this.bullets = new Map();
         this.explosions = new Map();
+        this.billboards = new Map(); // 광고판 추가
         
         // 게임 설정
         this.maxPlayers = config.game.maxPlayers;
@@ -32,7 +34,151 @@ class GameManager {
         this.tickRate = config.server.tickRate;
         this.tickInterval = 1000 / this.tickRate;
         
+        // 광고판 생성
+        this.createBillboards();
+        
         this.startGameLoop();
+    }
+
+    /**
+     * 광고판 생성
+     */
+    createBillboards() {
+        if (!this.config.billboards || !this.config.billboards.enabled) {
+            return;
+        }
+
+        const billboardConfig = this.config.billboards;
+        const worldSize = this.config.world.size;
+        const count = billboardConfig.count || 5;
+        const minDistance = billboardConfig.minDistance || 80;
+
+        const positions = [];
+
+        for (let i = 0; i < count; i++) {
+            let position;
+            let attempts = 0;
+            const maxAttempts = 100; // 더 많은 시도 횟수
+
+            // 다른 광고판과 충분한 거리를 두고 평평한 지역에 배치
+            do {
+                // 더 넓은 범위에서 위치 선택 (중앙 지역 선호)
+                const angle = Math.random() * Math.PI * 2;
+                const distance = Math.random() * worldSize * 0.3 + 50; // 중심에서 50-200 거리
+                
+                const x = Math.cos(angle) * distance;
+                const z = Math.sin(angle) * distance;
+                
+                // 지형 높이 계산 (클라이언트와 동일한 공식 사용)
+                const terrainHeight = this.getTerrainHeight(x, z);
+                
+                // 평평한 지역인지 확인 (주변 높이 차이 검사)
+                const isFlat = this.isTerrainFlat(x, z, 20); // 20 단위 반경 내 평평함 검사
+                
+                position = {
+                    x: x,
+                    y: Math.max(terrainHeight + billboardConfig.height / 2 + 5, this.config.world.waterLevel + billboardConfig.height / 2 + 5), // 지형 위 5 단위 여유
+                    z: z
+                };
+                
+                attempts++;
+            } while (attempts < maxAttempts && 
+                    (!this.isTerrainFlat(position.x, position.z, 15) || 
+                     this.isTooCloseToOtherBillboards(position, positions, minDistance) ||
+                     this.getTerrainHeight(position.x, position.z) < this.config.world.waterLevel + 5)); // 물 위 5 단위 이상
+
+            if (attempts < maxAttempts) {
+                positions.push(position);
+
+                const billboardId = uuidv4();
+                const rotation = {
+                    x: 0,
+                    y: Math.random() * Math.PI * 2, // 랜덤 방향
+                    z: 0
+                };
+
+                // 이미지 선택 (배열인 경우 랜덤 선택)
+                const frontImage = this.selectRandomImage(billboardConfig.images.front);
+                const backImage = this.selectRandomImage(billboardConfig.images.back);
+
+                const billboard = new Billboard(billboardId, position, rotation, {
+                    width: billboardConfig.width,
+                    height: billboardConfig.height,
+                    thickness: billboardConfig.thickness,
+                    frontImage: frontImage,
+                    backImage: backImage
+                });
+
+                this.billboards.set(billboardId, billboard);
+            }
+        }
+
+        console.log(`Created ${this.billboards.size} billboards`);
+    }
+
+    /**
+     * 지형 높이 계산 (클라이언트와 동일한 공식)
+     */
+    getTerrainHeight(x, z) {
+        const height = 
+            Math.sin(x * 0.008) * 25 +
+            Math.cos(z * 0.008) * 25 +
+            Math.sin(x * 0.015) * 15 +
+            Math.cos(z * 0.015) * 15 +
+            Math.sin(x * 0.03) * 8 +
+            Math.cos(z * 0.03) * 8 +
+            Math.sin(x * 0.05) * 4 +
+            Math.cos(z * 0.05) * 4;
+            
+        return height;
+    }
+
+    /**
+     * 지형이 평평한지 확인
+     */
+    isTerrainFlat(x, z, radius) {
+        const centerHeight = this.getTerrainHeight(x, z);
+        const checkPoints = 8; // 8방향 체크
+        const maxHeightDiff = 10; // 최대 높이 차이 허용값
+        
+        for (let i = 0; i < checkPoints; i++) {
+            const angle = (i / checkPoints) * Math.PI * 2;
+            const checkX = x + Math.cos(angle) * radius;
+            const checkZ = z + Math.sin(angle) * radius;
+            const checkHeight = this.getTerrainHeight(checkX, checkZ);
+            
+            if (Math.abs(checkHeight - centerHeight) > maxHeightDiff) {
+                return false; // 높이 차이가 너무 크면 평평하지 않음
+            }
+        }
+        
+        return true;
+    }
+
+    /**
+     * 다른 광고판과의 거리 체크
+     */
+    isTooCloseToOtherBillboards(position, existingPositions, minDistance) {
+        for (const existingPos of existingPositions) {
+            const dx = position.x - existingPos.x;
+            const dz = position.z - existingPos.z;
+            const distance = Math.sqrt(dx * dx + dz * dz);
+            
+            if (distance < minDistance) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 이미지 선택 (배열인 경우 랜덤 선택)
+     */
+    selectRandomImage(imageConfig) {
+        if (Array.isArray(imageConfig)) {
+            return imageConfig[Math.floor(Math.random() * imageConfig.length)];
+        }
+        return imageConfig;
     }
 
     /**
@@ -319,6 +465,7 @@ class GameManager {
         for (const [bulletId, bullet] of this.bullets) {
             if (!bullet.active) continue;
 
+            // 비행체와의 충돌 검사
             for (const [vehicleId, vehicle] of this.vehicles) {
                 if (!vehicle.active) continue;
                 if (bullet.shooterId === vehicle.playerId) continue;
@@ -367,6 +514,56 @@ class GameManager {
                     break;
                 }
             }
+            
+            // 총알이 이미 제거되었으면 다음 총알로
+            if (!bullet.active) continue;
+            
+            // 광고판과의 충돌 검사
+            for (const [billboardId, billboard] of this.billboards) {
+                if (billboard.checkCollision(bullet)) {
+                    // 광고판에 데미지 적용
+                    const destroyed = billboard.takeDamage(bullet.damage);
+                    
+                    if (destroyed) {
+                        // 광고판 파괴 시 폭발 효과
+                        this.createExplosion(billboard.position);
+                        
+                        // 파편 생성
+                        const debrisData = billboard.getDebrisData();
+                        
+                        // 광고판 파괴 이벤트 발생
+                        this.eventEmitter.emit('billboardDestroyed', {
+                            billboardId: billboardId,
+                            billboard: billboard.toClientData(),
+                            debris: debrisData,
+                            destroyedBy: bullet.shooterId
+                        });
+                        
+                        // 파괴자에게 점수 추가
+                        const shooter = this.players.get(bullet.shooterId);
+                        if (shooter) {
+                            shooter.score += 50; // 광고판 파괴 점수
+                        }
+                        
+                        console.log(`Billboard ${billboardId} destroyed by player ${bullet.shooterId}`);
+                    } else {
+                        // 파괴되지 않았다면 총알 자국 추가
+                        const bulletHole = billboard.addBulletHole(bullet.position, bullet.velocity);
+                        
+                        if (bulletHole) {
+                            // 총알 자국 생성 이벤트 발생
+                            this.eventEmitter.emit('bulletHoleCreated', {
+                                billboardId: billboardId,
+                                bulletHole: bulletHole
+                            });
+                        }
+                    }
+                    
+                    // 총알 제거
+                    bullet.destroy();
+                    break;
+                }
+            }
         }
     }
 
@@ -384,6 +581,9 @@ class GameManager {
             explosions: Array.from(this.explosions.values())
                 .filter(e => e.active)
                 .map(e => e.toClientData()),
+            billboards: Array.from(this.billboards.values())
+                .filter(b => !b.isDestroyed)
+                .map(b => b.toClientData()),
             players: Array.from(this.players.values())
         };
 
@@ -399,7 +599,10 @@ class GameManager {
             players: Array.from(this.players.values()),
             vehicles: Array.from(this.vehicles.values()).map(v => v.toClientData()),
             bullets: Array.from(this.bullets.values()).map(b => b.toClientData()),
-            explosions: Array.from(this.explosions.values()).map(e => e.toClientData())
+            explosions: Array.from(this.explosions.values()).map(e => e.toClientData()),
+            billboards: Array.from(this.billboards.values())
+                .filter(b => !b.isDestroyed) // 파괴된 광고판 제외
+                .map(b => b.toClientData())
         };
     }
 }

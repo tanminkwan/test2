@@ -21,6 +21,7 @@ export class GameClient {
         this.vehicles = new Map();
         this.bullets = new Map();
         this.explosions = new Map();
+        this.billboards = new Map();
         this.terrain = null;
         this.sky = null;
         this.clouds = [];
@@ -513,6 +514,231 @@ export class GameClient {
     }
 
     /**
+     * 광고판 생성
+     */
+    createBillboard(billboardData) {
+        const billboardGroup = new THREE.Group();
+        
+        // 광고판 프레임 (지지대)
+        const frameGeometry = new THREE.BoxGeometry(
+            billboardData.width + 2, 
+            billboardData.height + 2, 
+            billboardData.thickness
+        );
+        const frameMaterial = new THREE.MeshLambertMaterial({ 
+            color: 0x444444 
+        });
+        const frame = new THREE.Mesh(frameGeometry, frameMaterial);
+        frame.castShadow = true;
+        frame.receiveShadow = true;
+        billboardGroup.add(frame);
+        
+        // 텍스처 로더
+        const textureLoader = new THREE.TextureLoader();
+        
+        // 앞면 광고판
+        const frontGeometry = new THREE.PlaneGeometry(
+            billboardData.width, 
+            billboardData.height
+        );
+        
+        // 앞면 이미지 로드 (기본 이미지로 대체 가능)
+        textureLoader.load(
+            billboardData.frontImage,
+            (texture) => {
+                const frontMaterial = new THREE.MeshLambertMaterial({ 
+                    map: texture 
+                });
+                const frontPanel = new THREE.Mesh(frontGeometry, frontMaterial);
+                frontPanel.position.z = billboardData.thickness / 2 + 0.1;
+                frontPanel.castShadow = true;
+                frontPanel.userData.side = 'front';
+                billboardGroup.add(frontPanel);
+                billboardGroup.userData.frontPanel = frontPanel;
+            },
+            undefined,
+            (error) => {
+                console.warn('Failed to load front billboard image:', billboardData.frontImage);
+                // 기본 텍스처 사용
+                const frontMaterial = new THREE.MeshLambertMaterial({ 
+                    color: 0x00ff00,
+                    transparent: true,
+                    opacity: 0.8
+                });
+                const frontPanel = new THREE.Mesh(frontGeometry, frontMaterial);
+                frontPanel.position.z = billboardData.thickness / 2 + 0.1;
+                frontPanel.castShadow = true;
+                frontPanel.userData.side = 'front';
+                billboardGroup.add(frontPanel);
+                billboardGroup.userData.frontPanel = frontPanel;
+                
+                // 텍스트 추가 (기본 광고)
+                this.addBillboardText(frontPanel, "GAME\nADVERTISEMENT", 0x000000);
+            }
+        );
+        
+        // 뒷면 광고판
+        const backGeometry = new THREE.PlaneGeometry(
+            billboardData.width, 
+            billboardData.height
+        );
+        
+        textureLoader.load(
+            billboardData.backImage,
+            (texture) => {
+                const backMaterial = new THREE.MeshLambertMaterial({ 
+                    map: texture 
+                });
+                const backPanel = new THREE.Mesh(backGeometry, backMaterial);
+                backPanel.position.z = -(billboardData.thickness / 2 + 0.1);
+                backPanel.rotation.y = Math.PI; // 뒤쪽을 향하도록 회전
+                backPanel.castShadow = true;
+                backPanel.userData.side = 'back';
+                billboardGroup.add(backPanel);
+                billboardGroup.userData.backPanel = backPanel;
+            },
+            undefined,
+            (error) => {
+                console.warn('Failed to load back billboard image:', billboardData.backImage);
+                // 기본 텍스처 사용
+                const backMaterial = new THREE.MeshLambertMaterial({ 
+                    color: 0x0000ff,
+                    transparent: true,
+                    opacity: 0.8
+                });
+                const backPanel = new THREE.Mesh(backGeometry, backMaterial);
+                backPanel.position.z = -(billboardData.thickness / 2 + 0.1);
+                backPanel.rotation.y = Math.PI;
+                backPanel.castShadow = true;
+                backPanel.userData.side = 'back';
+                billboardGroup.add(backPanel);
+                billboardGroup.userData.backPanel = backPanel;
+                
+                // 텍스트 추가 (기본 광고)
+                this.addBillboardText(backPanel, "MULTIPLAYER\nCOMBAT", 0xffffff);
+            }
+        );
+        
+        // 지지대 기둥들
+        const poleGeometry = new THREE.CylinderGeometry(0.5, 0.5, billboardData.height);
+        const poleMaterial = new THREE.MeshLambertMaterial({ color: 0x666666 });
+        
+        // 왼쪽 기둥
+        const leftPole = new THREE.Mesh(poleGeometry, poleMaterial);
+        leftPole.position.set(-billboardData.width / 2 - 1, -billboardData.height / 2, 0);
+        leftPole.castShadow = true;
+        billboardGroup.add(leftPole);
+        
+        // 오른쪽 기둥
+        const rightPole = new THREE.Mesh(poleGeometry, poleMaterial);
+        rightPole.position.set(billboardData.width / 2 + 1, -billboardData.height / 2, 0);
+        rightPole.castShadow = true;
+        billboardGroup.add(rightPole);
+        
+        // 위치 및 회전 설정
+        billboardGroup.position.set(
+            billboardData.position.x,
+            billboardData.position.y,
+            billboardData.position.z
+        );
+        
+        billboardGroup.rotation.set(
+            billboardData.rotation.x,
+            billboardData.rotation.y,
+            billboardData.rotation.z
+        );
+        
+        billboardGroup.userData = { 
+            billboardData: billboardData,
+            bulletHoles: new THREE.Group() // 총알 자국 그룹
+        };
+        
+        // 총알 자국 그룹 추가
+        billboardGroup.add(billboardGroup.userData.bulletHoles);
+        
+        // 기존 총알 자국이 있다면 생성
+        if (billboardData.bulletHoles && billboardData.bulletHoles.length > 0) {
+            billboardData.bulletHoles.forEach(bulletHole => {
+                this.createBulletHole(billboardGroup, bulletHole);
+            });
+        }
+        
+        this.billboards.set(billboardData.id, billboardGroup);
+        this.scene.add(billboardGroup);
+        
+        return billboardGroup;
+    }
+
+    /**
+     * 총알 자국 생성
+     */
+    createBulletHole(billboardGroup, bulletHoleData) {
+        const bulletHoleGeometry = new THREE.CircleGeometry(bulletHoleData.size || 0.5, 8);
+        const bulletHoleMaterial = new THREE.MeshBasicMaterial({
+            color: 0x000000,
+            transparent: true,
+            opacity: 0.8,
+            side: THREE.DoubleSide
+        });
+        
+        const bulletHole = new THREE.Mesh(bulletHoleGeometry, bulletHoleMaterial);
+        
+        // 총알 자국 위치 설정
+        bulletHole.position.set(
+            bulletHoleData.position.x,
+            bulletHoleData.position.y,
+            bulletHoleData.position.z
+        );
+        
+        // 앞면/뒷면에 따라 회전 조정
+        if (bulletHoleData.side === 'back') {
+            bulletHole.rotation.y = Math.PI;
+        }
+        
+        // 약간의 랜덤 회전 추가 (자연스러운 효과)
+        bulletHole.rotation.z = Math.random() * Math.PI * 2;
+        
+        // 총알 자국 그룹에 추가
+        billboardGroup.userData.bulletHoles.add(bulletHole);
+        
+        return bulletHole;
+    }
+
+    /**
+     * 광고판에 텍스트 추가 (기본 광고용)
+     */
+    addBillboardText(panel, text, color) {
+        // Canvas를 사용하여 텍스트 텍스처 생성
+        const canvas = document.createElement('canvas');
+        canvas.width = 512;
+        canvas.height = 256;
+        const context = canvas.getContext('2d');
+        
+        // 배경
+        context.fillStyle = panel.material.color.getStyle();
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // 텍스트
+        context.fillStyle = `#${color.toString(16).padStart(6, '0')}`;
+        context.font = 'bold 48px Arial';
+        context.textAlign = 'center';
+        context.textBaseline = 'middle';
+        
+        const lines = text.split('\n');
+        const lineHeight = 60;
+        const startY = canvas.height / 2 - (lines.length - 1) * lineHeight / 2;
+        
+        lines.forEach((line, index) => {
+            context.fillText(line, canvas.width / 2, startY + index * lineHeight);
+        });
+        
+        // 텍스처 생성 및 적용
+        const texture = new THREE.CanvasTexture(canvas);
+        panel.material.map = texture;
+        panel.material.needsUpdate = true;
+    }
+
+    /**
      * 입력 컨트롤 설정 - 원래 게임과 동일
      */
     setupControls() {
@@ -788,6 +1014,29 @@ export class GameClient {
             }
         });
         
+        this.socket.on('bulletHoleCreated', (data) => {
+            const billboard = this.billboards.get(data.billboardId);
+            if (billboard) {
+                this.createBulletHole(billboard, data.bulletHole);
+            }
+        });
+        
+        this.socket.on('billboardDestroyed', (data) => {
+            const billboard = this.billboards.get(data.billboardId);
+            if (billboard) {
+                console.log(`Billboard ${data.billboardId} destroyed by player ${data.destroyedBy}`);
+                
+                // 파편 효과 생성
+                if (data.debris) {
+                    this.createDebrisEffect(data.debris);
+                }
+                
+                // 광고판 즉시 제거
+                this.scene.remove(billboard);
+                this.billboards.delete(data.billboardId);
+            }
+        });
+        
         this.socket.on('vehicleDestroyed', (data) => {
             console.log('Vehicle destroyed:', data);
         });
@@ -915,6 +1164,42 @@ export class GameClient {
             }
         }
         
+        // 광고판 업데이트 (초기 로드 시에만)
+        if (gameState.billboards && gameState.billboards.length >= 0) {
+            // 현재 존재하는 광고판 ID 목록
+            const currentBillboardIds = new Set(gameState.billboards.map(b => b.id));
+            
+            // 클라이언트에 있지만 서버에 없는 광고판 제거 (파괴된 광고판)
+            for (const [billboardId, billboard] of this.billboards) {
+                if (!currentBillboardIds.has(billboardId)) {
+                    console.log(`Removing destroyed billboard: ${billboardId}`);
+                    this.scene.remove(billboard);
+                    this.billboards.delete(billboardId);
+                }
+            }
+            
+            // 새로운 광고판 생성 또는 기존 광고판 업데이트
+            gameState.billboards.forEach(billboardData => {
+                let billboard = this.billboards.get(billboardData.id);
+                if (!billboard) {
+                    billboard = this.createBillboard(billboardData);
+                } else {
+                    // 기존 광고판의 총알 자국 업데이트
+                    if (billboardData.bulletHoles && billboardData.bulletHoles.length > 0) {
+                        const currentHoleCount = billboard.userData.bulletHoles.children.length;
+                        const newHoleCount = billboardData.bulletHoles.length;
+                        
+                        // 새로운 총알 자국이 추가된 경우
+                        if (newHoleCount > currentHoleCount) {
+                            for (let i = currentHoleCount; i < newHoleCount; i++) {
+                                this.createBulletHole(billboard, billboardData.bulletHoles[i]);
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
         this.updatePlayerInfo();
         this.updatePlayerList();
     }
@@ -981,5 +1266,111 @@ export class GameClient {
         
         // 렌더링
         this.renderer.render(this.scene, this.camera);
+    }
+
+    /**
+     * 파편 효과 생성
+     */
+    createDebrisEffect(debrisData) {
+        debrisData.forEach(debris => {
+            // 파편 지오메트리 (랜덤한 모양)
+            const debrisGeometry = new THREE.BoxGeometry(
+                debris.size,
+                debris.size * (0.5 + Math.random() * 0.5),
+                debris.size * (0.3 + Math.random() * 0.4)
+            );
+            
+            const debrisMaterial = new THREE.MeshLambertMaterial({
+                color: debris.color
+            });
+            
+            const debrisMesh = new THREE.Mesh(debrisGeometry, debrisMaterial);
+            
+            // 초기 위치 설정
+            debrisMesh.position.set(
+                debris.position.x,
+                debris.position.y,
+                debris.position.z
+            );
+            
+            // 초기 회전 설정
+            debrisMesh.rotation.set(
+                debris.rotation.x,
+                debris.rotation.y,
+                debris.rotation.z
+            );
+            
+            debrisMesh.castShadow = true;
+            
+            // 파편 데이터 저장
+            debrisMesh.userData = {
+                velocity: { ...debris.velocity },
+                angularVelocity: {
+                    x: (Math.random() - 0.5) * 0.2,
+                    y: (Math.random() - 0.5) * 0.2,
+                    z: (Math.random() - 0.5) * 0.2
+                },
+                gravity: -30,
+                lifeTime: debris.lifeTime,
+                createdAt: Date.now()
+            };
+            
+            this.scene.add(debrisMesh);
+            
+            // 파편 애니메이션 및 제거
+            this.animateDebris(debrisMesh);
+        });
+    }
+    
+    /**
+     * 파편 애니메이션
+     */
+    animateDebris(debrisMesh) {
+        const animate = () => {
+            const now = Date.now();
+            const elapsed = now - debrisMesh.userData.createdAt;
+            
+            // 수명이 다했으면 제거
+            if (elapsed >= debrisMesh.userData.lifeTime) {
+                this.scene.remove(debrisMesh);
+                return;
+            }
+            
+            const deltaTime = 0.016; // 약 60fps
+            
+            // 중력 적용
+            debrisMesh.userData.velocity.y += debrisMesh.userData.gravity * deltaTime;
+            
+            // 위치 업데이트
+            debrisMesh.position.x += debrisMesh.userData.velocity.x * deltaTime;
+            debrisMesh.position.y += debrisMesh.userData.velocity.y * deltaTime;
+            debrisMesh.position.z += debrisMesh.userData.velocity.z * deltaTime;
+            
+            // 회전 업데이트
+            debrisMesh.rotation.x += debrisMesh.userData.angularVelocity.x;
+            debrisMesh.rotation.y += debrisMesh.userData.angularVelocity.y;
+            debrisMesh.rotation.z += debrisMesh.userData.angularVelocity.z;
+            
+            // 지면 충돌 검사 (간단한 바운스)
+            const groundHeight = this.getTerrainHeight(debrisMesh.position.x, debrisMesh.position.z);
+            if (debrisMesh.position.y <= groundHeight) {
+                debrisMesh.position.y = groundHeight;
+                debrisMesh.userData.velocity.y *= -0.3; // 바운스 감쇠
+                debrisMesh.userData.velocity.x *= 0.8; // 마찰
+                debrisMesh.userData.velocity.z *= 0.8;
+            }
+            
+            // 투명도 페이드 아웃 (수명의 마지막 30%에서)
+            const fadeStart = debrisMesh.userData.lifeTime * 0.7;
+            if (elapsed > fadeStart) {
+                const fadeProgress = (elapsed - fadeStart) / (debrisMesh.userData.lifeTime - fadeStart);
+                debrisMesh.material.opacity = 1 - fadeProgress;
+                debrisMesh.material.transparent = true;
+            }
+            
+            requestAnimationFrame(animate);
+        };
+        
+        animate();
     }
 } 

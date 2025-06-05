@@ -1,0 +1,53 @@
+<svg width="1024" height="512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background gradient -->
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1e3c72;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#2a5298;stop-opacity:1" />
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge> 
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="1024" height="512" fill="url(#bgGradient)"/>
+  
+  <!-- Border -->
+  <rect x="10" y="10" width="1004" height="492" fill="none" stroke="#ffffff" stroke-width="4"/>
+  
+  <!-- Main Title -->
+  <text x="512" y="150" font-family="Arial, sans-serif" font-size="72" font-weight="bold" 
+        text-anchor="middle" fill="#ffffff" filter="url(#glow)">
+    VEHICLE COMBAT
+  </text>
+  
+  <!-- Subtitle -->
+  <text x="512" y="220" font-family="Arial, sans-serif" font-size="36" 
+        text-anchor="middle" fill="#ffff00">
+    Multiplayer Arena
+  </text>
+  
+  <!-- Features -->
+  <text x="512" y="300" font-family="Arial, sans-serif" font-size="24" 
+        text-anchor="middle" fill="#ffffff">
+    ✈️ 3D Flying Combat • 🎮 Real-time Multiplayer • 🌐 Online Play
+  </text>
+  
+  <!-- Call to Action -->
+  <rect x="362" y="350" width="300" height="60" fill="#ff4444" stroke="#ffffff" stroke-width="2" rx="10"/>
+  <text x="512" y="390" font-family="Arial, sans-serif" font-size="28" font-weight="bold"
+        text-anchor="middle" fill="#ffffff">
+    JOIN NOW!
+  </text>
+  
+  <!-- Decorative elements -->
+  <circle cx="100" cy="100" r="30" fill="#ffff00" opacity="0.3"/>
+  <circle cx="924" cy="100" r="30" fill="#ffff00" opacity="0.3"/>
+  <circle cx="100" cy="412" r="30" fill="#ffff00" opacity="0.3"/>
+  <circle cx="924" cy="412" r="30" fill="#ffff00" opacity="0.3"/>
+</svg> 

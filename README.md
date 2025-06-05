@@ -12,8 +12,34 @@ SOLID 원칙을 적용한 실시간 멀티플레이어 3D 비행체 전투 게�
 - **충돌 감지**: 총알, 비행체, 지형 간 충돌 감지
 - **폭발 효과**: 충돌 시 파티클 폭발 효과
 - **리스폰 시스템**: 파괴된 비행체 자동 재생성
-- **카메라 시점**: 1인칭/3인칭 시점 전환 (C키)
+- **카메라 시점**: 1인칭/3인칭 시점 전환 (V키)
 - **🌐 외부 접근**: 인터넷을 통한 원격 플레이 지원
+- **📺 파괴 가능한 광고판**: 지상에 설치된 양면 텍스처 광고판
+- **🎯 총알 자국 시스템**: 광고판에 총알이 맞으면 자국이 남음
+- **💥 파편 효과**: 광고판 파괴 시 현실적인 파편 물리 시뮬레이션
+- **🏞️ 지형 기반 배치**: 평평한 지역에만 광고판 자동 배치
+- **🎮 점수 시스템**: 적 격추 및 광고판 파괴로 점수 획득
+
+## 🆕 최신 업데이트 (v2.0)
+
+### 🎯 광고판 파괴 시스템
+- **체력 시스템**: 광고판이 80 HP를 가지며 총알 8발로 파괴 가능
+- **총알 자국**: 파괴되기 전까지 총알이 맞은 위치에 검은 자국이 남음
+- **파편 효과**: 파괴 시 8-20개의 파편이 물리 법칙에 따라 흩어짐
+- **점수 보상**: 광고판 파괴 시 50점 획득
+- **실시간 동기화**: 모든 플레이어가 동일한 파괴 효과 확인
+
+### 🏞️ 개선된 지형 시스템
+- **스마트 배치**: 광고판이 평평한 지역에만 자동 배치
+- **지형 높이 계산**: 정확한 지형 높이에 맞춰 광고판 설치
+- **가시성 최적화**: 산속에 묻히지 않고 잘 보이는 위치에 배치
+- **충돌 회피**: 물 위와 급경사 지역 자동 회피
+
+### 💥 향상된 시각 효과
+- **파편 물리**: 중력, 바운스, 마찰 효과가 적용된 현실적인 파편
+- **페이드 아웃**: 파편이 3-5초 후 서서히 투명해지며 사라짐
+- **랜덤 효과**: 파편 크기, 색상, 회전이 랜덤하게 생성
+- **지면 충돌**: 파편이 지면에 닿으면 바운스 효과
 
 ## 🏗️ 아키텍처
 
@@ -33,7 +59,8 @@ SOLID 원칙을 적용한 실시간 멀티플레이어 3D 비행체 전투 게�
 │   │   ├── GameEntity.js   # 기본 엔티티 클래스
 │   │   ├── Vehicle.js      # 비행체 클래스
 │   │   ├── Bullet.js       # 총알 클래스
-│   │   └── Explosion.js    # 폭발 효과 클래스
+│   │   ├── Explosion.js    # 폭발 효과 클래스
+│   │   └── Billboard.js    # 광고판 클래스 (NEW!)
 │   ├── services/           # 서비스 레이어
 │   │   └── GameManager.js  # 게임 매니저
 │   ├── config/             # 설정 파일
@@ -92,7 +119,7 @@ server:
 
 # 네트워크 설정
 network:
-  allowExternalAccess: true  # 외부 접근 허용 여부
+  allowExternalAccess: true  # 외부 접근 허용
   cors:
     enabled: true
     origins: "*"  # 허용할 도메인 (* = 모든 도메인)
@@ -135,13 +162,23 @@ netsh advfirewall firewall add rule name="Game Server" dir=in action=allow proto
 - **W/S**: 비행체 상하 회전 (피치)
 - **A/D**: 비행체 좌우 회전 (요)
 - **Q/E**: 비행체 롤링
-- **스페이스바**: 기관총 발사
-- **C**: 1인칭/3인칭 시점 전환
+- **Shift**: 추력 증가 (가속)
+- **Ctrl**: 추력 감소 (감속)
+- **스페이스바**: 상승
+- **X**: 하강
+- **P**: 기관총 발사
+- **V**: 1인칭/3인칭 시점 전환
 
-### 마우스 조작
+### 마우스 조작 (1인칭 모드)
 
-- **마우스 이동**: 카메라 회전 (3인칭 모드)
-- **마우스 클릭**: 미사일 발사
+- **마우스 이동**: 시선 조절
+- **마우스 클릭**: 기관총 발사
+
+### 게임 목표
+
+- **적 비행체 격추**: 100점 획득
+- **광고판 파괴**: 50점 획득
+- **생존**: 파괴되면 3초 후 리스폰
 
 ## 🛠️ 기술 스택
 
@@ -179,24 +216,46 @@ network:
     origins: "*"
   publicUrl: ""  # 공개 URL (선택사항)
   
+# 광고판 설정
+billboards:
+  enabled: true
+  count: 5  # 광고판 개수
+  width: 40  # 광고판 너비
+  height: 20  # 광고판 높이
+  thickness: 2  # 광고판 두께
+  health: 80  # 광고판 체력 (총알 8발로 파괴)
+  minDistance: 80  # 광고판 간 최소 거리
+  images:
+    front: "assets/billboards/front.svg"  # 앞면 이미지
+    back: "assets/billboards/back.svg"    # 뒷면 이미지
+  
 world:
-  size: 2000
-  gravity: 0
+  size: 400  # 월드 크기
+  terrainDetail: 100  # 지형 디테일
+  waterLevel: -5  # 물 높이
+  gravity: -9.81
   
 vehicle:
-  speed: 50
-  rotationSpeed: 2.5
-  health: 100
+  maxSpeed: 100
+  acceleration: 50
+  health: 100  # 비행체 체력
+  colors:
+    - "#FF0000"  # 빨강
+    - "#00FF00"  # 초록
+    - "#0000FF"  # 파랑
+    - "#FFFF00"  # 노랑
+    - "#FF00FF"  # 마젠타
+    - "#00FFFF"  # 시안
+    - "#FFA500"  # 주황
+    - "#800080"  # 보라
   
 weapons:
-  bullet:
-    speed: 200
-    damage: 25
-    lifetime: 3000
-  missile:
-    speed: 150
-    damage: 50
-    lifetime: 5000
+  machineGun:
+    damage: 10  # 총알 데미지
+    fireRate: 10  # 초당 발사 수
+    bulletSpeed: 200
+    range: 300
+    bulletLifetime: 3  # 초
 ```
 
 ## 🎨 게임 특징 상세
@@ -215,6 +274,13 @@ weapons:
 - 절차적 생성 지형
 - 높이맵 기반 충돌 감지
 - 나무와 환경 오브젝트 배치
+
+### 광고판 시스템
+- **대형 광고판**: 지상에 설치된 양면 텍스처 광고판
+- **사용자 정의 이미지**: SVG, JPG, PNG 등 다양한 형식 지원
+- **자동 배치**: 설정된 거리 간격으로 자동 배치
+- **양면 텍스처**: 앞면과 뒷면에 서로 다른 이미지 적용
+- **그림자 효과**: 실시간 그림자 렌더링
 
 ### 멀티플레이어
 - 실시간 플레이어 동기화
@@ -297,4 +363,117 @@ weapons:
 - [x] 외부 네트워크 접근 지원
 - [ ] HTTPS/WSS 보안 연결
 - [ ] 서버 클러스터링
-- [ ] 게임 룸 시스템 
+- [ ] 게임 룸 시스템
+
+## 📺 광고판 설정
+
+### 광고판 이미지 추가
+
+1. **이미지 파일 준비**: 
+   - 권장 크기: 1024x512 픽셀 (2:1 비율)
+   - 지원 형식: JPG, PNG, SVG, GIF
+
+2. **이미지 파일 배치**:
+   ```
+   client/assets/billboards/
+   ├── front.svg    # 앞면 이미지
+   ├── back.svg     # 뒷면 이미지
+   ├── ad1.jpg      # 추가 광고 이미지
+   └── ad2.png      # 추가 광고 이미지
+   ```
+
+3. **설정 파일 수정**:
+   ```yaml
+   billboards:
+     enabled: true
+     count: 10  # 광고판 개수 조정
+     width: 50  # 크기 조정
+     height: 25
+     images:
+       front: "assets/billboards/your-front-image.jpg"
+       back: "assets/billboards/your-back-image.png"
+       # 또는 여러 이미지 랜덤 사용
+       # front: 
+       #   - "assets/billboards/ad1.jpg"
+       #   - "assets/billboards/ad2.png"
+   ```
+
+### 다중 광고 이미지
+
+여러 광고 이미지를 랜덤하게 사용하려면:
+
+```yaml
+billboards:
+  images:
+    front: 
+      - "assets/billboards/game-ad1.jpg"
+      - "assets/billboards/game-ad2.png"
+      - "assets/billboards/game-ad3.svg"
+    back:
+      - "assets/billboards/tech-ad1.jpg"
+      - "assets/billboards/tech-ad2.png"
+```
+
+각 광고판마다 배열에서 랜덤하게 선택된 이미지가 적용됩니다. 
+
+## 📈 성능 최적화
+
+- **60Hz 서버 틱레이트**: 부드러운 게임플레이
+- **효율적인 충돌 검사**: AABB 기반 충돌 감지
+- **메모리 관리**: 최대 총알 자국 수 제한 (50개)
+- **네트워크 최적화**: 필요한 데이터만 전송
+- **파편 수명 관리**: 자동 정리로 메모리 누수 방지
+
+## 🔧 개발자 정보
+
+### 디버깅
+
+서버 로그에서 다음 정보를 확인할 수 있습니다:
+- 플레이어 연결/해제
+- 광고판 파괴 이벤트
+- 게임 시작/종료
+- 네트워크 상태
+
+### API 엔드포인트
+
+- `GET /api/status` - 서버 상태 정보
+- `GET /api/network` - 네트워크 정보
+- `GET /` - 게임 클라이언트
+
+## 📝 변경 로그
+
+### v2.0.0 (2024-01-XX)
+- ✨ 광고판 파괴 시스템 추가
+- ✨ 총알 자국 시스템 구현
+- ✨ 파편 물리 효과 추가
+- 🏞️ 지형 기반 광고판 배치 개선
+- 🎮 점수 시스템 확장
+- 🔧 성능 최적화
+
+### v1.0.0 (2024-01-XX)
+- 🎮 기본 멀티플레이어 전투 시스템
+- 🌐 외부 접근 지원
+- 📺 기본 광고판 시스템
+- 🎯 실시간 동기화
+
+## 🤝 기여하기
+
+1. 이 저장소를 포크합니다
+2. 새로운 기능 브랜치를 만듭니다 (`git checkout -b feature/AmazingFeature`)
+3. 변경사항을 커밋합니다 (`git commit -m 'Add some AmazingFeature'`)
+4. 브랜치에 푸시합니다 (`git push origin feature/AmazingFeature`)
+5. Pull Request를 생성합니다
+
+## 📄 라이센스
+
+이 프로젝트는 MIT 라이센스 하에 배포됩니다. 자세한 내용은 `LICENSE` 파일을 참조하세요.
+
+## 🙏 감사의 말
+
+- [Three.js](https://threejs.org/) - 3D 그래픽 라이브러리
+- [Socket.IO](https://socket.io/) - 실시간 통신
+- [Express](https://expressjs.com/) - 웹 서버 프레임워크
+
+---
+
+**즐거운 게임 되세요! 🎮✈️💥** 

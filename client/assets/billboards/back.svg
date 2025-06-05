@@ -1,0 +1,74 @@
+<svg width="1024" height="512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background gradient -->
+  <defs>
+    <linearGradient id="bgGradient2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#2d1b69;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#11998e;stop-opacity:1" />
+    </linearGradient>
+    <filter id="glow2">
+      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+      <feMerge> 
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="1024" height="512" fill="url(#bgGradient2)"/>
+  
+  <!-- Border -->
+  <rect x="10" y="10" width="1004" height="492" fill="none" stroke="#00ffff" stroke-width="4"/>
+  
+  <!-- Main Title -->
+  <text x="512" y="120" font-family="Arial, sans-serif" font-size="64" font-weight="bold" 
+        text-anchor="middle" fill="#00ffff" filter="url(#glow2)">
+    SOLID PRINCIPLES
+  </text>
+  
+  <!-- Subtitle -->
+  <text x="512" y="180" font-family="Arial, sans-serif" font-size="32" 
+        text-anchor="middle" fill="#ffffff">
+    Applied in Game Development
+  </text>
+  
+  <!-- SOLID List -->
+  <text x="100" y="240" font-family="Arial, sans-serif" font-size="20" fill="#ffffff">
+    ✅ Single Responsibility Principle
+  </text>
+  <text x="100" y="270" font-family="Arial, sans-serif" font-size="20" fill="#ffffff">
+    ✅ Open/Closed Principle
+  </text>
+  <text x="100" y="300" font-family="Arial, sans-serif" font-size="20" fill="#ffffff">
+    ✅ Liskov Substitution Principle
+  </text>
+  <text x="100" y="330" font-family="Arial, sans-serif" font-size="20" fill="#ffffff">
+    ✅ Interface Segregation Principle
+  </text>
+  <text x="100" y="360" font-family="Arial, sans-serif" font-size="20" fill="#ffffff">
+    ✅ Dependency Inversion Principle
+  </text>
+  
+  <!-- Tech Stack -->
+  <text x="512" y="420" font-family="Arial, sans-serif" font-size="24" font-weight="bold"
+        text-anchor="middle" fill="#ffff00">
+    Node.js • Three.js • Socket.IO • YAML
+  </text>
+  
+  <!-- Decorative tech icons -->
+  <rect x="50" y="50" width="40" height="40" fill="#68217a" rx="5"/>
+  <text x="70" y="75" font-family="Arial, sans-serif" font-size="16" font-weight="bold"
+        text-anchor="middle" fill="#ffffff">JS</text>
+        
+  <rect x="934" y="50" width="40" height="40" fill="#68217a" rx="5"/>
+  <text x="954" y="75" font-family="Arial, sans-serif" font-size="16" font-weight="bold"
+        text-anchor="middle" fill="#ffffff">3D</text>
+        
+  <rect x="50" y="422" width="40" height="40" fill="#68217a" rx="5"/>
+  <text x="70" y="447" font-family="Arial, sans-serif" font-size="16" font-weight="bold"
+        text-anchor="middle" fill="#ffffff">IO</text>
+        
+  <rect x="934" y="422" width="40" height="40" fill="#68217a" rx="5"/>
+  <text x="954" y="447" font-family="Arial, sans-serif" font-size="16" font-weight="bold"
+        text-anchor="middle" fill="#ffffff">YML</text>
+</svg> 

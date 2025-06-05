@@ -1,3 +1,7 @@
+// ES6 Imports for Three.js
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
 // 전역 변수
 let scene, camera, renderer, controls;
 let terrain, sky, clouds = [];
@@ -14,6 +18,8 @@ let explosions = []; // 폭발 효과들
 
 // 초기화 함수
 function init() {
+    console.log('Three.js version:', THREE.REVISION);
+    
     // 씬 생성
     scene = new THREE.Scene();
     scene.fog = new THREE.Fog(0x87CEEB, 100, 1000);
@@ -39,8 +45,8 @@ function init() {
     
     document.getElementById('container').appendChild(renderer.domElement);
 
-    // 컨트롤 설정
-    controls = new THREE.OrbitControls(camera, renderer.domElement);
+    // 컨트롤 설정 (최신 방식)
+    controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
     controls.minDistance = 10;
@@ -100,29 +106,35 @@ function setupLighting() {
 function createTerrain() {
     const geometry = new THREE.PlaneGeometry(400, 400, 100, 100);
     
-    // 높이 맵 생성 (노이즈 함수 사용)
+    // 높이 맵 생성 (더 극적인 노이즈 함수 사용)
     const vertices = geometry.attributes.position.array;
     for (let i = 0; i < vertices.length; i += 3) {
         const x = vertices[i];
         const y = vertices[i + 1];
         
-        // 간단한 노이즈 함수로 높이 생성
+        // 더 복잡하고 극적인 노이즈 함수로 높이 생성
         const height = 
-            Math.sin(x * 0.01) * 10 +
-            Math.cos(y * 0.01) * 10 +
-            Math.sin(x * 0.02) * 5 +
-            Math.cos(y * 0.02) * 5 +
-            Math.random() * 3;
+            Math.sin(x * 0.008) * 25 +           // 큰 언덕
+            Math.cos(y * 0.008) * 25 +
+            Math.sin(x * 0.015) * 15 +           // 중간 언덕
+            Math.cos(y * 0.015) * 15 +
+            Math.sin(x * 0.03) * 8 +             // 작은 언덕
+            Math.cos(y * 0.03) * 8 +
+            Math.sin(x * 0.05) * 4 +             // 세부 디테일
+            Math.cos(y * 0.05) * 4 +
+            (Math.random() - 0.5) * 6;           // 랜덤 노이즈
             
         vertices[i + 2] = height;
     }
     
     geometry.attributes.position.needsUpdate = true;
     geometry.computeVertexNormals();
+    geometry.computeBoundingBox();
+    geometry.computeBoundingSphere();
 
-    // 지형 재질
+    // 지형 재질 (높이에 따른 색상 변화)
     const material = new THREE.MeshLambertMaterial({
-        color: 0x3a5f3a,
+        color: 0x4a6741,
         wireframe: false
     });
 
@@ -130,6 +142,82 @@ function createTerrain() {
     terrain.rotation.x = -Math.PI / 2;
     terrain.receiveShadow = true;
     scene.add(terrain);
+    
+    // 물 생성 (낮은 지형에)
+    createWater();
+}
+
+// 물 생성 함수
+function createWater() {
+    // 물 평면 생성
+    const waterGeometry = new THREE.PlaneGeometry(400, 400, 50, 50);
+    const waterMaterial = new THREE.MeshPhongMaterial({
+        color: 0x006994,
+        transparent: true,
+        opacity: 0.6,
+        shininess: 100,
+        specular: 0x111111
+    });
+    
+    const water = new THREE.Mesh(waterGeometry, waterMaterial);
+    water.rotation.x = -Math.PI / 2;
+    water.position.y = -5; // 낮은 위치에 물 배치
+    water.receiveShadow = true;
+    
+    // 물 애니메이션을 위한 userData 추가
+    water.userData = {
+        isWater: true,
+        time: 0
+    };
+    
+    scene.add(water);
+    
+    // 물 흐름 효과를 위한 여러 개의 강 생성
+    createRivers();
+}
+
+// 강 생성 함수
+function createRivers() {
+    for (let i = 0; i < 3; i++) {
+        const riverGroup = new THREE.Group();
+        
+        // 강의 경로를 따라 여러 개의 물 세그먼트 생성
+        for (let j = 0; j < 20; j++) {
+            const segmentGeometry = new THREE.PlaneGeometry(8, 15, 4, 4);
+            const segmentMaterial = new THREE.MeshPhongMaterial({
+                color: 0x4a90e2,
+                transparent: true,
+                opacity: 0.7,
+                shininess: 200
+            });
+            
+            const segment = new THREE.Mesh(segmentGeometry, segmentMaterial);
+            
+            // 강의 곡선 경로 계산
+            const t = j / 20;
+            const riverPath = {
+                x: (Math.random() - 0.5) * 300 + Math.sin(t * Math.PI * 2) * 50,
+                z: -200 + t * 400 + Math.cos(t * Math.PI * 3) * 30,
+                y: getTerrainHeight((Math.random() - 0.5) * 300, -200 + t * 400) - 8
+            };
+            
+            segment.position.set(riverPath.x, riverPath.y, riverPath.z);
+            segment.rotation.x = -Math.PI / 2;
+            segment.rotation.z = Math.random() * 0.3 - 0.15; // 약간의 회전
+            
+            // 물 흐름 애니메이션을 위한 데이터
+            segment.userData = {
+                isRiverSegment: true,
+                flowSpeed: 0.02 + Math.random() * 0.02,
+                originalY: riverPath.y,
+                waveOffset: Math.random() * Math.PI * 2
+            };
+            
+            riverGroup.add(segment);
+        }
+        
+        scene.add(riverGroup);
+    }
 }
 
 // 하늘 생성
@@ -283,9 +371,14 @@ function createTree(x, z) {
     scene.add(leaves);
 }
 
-// 지형 높이 계산 (간단한 근사치)
+// 지형 높이 계산 (새로운 공식에 맞게 업데이트)
 function getTerrainHeight(x, z) {
-    return Math.sin(x * 0.01) * 10 + Math.cos(z * 0.01) * 10 + Math.sin(x * 0.02) * 5 + Math.cos(z * 0.02) * 5;
+    return Math.sin(x * 0.008) * 25 +           // 큰 언덕
+           Math.cos(z * 0.008) * 25 +
+           Math.sin(x * 0.015) * 15 +           // 중간 언덕
+           Math.cos(z * 0.015) * 15 +
+           Math.sin(x * 0.03) * 8 +             // 작은 언덕
+           Math.cos(z * 0.03) * 8;              // 랜덤 노이즈는 제외 (일관성을 위해)
 }
 
 // 비행체 생성
@@ -345,10 +438,12 @@ function createVehicle() {
     
     // 엔진 글로우 효과 (꼬리 원판 뒤쪽)
     const glowGeometry = new THREE.CylinderGeometry(2.2, 2.2, 0.1, 16);
-    const glowMaterial = new THREE.MeshBasicMaterial({ 
+    const glowMaterial = new THREE.MeshPhongMaterial({
         color: 0x0088ff,
         transparent: true,
-        opacity: 0.6
+        opacity: 0.6,
+        emissive: 0x002244,
+        shininess: 100
     });
     
     const engineGlow = new THREE.Mesh(glowGeometry, glowMaterial);
@@ -500,7 +595,7 @@ function toggleFirstPerson() {
         
         // 마우스 포인터 잠금 해제
         if (document.pointerLockElement) {
-            document.exitPointerLock();
+        document.exitPointerLock();
         }
     }
 }
@@ -520,6 +615,12 @@ function animate() {
     
     // 폭발 효과 업데이트
     updateExplosions();
+    
+    // 물 흐름 효과 업데이트
+    updateWater(elapsedTime);
+    
+    // 타겟 조준 시스템 업데이트
+    updateTargeting();
     
     // 구름 애니메이션
     clouds.forEach((cloudGroup, index) => {
@@ -764,8 +865,12 @@ function cleanup() {
 window.addEventListener('resize', onWindowResize, false);
 window.addEventListener('beforeunload', cleanup);
 
-// 페이지 로드 시 초기화
-window.addEventListener('load', init);
+// DOM 로드 완료 시 초기화 (최신 방식)
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+} else {
+    init();
+}
 
 // 타겟 오브젝트 생성
 function createTargets() {
@@ -776,7 +881,9 @@ function createTargets() {
         const bodyGeometry = new THREE.BoxGeometry(3, 3, 3);
         const bodyMaterial = new THREE.MeshPhongMaterial({ 
             color: 0xff4444,
-            shininess: 50
+            shininess: 50,
+            emissive: 0x000000,
+            emissiveIntensity: 0
         });
         const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
         body.castShadow = true;
@@ -785,7 +892,11 @@ function createTargets() {
         // 타겟 표시 (십자가)
         const crossGeometry1 = new THREE.BoxGeometry(4, 0.5, 0.5);
         const crossGeometry2 = new THREE.BoxGeometry(0.5, 4, 0.5);
-        const crossMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff });
+        const crossMaterial = new THREE.MeshPhongMaterial({ 
+            color: 0xffffff,
+            emissive: 0x000000,
+            emissiveIntensity: 0
+        });
         
         const cross1 = new THREE.Mesh(crossGeometry1, crossMaterial);
         const cross2 = new THREE.Mesh(crossGeometry2, crossMaterial);
@@ -814,9 +925,10 @@ function createTargets() {
 // 총알 생성
 function createBullet(startPosition, direction) {
     const bulletGeometry = new THREE.SphereGeometry(0.3, 8, 8);
-    const bulletMaterial = new THREE.MeshBasicMaterial({ 
+    const bulletMaterial = new THREE.MeshPhongMaterial({
         color: 0xff6600,
-        emissive: 0x331100
+        emissive: 0x331100,
+        shininess: 100
     });
     const bullet = new THREE.Mesh(bulletGeometry, bulletMaterial);
     
@@ -837,10 +949,13 @@ function createExplosion(position) {
     // 여러 개의 파티클로 폭발 효과
     for (let i = 0; i < 15; i++) {
         const particleGeometry = new THREE.SphereGeometry(0.3 + Math.random() * 0.5, 6, 6);
-        const particleMaterial = new THREE.MeshBasicMaterial({ 
-            color: new THREE.Color().setHSL(Math.random() * 0.1, 1, 0.5 + Math.random() * 0.5),
+        const particleColor = new THREE.Color().setHSL(Math.random() * 0.1, 1, 0.5 + Math.random() * 0.5);
+        const particleMaterial = new THREE.MeshPhongMaterial({
+            color: particleColor,
+            emissive: particleColor.clone().multiplyScalar(0.3),
             transparent: true,
-            opacity: 0.8
+            opacity: 0.8,
+            shininess: 50
         });
         const particle = new THREE.Mesh(particleGeometry, particleMaterial);
         
@@ -947,5 +1062,139 @@ function updateExplosions() {
             explosions.splice(index, 1);
             scene.remove(explosionGroup);
         }
+    });
+}
+
+// 물 흐름 효과 업데이트
+function updateWater(elapsedTime) {
+    // 씬의 모든 오브젝트를 순회하며 물 관련 오브젝트 찾기
+    scene.traverse((object) => {
+        if (object.userData.isWater) {
+            // 메인 물 평면 애니메이션
+            object.userData.time += 0.01;
+            if (object.geometry && object.geometry.attributes.position) {
+                const positions = object.geometry.attributes.position.array;
+                for (let i = 0; i < positions.length; i += 3) {
+                    const x = positions[i];
+                    const z = positions[i + 1];
+                    // 물결 효과
+                    positions[i + 2] = Math.sin(x * 0.1 + object.userData.time) * 0.5 + 
+                                      Math.cos(z * 0.1 + object.userData.time * 1.2) * 0.3;
+                }
+                object.geometry.attributes.position.needsUpdate = true;
+                object.geometry.computeBoundingBox();
+                object.geometry.computeBoundingSphere();
+            }
+        }
+        
+        if (object.userData.isRiverSegment) {
+            // 강 세그먼트 애니메이션
+            const userData = object.userData;
+            
+            // 상하 물결 움직임
+            object.position.y = userData.originalY + 
+                               Math.sin(elapsedTime * userData.flowSpeed + userData.waveOffset) * 0.5;
+            
+            // 투명도 변화로 흐르는 효과
+            const opacity = 0.5 + Math.sin(elapsedTime * userData.flowSpeed * 2 + userData.waveOffset) * 0.2;
+            object.material.opacity = opacity;
+            
+            // 약간의 회전 애니메이션
+            object.rotation.z += userData.flowSpeed * 0.1;
+            
+            // 지오메트리 변형으로 물결 효과
+            if (object.geometry && object.geometry.attributes.position) {
+                const positions = object.geometry.attributes.position.array;
+                for (let i = 0; i < positions.length; i += 3) {
+                    const x = positions[i];
+                    const y = positions[i + 1];
+                    positions[i + 2] = Math.sin(x * 0.2 + elapsedTime * userData.flowSpeed * 5) * 0.2 +
+                                      Math.cos(y * 0.15 + elapsedTime * userData.flowSpeed * 3) * 0.15;
+                }
+                object.geometry.attributes.position.needsUpdate = true;
+                object.geometry.computeBoundingBox();
+                object.geometry.computeBoundingSphere();
+            }
+        }
+    });
+}
+
+// 타겟 조준 시스템 업데이트
+function updateTargeting() {
+    if (!vehicle) return;
+    
+    const vehiclePosition = vehicle.position.clone();
+    const vehicleDirection = new THREE.Vector3(0, 0, -1);
+    vehicleDirection.applyQuaternion(vehicle.quaternion);
+    vehicleDirection.normalize();
+    
+    const maxRange = 150; // 최대 사정거리
+    const maxAngle = Math.PI / 6; // 30도 각도 (라디안)
+    
+    targets.forEach(target => {
+        if (target.userData.health <= 0) return;
+        
+        // 타겟까지의 거리와 방향 계산
+        const targetPosition = target.position.clone();
+        const distanceToTarget = vehiclePosition.distanceTo(targetPosition);
+        
+        // 비행체에서 타겟으로의 방향 벡터
+        const directionToTarget = targetPosition.clone().sub(vehiclePosition).normalize();
+        
+        // 비행체 방향과 타겟 방향 사이의 각도 계산
+        const angle = vehicleDirection.angleTo(directionToTarget);
+        
+        // 사정거리와 각도 내에 있는지 확인
+        const isInRange = distanceToTarget <= maxRange;
+        const isInAngle = angle <= maxAngle;
+        const isTargetable = isInRange && isInAngle;
+        
+        // 타겟 발광 효과
+        target.children.forEach(child => {
+            if (child.material) {
+                if (isTargetable) {
+                    // 사정거리 내: 발광 효과
+                    const glowIntensity = 0.3 + Math.sin(Date.now() * 0.01) * 0.3;
+                    
+                    // MeshPhongMaterial인 경우에만 emissive 사용
+                    if (child.material.isMeshPhongMaterial) {
+                        child.material.emissive.setHex(0x00ff00); // 녹색 발광
+                        if (child.material.emissiveIntensity !== undefined) {
+                            child.material.emissiveIntensity = glowIntensity;
+                        }
+                    } else {
+                        // MeshBasicMaterial인 경우 색상 변경으로 대체
+                        const originalColor = child.userData.originalColor || child.material.color.getHex();
+                        if (!child.userData.originalColor) {
+                            child.userData.originalColor = originalColor;
+                        }
+                        child.material.color.setHex(0x00ff00);
+                    }
+                    
+                    // 크기 변화 효과
+                    const scaleMultiplier = 1.0 + Math.sin(Date.now() * 0.008) * 0.1;
+                    child.scale.setScalar(scaleMultiplier);
+                } else {
+                    // 사정거리 밖: 기본 상태
+                    if (child.material.isMeshPhongMaterial) {
+                        child.material.emissive.setHex(0x000000);
+                        if (child.material.emissiveIntensity !== undefined) {
+                            child.material.emissiveIntensity = 0;
+                        }
+                    } else {
+                        // 원래 색상으로 복원
+                        if (child.userData.originalColor) {
+                            child.material.color.setHex(child.userData.originalColor);
+                        }
+                    }
+                    child.scale.setScalar(1.0);
+                }
+            }
+        });
+        
+        // 타겟 상태 저장 (디버깅용)
+        target.userData.isTargetable = isTargetable;
+        target.userData.distance = distanceToTarget;
+        target.userData.angle = angle;
     });
 } 

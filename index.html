@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D 지형 - Three.js</title>
+    <title>3D Vehicle Simulation Game</title>
     <style>
         body {
             margin: 0;
             padding: 0;
             overflow: hidden;
-            background: linear-gradient(to bottom, #87CEEB 0%, #98FB98 100%);
             font-family: Arial, sans-serif;
+            background: #000;
         }
         
         #container {
@@ -23,31 +23,39 @@
             top: 10px;
             left: 10px;
             color: white;
-            background: rgba(0, 0, 0, 0.5);
+            background: rgba(0, 0, 0, 0.7);
             padding: 10px;
             border-radius: 5px;
-            font-size: 14px;
             z-index: 100;
         }
         
         #controls {
             position: absolute;
-            bottom: 10px;
-            left: 10px;
+            top: 10px;
+            right: 10px;
             color: white;
-            background: rgba(0, 0, 0, 0.5);
+            background: rgba(0, 0, 0, 0.7);
             padding: 10px;
             border-radius: 5px;
             font-size: 12px;
+            max-width: 300px;
             z-index: 100;
+        }
+        
+        #controls p {
+            margin: 5px 0;
+        }
+        
+        #controls strong {
+            color: #4CAF50;
         }
     </style>
 </head>
 <body>
     <div id="container"></div>
     <div id="info">
-        <h3>3D 지형 + 비행체 시뮬레이션</h3>
-        <p>Three.js로 만든 3D 지형과 1인칭 비행체</p>
+        <h3>3D Vehicle Simulation Game</h3>
+        <p>Latest Three.js with ES6 Modules</p>
     </div>
     <div id="controls">
         <p><strong>카메라 조작:</strong></p>
@@ -68,29 +76,17 @@
         <p>마우스: 시선 조절</p>
     </div>
 
-    <!-- Three.js 라이브러리 -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <!-- OrbitControls -->
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-    
-    <!-- 테스트 스크립트 -->
-    <script>
-        // Three.js 로딩 확인
-        console.log('Three.js version:', THREE.REVISION);
-        console.log('OrbitControls available:', typeof THREE.OrbitControls !== 'undefined');
-        
-        // 간단한 테스트
-        try {
-            const scene = new THREE.Scene();
-            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            const renderer = new THREE.WebGLRenderer();
-            console.log('Three.js 초기화 성공');
-        } catch (error) {
-            console.error('Three.js 초기화 실패:', error);
+    <!-- Import Map for Three.js ES6 Modules -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
         }
+    }
     </script>
     
-    <!-- 메인 스크립트 -->
-    <script src="terrain.js"></script>
+    <!-- Main Script as ES6 Module -->
+    <script type="module" src="terrain.js"></script>
 </body>
 </html> 

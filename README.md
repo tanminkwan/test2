@@ -1,115 +1,165 @@
-# 3D 비행체 시뮬레이션 게임
+# 3D Vehicle Simulation Game
 
-Three.js를 사용한 3D 지형 환경에서의 비행체 조작 및 슈팅 게임입니다.
+A modern 3D flying vehicle shooting game built with the latest Three.js (r160) using ES6 modules.
 
-## 🚁 주요 기능
+## 🚀 Features
 
-### 비행체 시스템
-- **현실적인 비행체 디자인**: 뾰족한 머리와 원판형 꼬리 엔진
-- **부드러운 움직임**: 물리 기반 가속/감속 시스템
-- **엔진 효과**: 가속 시 꼬리 원판에서 노란색 발광 효과
-- **1인칭/3인칭 시점 전환**: V키로 시점 변경
-- **반투명 처리**: 1인칭 시점에서 비행체가 시야를 가리지 않도록 반투명 처리
+### 🛸 Vehicle System
+- **Advanced Flight Physics**: Realistic 6-DOF (6 Degrees of Freedom) flight controls
+- **Dual View Modes**: Seamless switching between 1st person and 3rd person views
+- **Dynamic Engine Effects**: Visual engine glow effects that respond to thrust input
+- **Smooth Camera System**: Intelligent camera following with smooth interpolation
 
-### 조작 시스템
-- **직관적인 조작**: WASD로 비행체 머리 방향 제어
-- **마우스 연동**: 1인칭 시점에서 마우스로 정밀한 방향 제어
-- **부드러운 카메라**: 3인칭 시점에서 비행체를 자연스럽게 추적
+### 🎯 Combat System
+- **Machine Gun**: High-rate-of-fire weapon system
+- **Smart Targeting**: Visual targeting system with range and angle detection
+- **Destructible Targets**: 10 randomly placed targets with explosion effects
+- **Particle Effects**: Dynamic explosion animations with physics
 
-### 슈팅 시스템
-- **기관총**: P키 또는 마우스 좌클릭으로 발사
-- **타겟 시스템**: 10개의 랜덤 배치된 타겟 오브젝트
-- **충돌 감지**: 정확한 히트 판정
-- **폭발 효과**: 타겟 파괴 시 파티클 폭발 애니메이션
+### 🌍 Environment
+- **Procedural Terrain**: Complex multi-octave noise-generated landscape
+- **Dynamic Water System**: Flowing rivers with animated water surfaces
+- **Volumetric Clouds**: Realistic 3D cloud clusters with movement
+- **Advanced Lighting**: Directional shadows and ambient lighting
 
-### 환경
-- **3D 지형**: 노이즈 기반 자연스러운 지형 생성
-- **동적 구름**: 움직이는 3D 구름 시스템
-- **나무**: 지형에 배치된 3D 나무들
-- **조명**: 태양광과 환경광으로 현실적인 조명
+### 🎮 Controls
 
-## 🎮 조작법
+#### Camera (3rd Person)
+- **Mouse Drag**: Rotate camera
+- **Mouse Wheel**: Zoom in/out
+- **Right Click + Drag**: Pan camera
 
-### 기본 조작
-- **V**: 1인칭/3인칭 시점 전환
-- **W/↑**: 기수 올리기
-- **S/↓**: 기수 내리기
-- **A/←**: 좌회전
-- **D/→**: 우회전
-- **Q**: 좌측 롤
-- **E**: 우측 롤
+#### Vehicle Controls
+- **V**: Toggle 1st/3rd person view
+- **W/↑**: Pitch up (nose up)
+- **S/↓**: Pitch down (nose down)
+- **A/←**: Yaw left (turn left)
+- **D/→**: Yaw right (turn right)
+- **Q**: Roll left
+- **E**: Roll right
+- **Shift**: Accelerate (engine thrust)
+- **Ctrl**: Decelerate/Reverse
+- **Space**: Ascend
+- **X**: Descend
 
-### 추진 시스템
-- **Shift**: 가속 (엔진 추진)
-- **Ctrl**: 감속/후진
-- **Space**: 상승
-- **X**: 하강
+#### Combat
+- **P**: Fire machine gun
+- **Left Mouse Click**: Fire machine gun
 
-### 무기 시스템
-- **P**: 기관총 발사
-- **마우스 좌클릭**: 기관총 발사
+#### 1st Person Mode
+- **Mouse**: Look around (with pointer lock)
+- All vehicle controls remain the same
 
-### 1인칭 시점
-- **마우스**: 시선 조절 (포인터 락 모드)
+## 🛠 Technical Implementation
 
-## 🛠 기술 스택
+### Modern Three.js Architecture
+- **ES6 Modules**: Latest import/export syntax
+- **Three.js r160**: Most recent stable version
+- **Import Maps**: Browser-native module resolution
+- **Modern Material System**: Updated material type checking
+- **Optimized Geometry Updates**: Efficient vertex buffer management
 
-- **Three.js**: 3D 그래픽 렌더링
-- **JavaScript**: 게임 로직 및 물리 시뮬레이션
-- **HTML5**: 웹 기반 플랫폼
-- **CSS3**: UI 스타일링
+### Performance Features
+- **Efficient Rendering**: Optimized draw calls and geometry updates
+- **Memory Management**: Proper cleanup and disposal
+- **Smooth Animations**: 60fps target with delta time calculations
+- **Responsive Design**: Automatic window resize handling
 
-## 🚀 실행 방법
+## 🚀 Getting Started
 
-1. 프로젝트 클론
-```bash
-git clone [repository-url]
-cd test2
+### Prerequisites
+- Modern web browser with ES6 module support
+- Node.js (for development server)
+
+### Installation & Running
+
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd test2
+   ```
+
+2. **Start development server**
+   ```bash
+   npx serve . -p 3000
+   ```
+
+3. **Open in browser**
+   ```
+   http://localhost:3000
+   ```
+
+## 📁 Project Structure
+
+```
+test2/
+├── index.html          # Main HTML file with ES6 module setup
+├── terrain.js          # Main game logic with modern Three.js
+├── README.md          # This file
+└── .git/              # Git repository
 ```
 
-2. 웹 서버 실행
-```bash
-npx serve
+## 🔧 Code Architecture
+
+### ES6 Module System
+```javascript
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 ```
 
-3. 브라우저에서 접속
-```
-http://localhost:3000
-```
+### Modern Three.js Patterns
+- **Material Type Checking**: `material.isMeshPhongMaterial`
+- **Geometry Updates**: `computeBoundingBox()`, `computeBoundingSphere()`
+- **Event Handling**: `DOMContentLoaded` instead of `window.load`
+- **Import Maps**: Browser-native module resolution
 
-## 🎯 게임 목표
+### Game Systems
+- **Physics Engine**: Custom 6-DOF flight dynamics
+- **Collision Detection**: Sphere-based bullet-target collision
+- **Particle System**: Custom explosion effects
+- **Terrain Generation**: Multi-octave Perlin noise
+- **Water Simulation**: Vertex-based wave animation
 
-- 10개의 타겟을 모두 파괴하세요!
-- 1인칭 시점에서 정밀한 조준을 통해 타겟을 명중시키세요
-- 부드러운 비행 조작을 마스터하세요
+## 🎯 Gameplay
 
-## 📋 개발 히스토리
+1. **Take Off**: Use Shift to accelerate and Space to gain altitude
+2. **Navigate**: Use WASD for directional control, QE for rolling
+3. **Switch Views**: Press V to toggle between 1st and 3rd person
+4. **Target Practice**: Green glowing targets indicate they're in range
+5. **Shoot**: Use P key or left mouse click to fire
+6. **Survive**: Avoid crashing into terrain (minimum altitude enforced)
 
-### v2.0 - 슈팅 게임 기능 추가
-- 타겟 오브젝트 시스템 구현
-- 기관총 발사 시스템 추가
-- 충돌 감지 및 폭발 효과 구현
-- 파티클 시스템 추가
+## 🔄 Recent Updates
 
-### v1.5 - 비행체 디자인 개선
-- 뾰족한 머리와 원판형 꼬리로 디자인 변경
-- 엔진 발광 효과 강화
-- 1인칭 시점 반투명 처리
+### v2.0 - Modern Three.js Implementation
+- ✅ Upgraded to Three.js r160
+- ✅ Implemented ES6 module system
+- ✅ Added Import Maps for module resolution
+- ✅ Modernized material type checking
+- ✅ Improved geometry update methods
+- ✅ Enhanced DOM loading patterns
 
-### v1.0 - 기본 비행 시뮬레이션
-- 3D 지형 및 환경 구현
-- 비행체 물리 시스템
-- 1인칭/3인칭 시점 전환
-- 마우스 및 키보드 조작
+### v1.0 - Core Game Features
+- ✅ 3D flying vehicle with realistic physics
+- ✅ Dual camera system (1st/3rd person)
+- ✅ Machine gun shooting mechanics
+- ✅ Target system with visual feedback
+- ✅ Procedural terrain and water
+- ✅ Particle explosion effects
+- ✅ Engine glow effects
 
-## 🔧 향후 개발 계획
+## 🐛 Known Issues
 
-- [ ] 멀티플레이어 지원
-- [ ] 더 다양한 무기 시스템
-- [ ] 미션 시스템
-- [ ] 사운드 효과
-- [ ] 모바일 터치 조작 지원
+- None currently reported
 
-## 📄 라이선스
+## 🤝 Contributing
 
-MIT License 
+Feel free to submit issues and enhancement requests!
+
+## 📄 License
+
+This project is open source and available under the [MIT License](LICENSE).
+
+---
+
+**Built with ❤️ using Three.js r160 and modern web technologies** 

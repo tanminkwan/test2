@@ -1,0 +1,57 @@
+# 게임 설정 파일
+game:
+  name: "Multiplayer Vehicle Combat"
+  version: "1.0.0"
+  maxPlayers: 8
+  minPlayersToStart: 1
+  gameMode: "deathmatch"
+  
+server:
+  port: 3001
+  tickRate: 60  # 서버 업데이트 주기 (Hz)
+  
+world:
+  size: 400
+  terrainDetail: 100
+  waterLevel: -5
+  gravity: -9.81
+  
+vehicles:
+  maxSpeed: 100
+  acceleration: 50
+  turnSpeed: 3.0
+  rollSpeed: 2.5
+  pitchSpeed: 2.5
+  yawSpeed: 2.5
+  health: 100
+  colors:
+    - "#FF0000"  # 빨강
+    - "#00FF00"  # 초록
+    - "#0000FF"  # 파랑
+    - "#FFFF00"  # 노랑
+    - "#FF00FF"  # 마젠타
+    - "#00FFFF"  # 시안
+    - "#FFA500"  # 주황
+    - "#800080"  # 보라
+  
+weapons:
+  machineGun:
+    damage: 10
+    fireRate: 10  # 초당 발사 수
+    bulletSpeed: 200
+    range: 300
+    bulletLifetime: 3  # 초
+    
+physics:
+  airResistance: 0.98
+  groundFriction: 0.95
+  collisionDamping: 0.5
+  
+effects:
+  explosionDuration: 2  # 초
+  bulletTrailLength: 10
+  
+camera:
+  followDistance: 50
+  followHeight: 20
+  smoothing: 0.1 

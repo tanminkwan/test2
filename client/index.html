@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multiplayer Vehicle Combat Game</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+        }
+        
+        #container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+        
+        #gameCanvas {
+            display: block;
+        }
+        
+        /* 로딩 화면 */
+        #loadingScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            z-index: 1000;
+        }
+        
+        #loadingScreen h1 {
+            font-size: 3em;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        
+        #loadingScreen .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(255,255,255,0.3);
+            border-top: 5px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        #joinForm {
+            background: rgba(255,255,255,0.1);
+            padding: 30px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+            margin-top: 20px;
+        }
+        
+        #joinForm input {
+            padding: 10px;
+            margin: 10px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            width: 200px;
+        }
+        
+        #joinForm button {
+            padding: 10px 20px;
+            margin: 10px;
+            border: none;
+            border-radius: 5px;
+            background: #4CAF50;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        #joinForm button:hover {
+            background: #45a049;
+        }
+        
+        /* 게임 UI */
+        #gameUI {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 100;
+        }
+        
+        #gameInfo {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 14px;
+            pointer-events: auto;
+        }
+        
+        #playerList {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: white;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 14px;
+            min-width: 200px;
+            pointer-events: auto;
+        }
+        
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            color: white;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 12px;
+            max-width: 300px;
+            pointer-events: auto;
+        }
+        
+        #healthBar {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 200px;
+            height: 20px;
+            background: rgba(255, 0, 0, 0.3);
+            border: 2px solid white;
+            border-radius: 10px;
+            overflow: hidden;
+            pointer-events: auto;
+        }
+        
+        #healthFill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff0000, #ffff00, #00ff00);
+            transition: width 0.3s ease;
+            width: 100%;
+        }
+        
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 20px;
+            border: 2px solid white;
+            border-radius: 50%;
+            pointer-events: none;
+        }
+        
+        #crosshair::before,
+        #crosshair::after {
+            content: '';
+            position: absolute;
+            background: white;
+        }
+        
+        #crosshair::before {
+            top: 50%;
+            left: -5px;
+            right: -5px;
+            height: 2px;
+            transform: translateY(-50%);
+        }
+        
+        #crosshair::after {
+            left: 50%;
+            top: -5px;
+            bottom: -5px;
+            width: 2px;
+            transform: translateX(-50%);
+        }
+        
+        .player-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 5px 0;
+            padding: 5px;
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .player-color {
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+        
+        /* 메시지 */
+        #messages {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 24px;
+            text-align: center;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            pointer-events: none;
+            z-index: 200;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <!-- 로딩 화면 -->
+        <div id="loadingScreen">
+            <h1>🚁 Vehicle Combat Arena</h1>
+            <div class="spinner"></div>
+            <div id="joinForm">
+                <h3>게임 참가</h3>
+                <input type="text" id="playerName" placeholder="플레이어 이름" maxlength="20">
+                <br>
+                <button onclick="joinGame()">게임 시작</button>
+            </div>
+            <div id="connectionStatus">서버에 연결 중...</div>
+        </div>
+        
+        <!-- 게임 캔버스 -->
+        <canvas id="gameCanvas" class="hidden"></canvas>
+        
+        <!-- 게임 UI -->
+        <div id="gameUI" class="hidden">
+            <div id="gameInfo">
+                <h3>🎮 게임 정보</h3>
+                <div id="gameStatus">대기 중...</div>
+                <div id="playerInfo"></div>
+            </div>
+            
+            <div id="playerList">
+                <h3>👥 플레이어 목록</h3>
+                <div id="players"></div>
+            </div>
+            
+            <div id="controls">
+                <h4>🎯 조작법</h4>
+                <p><strong>이동:</strong> WASD / 화살표</p>
+                <p><strong>상승/하강:</strong> Space / X</p>
+                <p><strong>롤:</strong> Q / E</p>
+                <p><strong>가속/감속:</strong> Shift / Ctrl</p>
+                <p><strong>발사:</strong> 마우스 클릭 / P</p>
+                <p><strong>시점 전환:</strong> V</p>
+                <p><strong>마우스:</strong> 시선 조절</p>
+            </div>
+            
+            <div id="healthBar">
+                <div id="healthFill"></div>
+            </div>
+            
+            <div id="crosshair"></div>
+        </div>
+        
+        <!-- 메시지 -->
+        <div id="messages"></div>
+    </div>
+
+    <!-- Socket.IO -->
+    <script src="/socket.io/socket.io.js"></script>
+    
+    <!-- Three.js Import Map -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+    
+    <!-- 게임 클라이언트 -->
+    <script type="module" src="js/GameClient.js"></script>
+    
+    <script>
+        // 전역 변수
+        let gameClient = null;
+        let socket = null;
+        
+        // 소켓 연결
+        function initSocket() {
+            socket = io();
+            
+            socket.on('connect', () => {
+                console.log('서버에 연결됨');
+                document.getElementById('connectionStatus').textContent = '서버 연결됨';
+            });
+            
+            socket.on('disconnect', () => {
+                console.log('서버 연결 끊김');
+                showMessage('서버 연결이 끊어졌습니다');
+            });
+            
+            socket.on('joinSuccess', async (data) => {
+                console.log('게임 참가 성공', data);
+                await startGame(data);
+            });
+            
+            socket.on('joinFailed', (data) => {
+                console.log('게임 참가 실패', data);
+                alert(`게임 참가 실패: ${data.reason}`);
+            });
+        }
+        
+        // 게임 참가
+        function joinGame() {
+            const playerName = document.getElementById('playerName').value.trim();
+            if (!playerName) {
+                alert('플레이어 이름을 입력해주세요');
+                return;
+            }
+            
+            socket.emit('joinGame', { name: playerName });
+        }
+        
+        // 게임 시작
+        async function startGame(gameData) {
+            // 로딩 화면 숨기기
+            document.getElementById('loadingScreen').classList.add('hidden');
+            document.getElementById('gameCanvas').classList.remove('hidden');
+            document.getElementById('gameUI').classList.remove('hidden');
+            
+            // 게임 클라이언트 초기화
+            const { GameClient } = await import('./js/GameClient.js');
+            gameClient = new GameClient(socket, gameData);
+            await gameClient.init();
+        }
+        
+        // 메시지 표시
+        function showMessage(message, duration = 3000) {
+            const messagesDiv = document.getElementById('messages');
+            messagesDiv.textContent = message;
+            messagesDiv.style.display = 'block';
+            
+            setTimeout(() => {
+                messagesDiv.style.display = 'none';
+            }, duration);
+        }
+        
+        // Enter 키로 게임 참가
+        document.addEventListener('DOMContentLoaded', () => {
+            initSocket();
+            
+            document.getElementById('playerName').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    joinGame();
+                }
+            });
+        });
+    </script>
+</body>
+</html> 

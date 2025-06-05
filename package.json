@@ -1,0 +1,24 @@
+{
+  "name": "multiplayer-vehicle-game",
+  "version": "1.0.0",
+  "description": "Multiplayer 3D Vehicle Combat Game",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "nodemon server/index.js",
+    "client": "http-server client -p 8080"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.7.4",
+    "yaml": "^2.3.4",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2",
+    "http-server": "^14.1.1"
+  },
+  "keywords": ["multiplayer", "game", "3d", "vehicle", "combat"],
+  "author": "Game Developer",
+  "license": "MIT"
+} 

@@ -51,7 +51,7 @@ vehicles:
   turnSpeed: 3.0
   rollSpeed: 2.5
   pitchSpeed: 2.5
-  yawSpeed: 2.5
+  yawSpeed: 2.0
   health: 100
   colors:
     - "#FF0000"  # 빨강

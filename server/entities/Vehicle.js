@@ -158,10 +158,11 @@ class Vehicle extends GameEntity {
         // 피치 제한 (-90도 ~ 90도)
         this.rotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, this.rotation.x));
         
-        // 요 각도 정규화 (0 ~ 2π)
-        if (this.rotation.y > Math.PI * 2) {
+        // 요 각도 정규화 (-π ~ π)
+        while (this.rotation.y > Math.PI) {
             this.rotation.y -= Math.PI * 2;
-        } else if (this.rotation.y < 0) {
+        }
+        while (this.rotation.y < -Math.PI) {
             this.rotation.y += Math.PI * 2;
         }
         

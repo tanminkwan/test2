@@ -845,11 +845,11 @@ export class GameClient {
             this.inputs.pitch = 0;
         }
         
-        // 요 (A: 좌회전, D: 우회전)
+        // 요 (A: 우회전, D: 좌회전)
         if (this.keys['KeyA'] || this.keys['ArrowLeft']) {
-            this.inputs.yaw = -1;
-        } else if (this.keys['KeyD'] || this.keys['ArrowRight']) {
             this.inputs.yaw = 1;
+        } else if (this.keys['KeyD'] || this.keys['ArrowRight']) {
+            this.inputs.yaw = -1;
         } else {
             this.inputs.yaw = 0;
         }
@@ -992,6 +992,17 @@ export class GameClient {
         
         this.socket.on('bulletCreated', (data) => {
             this.createBullet(data.bullet);
+            
+            // 총구 스파크 효과 생성 (발사한 비행체에서)
+            if (data.bullet.shooterId) {
+                // 발사한 플레이어의 비행체 찾기
+                for (const [vehicleId, vehicle] of this.vehicles) {
+                    if (vehicle.userData.vehicleData && vehicle.userData.vehicleData.playerId === data.bullet.shooterId) {
+                        this.createMuzzleFlash(vehicleId);
+                        break;
+                    }
+                }
+            }
         });
         
         this.socket.on('bulletDestroyed', (data) => {
@@ -1087,20 +1098,20 @@ export class GameClient {
                 // 회전 순서 설정 (기존 비행체에도 적용)
                 vehicle.rotation.order = 'YXZ';
                 
-                // 회전 업데이트 - 부드러운 보간 적용
-                vehicle.rotation.x = THREE.MathUtils.lerp(
+                // 회전 업데이트 - 각도 래핑 문제 해결된 보간 적용
+                vehicle.rotation.x = this.lerpAngle(
                     vehicle.rotation.x, 
                     vehicleData.rotation.x || 0, 
                     0.3
                 ); // 피치 (W/S)
                 
-                vehicle.rotation.y = THREE.MathUtils.lerp(
+                vehicle.rotation.y = this.lerpAngle(
                     vehicle.rotation.y, 
                     vehicleData.rotation.y || 0, 
                     0.3
                 ); // 요 (A/D)
                 
-                vehicle.rotation.z = THREE.MathUtils.lerp(
+                vehicle.rotation.z = this.lerpAngle(
                     vehicle.rotation.z, 
                     vehicleData.rotation.z || 0, 
                     0.3
@@ -1371,6 +1382,136 @@ export class GameClient {
             requestAnimationFrame(animate);
         };
         
+        animate();
+    }
+
+    /**
+     * 각도 보간 (각도 래핑 문제 해결)
+     */
+    lerpAngle(current, target, factor) {
+        // 각도 차이 계산
+        let diff = target - current;
+        
+        // 차이가 π보다 크면 반대 방향으로 회전하는 것이 더 짧음
+        if (diff > Math.PI) {
+            diff -= Math.PI * 2;
+        } else if (diff < -Math.PI) {
+            diff += Math.PI * 2;
+        }
+        
+        return current + diff * factor;
+    }
+
+    /**
+     * 총구 스파크 효과 생성
+     */
+    createMuzzleFlash(vehicleId) {
+        const vehicle = this.vehicles.get(vehicleId);
+        if (!vehicle) return;
+
+        // 총구 위치 계산 (비행체 머리 부분)
+        const vehicleRotation = vehicle.rotation;
+        const muzzleOffset = {
+            x: Math.sin(vehicleRotation.y) * Math.cos(vehicleRotation.x) * 8,
+            y: -Math.sin(vehicleRotation.x) * 8,
+            z: Math.cos(vehicleRotation.y) * Math.cos(vehicleRotation.x) * 8
+        };
+
+        const muzzlePosition = {
+            x: vehicle.position.x + muzzleOffset.x,
+            y: vehicle.position.y + muzzleOffset.y,
+            z: vehicle.position.z + muzzleOffset.z
+        };
+
+        // 스파크 파티클 그룹 생성
+        const sparkGroup = new THREE.Group();
+
+        // 메인 플래시 (밝은 노란색 구)
+        const flashGeometry = new THREE.SphereGeometry(1.5, 8, 8);
+        const flashMaterial = new THREE.MeshBasicMaterial({
+            color: 0xffff00,
+            transparent: true,
+            opacity: 0.8
+        });
+        const flash = new THREE.Mesh(flashGeometry, flashMaterial);
+        sparkGroup.add(flash);
+
+        // 스파크 파티클들 (작은 노란색/주황색 점들)
+        for (let i = 0; i < 15; i++) {
+            const sparkGeometry = new THREE.SphereGeometry(0.1, 4, 4);
+            const sparkMaterial = new THREE.MeshBasicMaterial({
+                color: Math.random() > 0.5 ? 0xffff00 : 0xff8800,
+                transparent: true,
+                opacity: 0.9
+            });
+            const spark = new THREE.Mesh(sparkGeometry, sparkMaterial);
+            
+            // 랜덤한 방향으로 스파크 배치
+            const angle = Math.random() * Math.PI * 2;
+            const distance = 1 + Math.random() * 3;
+            const height = (Math.random() - 0.5) * 2;
+            
+            spark.position.set(
+                Math.cos(angle) * distance,
+                height,
+                Math.sin(angle) * distance
+            );
+            
+            sparkGroup.add(spark);
+        }
+
+        // 위치 설정
+        sparkGroup.position.set(muzzlePosition.x, muzzlePosition.y, muzzlePosition.z);
+        
+        // 비행체 방향에 맞춰 회전
+        sparkGroup.rotation.copy(vehicleRotation);
+
+        this.scene.add(sparkGroup);
+
+        // 스파크 애니메이션 및 제거
+        this.animateMuzzleFlash(sparkGroup);
+    }
+
+    /**
+     * 총구 스파크 애니메이션
+     */
+    animateMuzzleFlash(sparkGroup) {
+        const startTime = Date.now();
+        const duration = 150; // 0.15초
+
+        const animate = () => {
+            const elapsed = Date.now() - startTime;
+            const progress = elapsed / duration;
+
+            if (progress >= 1) {
+                // 애니메이션 완료, 제거
+                this.scene.remove(sparkGroup);
+                return;
+            }
+
+            // 페이드 아웃
+            const opacity = 1 - progress;
+            sparkGroup.children.forEach(child => {
+                if (child.material) {
+                    child.material.opacity = opacity;
+                }
+            });
+
+            // 스파크 확산 효과
+            sparkGroup.children.forEach((child, index) => {
+                if (index > 0) { // 메인 플래시 제외
+                    const scale = 1 + progress * 2;
+                    child.scale.setScalar(scale);
+                    
+                    // 스파크가 바깥쪽으로 이동
+                    const originalPos = child.position.clone().normalize();
+                    child.position.copy(originalPos.multiplyScalar(1 + progress * 3));
+                }
+            });
+
+            requestAnimationFrame(animate);
+        };
+
         animate();
     }
 } 

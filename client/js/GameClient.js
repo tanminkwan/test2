@@ -968,10 +968,26 @@ export class GameClient {
             const playerDiv = document.createElement('div');
             playerDiv.className = 'player-item';
             
+            // 플레이어 이름 찾기
+            let playerName = 'Unknown';
+            
+            // 내 플레이어인 경우
+            if (vehicleData.playerId === this.myPlayer.id) {
+                playerName = this.myPlayer.name;
+            } else {
+                // 다른 플레이어인 경우 - gameState에서 찾기
+                if (this.gameData && this.gameData.gameState && this.gameData.gameState.players) {
+                    const player = this.gameData.gameState.players.find(p => p.id === vehicleData.playerId);
+                    if (player && player.name) {
+                        playerName = player.name;
+                    }
+                }
+            }
+            
             playerDiv.innerHTML = `
                 <div style="display: flex; align-items: center;">
                     <div class="player-color" style="background-color: ${vehicleData.color}"></div>
-                    <span>${vehicleData.playerId === this.myPlayer.id ? '(나)' : ''} Player</span>
+                    <span>${vehicleData.playerId === this.myPlayer.id ? '(나) ' : ''}${playerName}</span>
                 </div>
                 <div>
                     <span>❤️ ${vehicleData.health}</span>
@@ -1169,6 +1185,12 @@ export class GameClient {
         
         // 플레이어 정보 업데이트
         if (gameState.players) {
+            // gameData에 플레이어 정보 저장 (플레이어 목록에서 사용)
+            if (!this.gameData.gameState) {
+                this.gameData.gameState = {};
+            }
+            this.gameData.gameState.players = gameState.players;
+            
             const myPlayerData = gameState.players.find(p => p.id === this.myPlayer.id);
             if (myPlayerData) {
                 this.myPlayer = myPlayerData;

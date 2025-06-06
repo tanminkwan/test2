@@ -35,15 +35,12 @@ billboards:
   health: 80  # 광고판 체력 (총알 8발 정도로 파괴)
   minDistance: 80  # 광고판 간 최소 거리
   images:
-    front: "assets/billboards/front.svg"  # 앞면 이미지
-    back: "assets/billboards/back.svg"    # 뒷면 이미지
-    # 여러 이미지 사용 시 배열로 설정 가능
-    # front: 
-    #   - "assets/billboards/ad1.jpg"
-    #   - "assets/billboards/ad2.jpg"
-    # back:
-    #   - "assets/billboards/ad3.jpg"
-    #   - "assets/billboards/ad4.jpg"
+    front: 
+      - "assets/billboards/front.svg"
+      - "assets/billboards/kimhk.jpg"
+    back:
+      - "assets/billboards/back.svg"
+      - "assets/billboards/kimhk.jpg"
   
 vehicles:
   maxSpeed: 100

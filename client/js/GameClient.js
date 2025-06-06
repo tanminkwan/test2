@@ -838,9 +838,9 @@ export class GameClient {
         
         // 피치 (W: 기수 상승, S: 기수 하강)
         if (this.keys['KeyW'] || this.keys['ArrowUp']) {
-            this.inputs.pitch = -1;
+            this.inputs.pitch = 1; // W키: 위로 보기 (양수)
         } else if (this.keys['KeyS'] || this.keys['ArrowDown']) {
-            this.inputs.pitch = 1;
+            this.inputs.pitch = -1; // S키: 아래로 보기 (음수)
         } else {
             this.inputs.pitch = 0;
         }
@@ -877,13 +877,8 @@ export class GameClient {
             this.inputs.fire = true;
         }
         
-        // 1인칭 시점에서 마우스 입력 적용
-        if (this.isFirstPerson && document.pointerLockElement) {
-            this.inputs.yaw += this.mouseX * 0.5;
-            this.inputs.pitch += this.mouseY * 0.5;
-            this.mouseX *= 0.9;
-            this.mouseY *= 0.9;
-        }
+        // 1인칭 시점에서는 마우스 입력을 비행체 조작에 적용하지 않음
+        // 카메라가 비행체 회전을 직접 따라가므로 별도 처리 불필요
     }
 
     /**
@@ -896,14 +891,34 @@ export class GameClient {
         const vehicleRotation = this.myVehicle.rotation; // 전체 비행체의 회전 사용
         
         if (this.isFirstPerson) {
-            // 1인칭 시점 - 비행체 내부에서 보기
-            this.camera.position.copy(vehiclePosition);
-            this.camera.position.y += 2; // 조종석 높이
+            // 1인칭 시점 - 비행체 조종석에서 앞쪽을 바라보기
+            // 조종석 위치로 카메라 이동 (앞쪽으로 약간 이동)
+            const cockpitOffset = new THREE.Vector3(0, 2, 1); // 조종석 위치
             
-            // 마우스 입력으로 시선 조절
-            this.camera.rotation.x = vehicleRotation.x + this.mouseY;
-            this.camera.rotation.y = vehicleRotation.y + this.mouseX;
-            this.camera.rotation.z = vehicleRotation.z;
+            // 비행체 회전을 고려한 조종석 위치 계산
+            const rotatedOffset = cockpitOffset.clone();
+            rotatedOffset.applyEuler(new THREE.Euler(
+                vehicleRotation.x,
+                vehicleRotation.y, 
+                vehicleRotation.z,
+                'YXZ'
+            ));
+            
+            this.camera.position.copy(vehiclePosition);
+            this.camera.position.add(rotatedOffset);
+            
+            // 비행체의 앞쪽 방향 계산 (머리가 있는 방향) - +Z 방향으로 수정
+            const forwardDirection = new THREE.Vector3(0, 0, 1); // +Z 방향으로 변경 (머리 방향)
+            forwardDirection.applyEuler(new THREE.Euler(
+                vehicleRotation.x,
+                vehicleRotation.y,
+                vehicleRotation.z,
+                'YXZ'
+            ));
+            
+            // 카메라가 앞쪽을 바라보도록 설정
+            const lookAtTarget = this.camera.position.clone().add(forwardDirection);
+            this.camera.lookAt(lookAtTarget);
         } else {
             // 3인칭 시점 - 원래 게임처럼 비행체 뒤쪽에서 따라오기
             const distance = 50; // 비행체로부터의 거리

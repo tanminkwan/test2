@@ -345,10 +345,8 @@ export class GameClient {
         vehicleGroup.rotation.y = vehicleData.rotation.y || 0; // 요 (A/D)
         vehicleGroup.rotation.z = vehicleData.rotation.z || 0; // 롤 (Q/E)
         
-        // 사용자 데이터 저장
-        vehicleGroup.userData = {
-            vehicleData: vehicleData
-        };
+        // 사용자 데이터 저장 - 기존 엔진 정보를 보존
+        vehicleGroup.userData.vehicleData = vehicleData;
         
         this.vehicles.set(vehicleData.id, vehicleGroup);
         this.scene.add(vehicleGroup);
@@ -1418,6 +1416,9 @@ export class GameClient {
         this.updateInputs();
         this.sendInputs();
         
+        // 내 비행체 부스터 효과 업데이트
+        this.updateMyVehicleBooster();
+        
         // 카메라 업데이트
         this.updateCamera();
         
@@ -1672,5 +1673,72 @@ export class GameClient {
         };
 
         animate();
+    }
+
+    /**
+     * 내 비행체 부스터 효과 업데이트
+     */
+    updateMyVehicleBooster() {
+        if (!this.myVehicle) return;
+
+        const vehicleData = this.myVehicle.userData.vehicleData;
+        if (!vehicleData) return;
+        
+        // Shift 키 부스터 효과 확인
+        const isBoosterActive = this.inputs.thrust > 0; // Shift 키가 눌렸을 때
+        
+        // 차량 타입에 따라 적절한 엔진 효과 적용
+        if (vehicleData.vehicleType === 'heavy') {
+            // 중형기 듀얼 엔진 효과
+            if (this.myVehicle.userData.engines && this.myVehicle.userData.glows) {
+                this.myVehicle.userData.engines.forEach((engine, index) => {
+                    const glow = this.myVehicle.userData.glows[index];
+                    
+                    if (isBoosterActive) {
+                        // 부스터 활성화 시 노란색 강화 효과
+                        engine.material.color.setHex(0xFFFF00); // 노란색
+                        engine.material.opacity = 1.0;
+                        glow.material.color.setHex(0xFFAA00); // 주황-노랑
+                        glow.material.opacity = 0.8;
+                        
+                        // 글로우 크기 증가
+                        glow.scale.setScalar(1.5);
+                    } else {
+                        // 부스터 비활성화 시 엔진 완전히 끄기
+                        engine.material.color.setHex(0xFF4400); // 중형기 주황색
+                        engine.material.opacity = 0.0; // 완전히 끄기
+                        glow.material.color.setHex(0xFF6600);
+                        glow.material.opacity = 0.0; // 완전히 끄기
+                        
+                        // 글로우 크기 원래대로
+                        glow.scale.setScalar(1.0);
+                    }
+                });
+            }
+        } else {
+            // 전투기 엔진 효과
+            if (this.myVehicle.userData.engine && this.myVehicle.userData.glow) {
+                if (isBoosterActive) {
+                    // 부스터 활성화 시 노란색 강화 효과
+                    this.myVehicle.userData.engine.material.color.setHex(0xFFFF00); // 노란색
+                    this.myVehicle.userData.engine.material.opacity = 1.0;
+                    this.myVehicle.userData.glow.material.color.setHex(0xFFAA00); // 주황-노랑
+                    this.myVehicle.userData.glow.material.opacity = 0.8;
+                    
+                    // 글로우 크기 증가
+                    this.myVehicle.userData.glow.scale.setScalar(1.5);
+                } else {
+                    // 부스터 비활성화 시 엔진 완전히 끄기
+                    this.myVehicle.userData.engine.material.color.setHex(0x00AAFF); // 전투기 파란색
+                    this.myVehicle.userData.glow.material.color.setHex(0x0088FF);
+                    // 엔진 완전히 끄기
+                    this.myVehicle.userData.engine.material.opacity = 0.0;
+                    this.myVehicle.userData.glow.material.opacity = 0.0;
+                    
+                    // 글로우 크기 원래대로
+                    this.myVehicle.userData.glow.scale.setScalar(1.0);
+                }
+            }
+        }
     }
 } 

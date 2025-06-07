@@ -1,23 +1,28 @@
 const GameEntity = require('./GameEntity');
 
 /**
- * 비행체 클래스 (Liskov Substitution Principle)
+ * 기본 비행체 클래스 (Liskov Substitution Principle)
  * GameEntity를 확장하여 비행체 특화 기능 구현
  */
 class Vehicle extends GameEntity {
-    constructor(id, playerId, color, config) {
+    constructor(id, playerId, color, config, vehicleType = 'fighter') {
         super(id, 'vehicle');
         
         this.playerId = playerId;
         this.color = color;
-        this.health = config.vehicles.health;
-        this.maxHealth = config.vehicles.health;
-        this.maxSpeed = config.vehicles.maxSpeed;
-        this.acceleration = config.vehicles.acceleration;
-        this.turnSpeed = config.vehicles.turnSpeed;
-        this.rollSpeed = config.vehicles.rollSpeed;
-        this.pitchSpeed = config.vehicles.pitchSpeed;
-        this.yawSpeed = config.vehicles.yawSpeed;
+        this.vehicleType = vehicleType; // 비행체 타입 추가
+        
+        // 타입별 설정 적용
+        const typeConfig = this.getTypeConfig(config, vehicleType);
+        
+        this.health = typeConfig.health;
+        this.maxHealth = typeConfig.health;
+        this.maxSpeed = typeConfig.maxSpeed;
+        this.acceleration = typeConfig.acceleration;
+        this.turnSpeed = typeConfig.turnSpeed;
+        this.rollSpeed = typeConfig.rollSpeed;
+        this.pitchSpeed = typeConfig.pitchSpeed;
+        this.yawSpeed = typeConfig.yawSpeed;
         
         // 물리 속성
         this.thrust = 0;
@@ -37,10 +42,42 @@ class Vehicle extends GameEntity {
         
         // 무기 상태
         this.lastFireTime = 0;
-        this.fireRate = config.weapons.machineGun.fireRate;
+        this.fireRate = typeConfig.fireRate;
         
         // 스폰 위치 설정
         this.setRandomSpawnPosition();
+    }
+
+    /**
+     * 비행체 타입별 설정 가져오기
+     */
+    getTypeConfig(config, vehicleType) {
+        // 새로운 설정 구조에서 비행체별 설정 가져오기
+        const vehicleConfig = config.vehicles[vehicleType];
+        
+        if (!vehicleConfig) {
+            // 기본값으로 전투기 설정 사용
+            console.warn(`Unknown vehicle type: ${vehicleType}, using fighter config`);
+            return config.vehicles.fighter;
+        }
+        
+        return {
+            health: vehicleConfig.health,
+            maxSpeed: vehicleConfig.maxSpeed,
+            acceleration: vehicleConfig.acceleration,
+            turnSpeed: vehicleConfig.turnSpeed,
+            rollSpeed: vehicleConfig.rollSpeed,
+            pitchSpeed: vehicleConfig.pitchSpeed,
+            yawSpeed: vehicleConfig.yawSpeed,
+            fireRate: vehicleConfig.fireRate,
+            bulletDamage: vehicleConfig.bulletDamage,
+            bulletSpeed: vehicleConfig.bulletSpeed,
+            bulletRange: vehicleConfig.bulletRange,
+            scale: vehicleConfig.scale,
+            engineType: vehicleConfig.engineType,
+            engineColor: vehicleConfig.engineColor,
+            glowColor: vehicleConfig.glowColor
+        };
     }
 
     /**
@@ -250,8 +287,10 @@ class Vehicle extends GameEntity {
             ...super.toClientData(),
             playerId: this.playerId,
             color: this.color,
+            vehicleType: this.vehicleType,
             health: this.health,
             maxHealth: this.maxHealth,
+            rotation: this.rotation,
             velocity: this.velocity,
             angularVelocity: this.angularVelocity
         };

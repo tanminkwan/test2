@@ -43,13 +43,6 @@ billboards:
       - "assets/billboards/kimhk.jpg"
   
 vehicles:
-  maxSpeed: 100
-  acceleration: 50
-  turnSpeed: 3.0
-  rollSpeed: 2.5
-  pitchSpeed: 2.5
-  yawSpeed: 2.0
-  health: 100
   colors:
     - "#FF0000"  # 빨강
     - "#00FF00"  # 초록
@@ -59,6 +52,44 @@ vehicles:
     - "#00FFFF"  # 시안
     - "#FFA500"  # 주황
     - "#800080"  # 보라
+  
+  fighter:
+    maxSpeed: 120
+    acceleration: 60
+    turnSpeed: 3.5
+    rollSpeed: 3.0
+    pitchSpeed: 3.0
+    yawSpeed: 2.5
+    health: 80
+    fireRate: 12  # 초당 발사 수
+    bulletDamage: 8
+    bulletSpeed: 220
+    bulletRange: 300
+    scale: 1.0
+    engineType: "single"
+    engineColor: "#00AAFF"
+    glowColor: "#0088FF"
+    missileCount: 4
+    missileReloadTime: 25  # 초
+    
+  heavy:
+    maxSpeed: 80
+    acceleration: 35
+    turnSpeed: 2.0
+    rollSpeed: 1.5
+    pitchSpeed: 1.8
+    yawSpeed: 1.5
+    health: 150
+    fireRate: 8  # 초당 발사 수
+    bulletDamage: 15
+    bulletSpeed: 180
+    bulletRange: 350
+    scale: 1.4
+    engineType: "dual"
+    engineColor: "#FF4400"
+    glowColor: "#FF6600"
+    missileCount: 6
+    missileReloadTime: 30  # 초
   
 weapons:
   machineGun:

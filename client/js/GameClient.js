@@ -326,6 +326,45 @@ export class GameClient {
         // Three.js 회전 순서 설정 (중요!)
         vehicleGroup.rotation.order = 'YXZ'; // 요(Y) -> 피치(X) -> 롤(Z) 순서
         
+        // 비행체 타입에 따라 다른 모델 생성
+        if (vehicleData.vehicleType === 'heavy') {
+            this.createHeavyVehicleModel(vehicleGroup, vehicleData);
+        } else {
+            this.createFighterVehicleModel(vehicleGroup, vehicleData);
+        }
+        
+        // 위치 설정
+        vehicleGroup.position.set(
+            vehicleData.position.x || 0,
+            vehicleData.position.y || 50,
+            vehicleData.position.z || 0
+        );
+        
+        // 회전 설정 - 서버에서 받은 회전값을 그대로 적용
+        vehicleGroup.rotation.x = vehicleData.rotation.x || 0; // 피치 (W/S)
+        vehicleGroup.rotation.y = vehicleData.rotation.y || 0; // 요 (A/D)
+        vehicleGroup.rotation.z = vehicleData.rotation.z || 0; // 롤 (Q/E)
+        
+        // 사용자 데이터 저장
+        vehicleGroup.userData = {
+            vehicleData: vehicleData
+        };
+        
+        this.vehicles.set(vehicleData.id, vehicleGroup);
+        this.scene.add(vehicleGroup);
+        
+        // 내 비행체인 경우 참조 저장
+        if (vehicleData.playerId === this.myPlayer.id) {
+            this.myVehicle = vehicleGroup;
+        }
+        
+        return vehicleGroup;
+    }
+
+    /**
+     * 전투기 모델 생성
+     */
+    createFighterVehicleModel(vehicleGroup, vehicleData) {
         // 뾰족한 머리 (항상 앞쪽 +Z 방향)
         const headGeometry = new THREE.ConeGeometry(1.5, 8, 8);
         const headMaterial = new THREE.MeshLambertMaterial({ 
@@ -368,20 +407,20 @@ export class GameClient {
         wings.castShadow = true;
         vehicleGroup.add(wings);
         
-        // 엔진 글로우 (뒤쪽 노란 발광)
+        // 단일 엔진 글로우 (뒤쪽 파란 발광)
         const engineGeometry = new THREE.CylinderGeometry(1.5, 1.5, 0.5, 16);
         const engineMaterial = new THREE.MeshBasicMaterial({ 
-            color: 0xffaa00
+            color: 0x00AAFF
         });
         const engine = new THREE.Mesh(engineGeometry, engineMaterial);
         engine.position.z = -4; // 뒤쪽에 위치
         engine.rotation.x = Math.PI / 2;
         vehicleGroup.add(engine);
         
-        // 엔진 글로우 효과 (더 큰 반투명 원판)
+        // 엔진 글로우 효과
         const glowGeometry = new THREE.CylinderGeometry(2.5, 2.5, 0.2, 16);
         const glowMaterial = new THREE.MeshBasicMaterial({
-            color: 0xffff00,
+            color: 0x0088FF,
             transparent: true,
             opacity: 0.4
         });
@@ -390,34 +429,98 @@ export class GameClient {
         glow.rotation.x = Math.PI / 2;
         vehicleGroup.add(glow);
         
-        // 위치 설정
-        vehicleGroup.position.set(
-            vehicleData.position.x || 0,
-            vehicleData.position.y || 50,
-            vehicleData.position.z || 0
-        );
+        // 사용자 데이터에 엔진 정보 저장
+        vehicleGroup.userData.engine = engine;
+        vehicleGroup.userData.glow = glow;
+    }
+
+    /**
+     * 중형기 모델 생성
+     */
+    createHeavyVehicleModel(vehicleGroup, vehicleData) {
+        // 더 큰 뾰족한 머리
+        const headGeometry = new THREE.ConeGeometry(2, 10, 8);
+        const headMaterial = new THREE.MeshLambertMaterial({ 
+            color: vehicleData.color 
+        });
+        const head = new THREE.Mesh(headGeometry, headMaterial);
+        head.rotation.x = Math.PI / 2;
+        head.position.z = 5;
+        head.castShadow = true;
+        vehicleGroup.add(head);
         
-        // 회전 설정 - 서버에서 받은 회전값을 그대로 적용
-        vehicleGroup.rotation.x = vehicleData.rotation.x || 0; // 피치 (W/S)
-        vehicleGroup.rotation.y = vehicleData.rotation.y || 0; // 요 (A/D)
-        vehicleGroup.rotation.z = vehicleData.rotation.z || 0; // 롤 (Q/E)
+        // 더 큰 조종석
+        const cockpitGeometry = new THREE.SphereGeometry(1.6, 8, 8);
+        const cockpitMaterial = new THREE.MeshPhongMaterial({
+            color: 0x87CEEB,
+            transparent: true,
+            opacity: 0.3,
+            shininess: 100
+        });
+        const cockpit = new THREE.Mesh(cockpitGeometry, cockpitMaterial);
+        cockpit.position.y = 0.8;
+        cockpit.position.z = 1.5;
+        vehicleGroup.add(cockpit);
         
-        // 사용자 데이터 저장
-        vehicleGroup.userData = {
-            vehicleData: vehicleData,
-            engine: engine,
-            glow: glow
-        };
+        // 더 큰 메인 바디
+        const bodyGeometry = new THREE.BoxGeometry(3, 1.5, 8);
+        const bodyMaterial = new THREE.MeshLambertMaterial({ 
+            color: vehicleData.color 
+        });
+        const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+        body.castShadow = true;
+        vehicleGroup.add(body);
         
-        this.vehicles.set(vehicleData.id, vehicleGroup);
-        this.scene.add(vehicleGroup);
+        // 더 큰 날개
+        const wingGeometry = new THREE.BoxGeometry(16, 0.8, 4);
+        const wingMaterial = new THREE.MeshLambertMaterial({ 
+            color: vehicleData.color 
+        });
+        const wings = new THREE.Mesh(wingGeometry, wingMaterial);
+        wings.castShadow = true;
+        vehicleGroup.add(wings);
         
-        // 내 비행체인 경우 참조 저장
-        if (vehicleData.playerId === this.myPlayer.id) {
-            this.myVehicle = vehicleGroup;
-        }
+        // 듀얼 엔진 (좌우)
+        const engineGeometry = new THREE.CylinderGeometry(1.2, 1.2, 0.6, 16);
+        const engineMaterial = new THREE.MeshBasicMaterial({ 
+            color: 0xFF4400
+        });
         
-        return vehicleGroup;
+        // 좌측 엔진
+        const leftEngine = new THREE.Mesh(engineGeometry, engineMaterial);
+        leftEngine.position.set(-3, 0, -5);
+        leftEngine.rotation.x = Math.PI / 2;
+        vehicleGroup.add(leftEngine);
+        
+        // 우측 엔진
+        const rightEngine = new THREE.Mesh(engineGeometry, engineMaterial);
+        rightEngine.position.set(3, 0, -5);
+        rightEngine.rotation.x = Math.PI / 2;
+        vehicleGroup.add(rightEngine);
+        
+        // 듀얼 엔진 글로우 효과
+        const glowGeometry = new THREE.CylinderGeometry(2, 2, 0.3, 16);
+        const glowMaterial = new THREE.MeshBasicMaterial({
+            color: 0xFF6600,
+            transparent: true,
+            opacity: 0.5
+        });
+        
+        // 좌측 글로우
+        const leftGlow = new THREE.Mesh(glowGeometry, glowMaterial);
+        leftGlow.position.set(-3, 0, -5.5);
+        leftGlow.rotation.x = Math.PI / 2;
+        vehicleGroup.add(leftGlow);
+        
+        // 우측 글로우
+        const rightGlow = new THREE.Mesh(glowGeometry, glowMaterial);
+        rightGlow.position.set(3, 0, -5.5);
+        rightGlow.rotation.x = Math.PI / 2;
+        vehicleGroup.add(rightGlow);
+        
+        // 사용자 데이터에 엔진 정보 저장
+        vehicleGroup.userData.engines = [leftEngine, rightEngine];
+        vehicleGroup.userData.glows = [leftGlow, rightGlow];
     }
 
     /**
@@ -978,6 +1081,16 @@ export class GameClient {
         const playersDiv = document.getElementById('players');
         playersDiv.innerHTML = '';
         
+        // 최신 플레이어 정보를 저장할 맵
+        const playerMap = new Map();
+        
+        // 현재 게임 상태의 플레이어 정보로 맵 생성
+        if (this.latestGameState && this.latestGameState.players) {
+            this.latestGameState.players.forEach(player => {
+                playerMap.set(player.id, player);
+            });
+        }
+        
         for (const [vehicleId, vehicle] of this.vehicles) {
             const vehicleData = vehicle.userData.vehicleData;
             const playerDiv = document.createElement('div');
@@ -985,18 +1098,24 @@ export class GameClient {
             
             // 플레이어 이름 찾기
             let playerName = 'Unknown';
+            let playerScore = 0;
             
             // 내 플레이어인 경우
             if (vehicleData.playerId === this.myPlayer.id) {
                 playerName = this.myPlayer.name;
+                playerScore = this.myPlayer.score || 0;
             } else {
-                // 다른 플레이어인 경우 - gameState에서 찾기
-                if (this.gameData && this.gameData.gameState && this.gameData.gameState.players) {
-                    const player = this.gameData.gameState.players.find(p => p.id === vehicleData.playerId);
-                    if (player && player.name) {
-                        playerName = player.name;
-                    }
+                // 다른 플레이어인 경우 - 최신 gameState에서 찾기
+                const player = playerMap.get(vehicleData.playerId);
+                if (player && player.name) {
+                    playerName = player.name;
+                    playerScore = player.score || 0;
                 }
+            }
+            
+            // Unknown 플레이어는 표시하지 않음
+            if (playerName === 'Unknown') {
+                continue;
             }
             
             playerDiv.innerHTML = `
@@ -1005,7 +1124,7 @@ export class GameClient {
                     <span>${vehicleData.playerId === this.myPlayer.id ? '(나) ' : ''}${playerName}</span>
                 </div>
                 <div>
-                    <span>❤️ ${vehicleData.health}</span>
+                    <span>❤️ ${vehicleData.health} 🏆 ${playerScore}</span>
                 </div>
             `;
             
@@ -1113,6 +1232,9 @@ export class GameClient {
      * 게임 상태 업데이트
      */
     updateGameState(gameState) {
+        // 최신 게임 상태 저장 (플레이어 목록 업데이트에서 사용)
+        this.latestGameState = gameState;
+        
         // 비행체 업데이트
         gameState.vehicles.forEach(vehicleData => {
             let vehicle = this.vehicles.get(vehicleData.id);

@@ -90,7 +90,8 @@ io.on('connection', (socket) => {
     // 플레이어 조인
     socket.on('joinGame', (data) => {
         const playerName = data.name || `Player_${socket.id.substring(0, 6)}`;
-        const result = gameManager.addPlayer(socket.id, playerName);
+        const vehicleType = data.vehicleType || 'fighter'; // 기본값: fighter
+        const result = gameManager.addPlayer(socket.id, playerName, vehicleType);
         
         if (result.success) {
             socket.emit('joinSuccess', {
@@ -105,7 +106,7 @@ io.on('connection', (socket) => {
                 }
             });
             
-            console.log(`Player ${playerName} (${socket.id}) joined the game`);
+            console.log(`Player ${playerName} (${socket.id}) joined the game with ${vehicleType} vehicle`);
         } else {
             socket.emit('joinFailed', { reason: result.reason });
         }

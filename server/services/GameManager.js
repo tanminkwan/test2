@@ -184,7 +184,7 @@ class GameManager {
     /**
      * 플레이어 추가
      */
-    addPlayer(playerId, playerName) {
+    addPlayer(playerId, playerName, vehicleType = 'fighter') {
         if (this.players.size >= this.maxPlayers) {
             return { success: false, reason: 'Game is full' };
         }
@@ -210,7 +210,7 @@ class GameManager {
 
         // 비행체 생성
         const vehicleId = uuidv4();
-        const vehicle = new Vehicle(vehicleId, playerId, color, this.config);
+        const vehicle = new Vehicle(vehicleId, playerId, color, this.config, vehicleType);
         this.vehicles.set(vehicleId, vehicle);
 
         // 게임 시작 체크

@@ -96,9 +96,14 @@ SOLID 원칙을 적용한 실시간 멀티플레이어 3D 비행체 전투 게�
 │   │   ├── Vehicle.js      # 비행체 클래스
 │   │   ├── Bullet.js       # 총알 클래스
 │   │   ├── Explosion.js    # 폭발 효과 클래스
-│   │   └── Billboard.js    # 광고판 클래스
+│   │   ├── Billboard.js    # 광고판 클래스
+│   │   └── weapons/        # 무기 시스템
+│   │       ├── Weapon.js   # 무기 추상 클래스
+│   │       └── MachineGun.js # 기관총 클래스
 │   ├── services/           # 서비스 레이어
-│   │   └── GameManager.js  # 게임 매니저
+│   │   ├── GameManager.js  # 게임 매니저
+│   │   ├── WeaponSystem.js # 무기 시스템
+│   │   └── EffectSystem.js # 효과 시스템
 │   ├── config/             # 설정 파일
 │   │   └── game-config.yaml # 게임 설정
 │   └── index.js            # 메인 서버 파일
@@ -110,6 +115,331 @@ SOLID 원칙을 적용한 실시간 멀티플레이어 3D 비행체 전투 게�
 │       └── GameClient.js   # 게임 클라이언트 로직
 └── package.json            # 프로젝트 설정
 ```
+
+## 🎯 클래스 설계 분석
+
+### 📊 클래스 다이어그램
+
+```mermaid
+classDiagram
+    %% 기본 엔티티 클래스
+    class GameEntity {
+        <<abstract>>
+        +String id
+        +Position position
+        +Rotation rotation
+        +Velocity velocity
+        +Scale scale
+        +Boolean active
+        +Number createdAt
+        +Number lastUpdated
+        +update(deltaTime)
+        +updatePosition(deltaTime)
+        +updateRotation(deltaTime)
+        +beforeUpdate(deltaTime)
+        +afterUpdate(deltaTime)
+        +destroy()
+        +serialize()
+        +distanceTo(other)
+        +intersects(other, radius1, radius2)
+    }
+
+    %% 비행체 클래스
+    class Vehicle {
+        +String playerId
+        +String color
+        +String vehicleType
+        +Number health
+        +Number maxHealth
+        +Number maxSpeed
+        +Number acceleration
+        +Number turnSpeed
+        +Object inputs
+        +Number lastFireTime
+        +Number fireRate
+        +getTypeConfig(vehicleType)
+        +handleInput(inputs)
+        +updatePosition(deltaTime)
+        +updateRotation(deltaTime)
+        +takeDamage(damage)
+        +respawn(spawnPosition)
+        +getTerrainHeight(x, z)
+    }
+
+    %% 광고판 클래스
+    class Billboard {
+        +Number width
+        +Number height
+        +Number thickness
+        +String frontImage
+        +String backImage
+        +Boolean isStatic
+        +Number health
+        +Number maxHealth
+        +Array bulletHoles
+        +Boolean isDestroyed
+        +checkCollision(entity)
+        +addBulletHole(bulletPosition, damage)
+        +worldToLocal(worldPos)
+        +takeDamage(damage)
+        +getDebrisData()
+    }
+
+    %% 총알 클래스
+    class Bullet {
+        +String ownerId
+        +Number damage
+        +Number speed
+        +Number range
+        +Number lifeTime
+        +Number distanceTraveled
+        +updatePosition(deltaTime)
+        +checkCollisions()
+        +isExpired()
+    }
+
+    %% 폭발 클래스
+    class Explosion {
+        +Number radius
+        +Number duration
+        +Number damage
+        +Array particles
+        +updateParticles(deltaTime)
+        +isFinished()
+    }
+
+    %% 무기 추상 클래스
+    class Weapon {
+        <<abstract>>
+        +String ownerId
+        +Number damage
+        +Number speed
+        +Number range
+        +Number cooldown
+        +Number ammo
+        +Number maxAmmo
+        +fire(position, rotation, targetId)
+        +canFire()
+        +onFire()
+        +reload()
+        +createProjectile(position, rotation, targetId)*
+    }
+
+    %% 기관총 클래스
+    class MachineGun {
+        +Number spreadAngle
+        +createProjectile(position, rotation, targetId)
+        +calculateSpread()
+    }
+
+    %% 게임 매니저 클래스
+    class GameManager {
+        +Object config
+        +EventEmitter eventEmitter
+        +String gameState
+        +Map players
+        +Map vehicles
+        +Map billboards
+        +WeaponSystem weaponSystem
+        +EffectSystem effectSystem
+        +addPlayer(playerId, playerName, vehicleType)
+        +removePlayer(playerId)
+        +handlePlayerInput(playerId, inputs)
+        +createBillboards()
+        +startGame()
+        +update()
+        +checkCollisions()
+        +syncGameState()
+    }
+
+    %% 무기 시스템
+    class WeaponSystem {
+        +Map weapons
+        +Array bullets
+        +EventEmitter eventEmitter
+        +createWeapon(type, ownerId, config)
+        +handleFire(weaponId, position, rotation)
+        +updateBullets(deltaTime)
+        +checkBulletCollisions()
+        +removeBullet(bulletId)
+    }
+
+    %% 효과 시스템
+    class EffectSystem {
+        +Array explosions
+        +Array muzzleFlashes
+        +Array debris
+        +createExplosion(position, config)
+        +createMuzzleFlash(position, rotation)
+        +createDebris(position, config)
+        +updateEffects(deltaTime)
+        +removeExpiredEffects()
+    }
+
+    %% 상속 관계
+    GameEntity <|-- Vehicle
+    GameEntity <|-- Billboard
+    GameEntity <|-- Bullet
+    GameEntity <|-- Explosion
+    GameEntity <|-- Weapon
+    Weapon <|-- MachineGun
+
+    %% 컴포지션 관계
+    GameManager *-- Vehicle : manages
+    GameManager *-- Billboard : manages
+    GameManager *-- WeaponSystem : uses
+    GameManager *-- EffectSystem : uses
+    WeaponSystem *-- Weapon : manages
+    WeaponSystem *-- Bullet : manages
+    EffectSystem *-- Explosion : manages
+    Vehicle --> Weapon : equipped with
+```
+
+### 🎯 SOLID 원칙 상세 분석
+
+#### 1. **Single Responsibility Principle (SRP)**
+```mermaid
+graph TD
+    A[GameEntity] --> B[기본 엔티티 속성과 동작만 담당]
+    C[Vehicle] --> D[비행체 물리와 조작만 담당]
+    E[Billboard] --> F[광고판 상태와 충돌만 담당]
+    G[WeaponSystem] --> H[무기 관리와 발사만 담당]
+    I[EffectSystem] --> J[시각 효과 관리만 담당]
+    K[GameManager] --> L[게임 전체 상태 조율만 담당]
+```
+
+#### 2. **Open/Closed Principle (OCP)**
+```mermaid
+graph LR
+    A[GameEntity] --> B[확장에 열려있음]
+    B --> C[Vehicle 확장]
+    B --> D[Billboard 확장]
+    B --> E[Bullet 확장]
+    F[Weapon] --> G[확장에 열려있음]
+    G --> H[MachineGun 확장]
+    G --> I[미래의 Missile 확장 가능]
+```
+
+#### 3. **Liskov Substitution Principle (LSP)**
+- 모든 `GameEntity` 하위 클래스는 `GameEntity`를 완전히 대체 가능
+- `Vehicle`, `Billboard`, `Bullet` 모두 동일한 인터페이스 제공
+- `update()`, `serialize()`, `destroy()` 메서드 일관성 유지
+
+#### 4. **Interface Segregation Principle (ISP)**
+- 각 시스템은 필요한 인터페이스만 의존
+- `WeaponSystem`은 무기 관련 기능만 노출
+- `EffectSystem`은 효과 관련 기능만 노출
+
+#### 5. **Dependency Inversion Principle (DIP)**
+- `GameManager`는 구체적인 클래스가 아닌 추상화에 의존
+- 시스템들은 인터페이스를 통해 통신
+- 설정은 외부에서 주입 (Dependency Injection)
+
+### 🔄 시스템 상호작용 다이어그램
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant GameManager
+    participant Vehicle
+    participant WeaponSystem
+    participant Billboard
+    participant EffectSystem
+
+    Client->>GameManager: handlePlayerInput(fire)
+    GameManager->>Vehicle: handleInput(inputs)
+    Vehicle->>WeaponSystem: requestFire()
+    WeaponSystem->>WeaponSystem: createBullet()
+    WeaponSystem->>GameManager: bulletCreated
+    
+    loop Game Loop
+        GameManager->>Vehicle: update(deltaTime)
+        GameManager->>WeaponSystem: updateBullets(deltaTime)
+        WeaponSystem->>Billboard: checkCollision(bullet)
+        Billboard-->>WeaponSystem: collision detected
+        WeaponSystem->>Billboard: takeDamage()
+        Billboard->>EffectSystem: createDebris()
+        EffectSystem->>GameManager: effectCreated
+    end
+    
+    GameManager->>Client: syncGameState()
+```
+
+### 📋 주요 설계 패턴
+
+#### 🎯 **Template Method Pattern**
+- `GameEntity.update()`: 공통 업데이트 흐름 정의
+- `Weapon.fire()`: 무기 발사 흐름 정의
+
+#### 🏭 **Factory Pattern**
+- `WeaponSystem.createWeapon()`: 무기 타입별 생성
+- `EffectSystem.createExplosion()`: 효과 타입별 생성
+
+#### 🎮 **Observer Pattern**
+- `EventEmitter`를 통한 시스템 간 통신
+- 게임 이벤트 발생 시 관련 시스템들에 알림
+
+#### 📦 **Composition over Inheritance**
+- `GameManager`가 시스템들을 조합하여 사용
+- 각 시스템은 독립적으로 교체 가능
+
+### 🚀 확장성 고려사항
+
+#### 새로운 기능 추가 방법
+
+1. **새로운 비행체 타입 추가**
+   ```javascript
+   // Vehicle.js의 getTypeConfig()에 새 타입 추가
+   bomber: {
+       health: 200,
+       maxSpeed: 60,
+       acceleration: 30,
+       // ... 기타 설정
+   }
+   ```
+
+2. **새로운 무기 타입 추가**
+   ```javascript
+   // weapons/Missile.js 생성
+   export class Missile extends Weapon {
+       createProjectile(position, rotation, targetId) {
+           // 미사일 특화 로직
+       }
+   }
+   ```
+
+3. **새로운 효과 추가**
+   ```javascript
+   // EffectSystem.js에 메서드 추가
+   createShockwave(position, config) {
+       // 충격파 효과 생성
+   }
+   ```
+
+4. **새로운 게임 모드**
+   ```javascript
+   // GameManager.js에 상태 추가
+   this.gameMode = config.game.gameMode; // 'team', 'capture', etc.
+   ```
+
+### 🔧 코드 품질 보장
+
+#### 테스트 가능한 설계
+- 각 클래스는 독립적으로 테스트 가능
+- 의존성 주입으로 Mock 객체 사용 가능
+- 순수 함수 중심의 로직 구현
+
+#### 성능 최적화
+- 객체 풀링으로 메모리 할당 최소화
+- 효율적인 충돌 검사 알고리즘
+- 불필요한 업데이트 방지
+
+#### 에러 처리
+- 각 시스템별 독립적인 에러 처리
+- 게임 진행에 영향을 주지 않는 안전한 실패
+- 상세한 로깅 시스템
+
+이 설계는 **확장성**, **유지보수성**, **테스트 가능성**을 모두 고려한 현대적인 게임 아키텍처입니다! 🎮✨
 
 ## 🚀 설치 및 실행
 

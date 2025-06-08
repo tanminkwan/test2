@@ -103,7 +103,11 @@ export class WeaponSystem {
         for (const [projectileId, projectile] of this.projectiles) {
             // 차량과의 충돌 검사
             for (const [vehicleId, vehicle] of vehicles) {
-                if (vehicle.playerId === projectile.ownerId) continue; // 자신의 발사체는 제외
+                // 자신의 발사체는 제외
+                if (vehicle.playerId === projectile.ownerId) continue;
+                
+                // 비활성 차량은 충돌 검사에서 제외
+                if (!vehicle.active) continue;
 
                 const distance = this.calculateDistance(projectile.position, vehicle.position);
                 if (distance < 5) { // 충돌 반경

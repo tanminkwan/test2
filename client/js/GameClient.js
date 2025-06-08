@@ -468,6 +468,8 @@ export class GameClient {
         // 비행체 타입에 따라 다른 모델 생성
         if (vehicleData.vehicleType === 'heavy') {
             this.createHeavyVehicleModel(vehicleGroup, vehicleData);
+        } else if (vehicleData.vehicleType === 'test') {
+            this.createTestVehicleModel(vehicleGroup, vehicleData);
         } else {
             this.createFighterVehicleModel(vehicleGroup, vehicleData);
         }
@@ -737,6 +739,83 @@ export class GameClient {
     }
 
     /**
+     * 테스트기 모델 생성 (작고 빠른 차량)
+     */
+    createTestVehicleModel(vehicleGroup, vehicleData) {
+        // 작은 스케일
+        const scale = 0.8;
+        const engineColor = "#00FF88";
+        const glowColor = "#00FFAA";
+        
+        // 작은 뾰족한 머리
+        const headGeometry = new THREE.ConeGeometry(1.2 * scale, 6 * scale, 6);
+        const headMaterial = new THREE.MeshLambertMaterial({ 
+            color: vehicleData.color 
+        });
+        const head = new THREE.Mesh(headGeometry, headMaterial);
+        head.rotation.x = Math.PI / 2;
+        head.position.z = 3 * scale;
+        head.castShadow = true;
+        vehicleGroup.add(head);
+        
+        // 작은 조종석
+        const cockpitGeometry = new THREE.SphereGeometry(0.8 * scale, 6, 6);
+        const cockpitMaterial = new THREE.MeshPhongMaterial({
+            color: 0x87CEEB,
+            transparent: true,
+            opacity: 0.4,
+            shininess: 100
+        });
+        const cockpit = new THREE.Mesh(cockpitGeometry, cockpitMaterial);
+        cockpit.position.set(0, 0.3 * scale, 0.5 * scale);
+        vehicleGroup.add(cockpit);
+        
+        // 작은 메인 바디
+        const bodyGeometry = new THREE.BoxGeometry(1.5 * scale, 0.8 * scale, 4 * scale);
+        const bodyMaterial = new THREE.MeshLambertMaterial({ 
+            color: vehicleData.color 
+        });
+        const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+        body.castShadow = true;
+        vehicleGroup.add(body);
+        
+        // 작은 날개
+        const wingGeometry = new THREE.BoxGeometry(8 * scale, 0.3 * scale, 2 * scale);
+        const wingMaterial = new THREE.MeshLambertMaterial({ 
+            color: vehicleData.color 
+        });
+        const wings = new THREE.Mesh(wingGeometry, wingMaterial);
+        wings.castShadow = true;
+        vehicleGroup.add(wings);
+        
+        // 작은 엔진
+        const engineGeometry = new THREE.CylinderGeometry(1 * scale, 1 * scale, 0.4 * scale, 12);
+        const engineMaterial = new THREE.MeshBasicMaterial({ 
+            color: engineColor
+        });
+        const engine = new THREE.Mesh(engineGeometry, engineMaterial);
+        engine.position.set(0, 0, -2.5 * scale);
+        engine.rotation.x = Math.PI / 2;
+        vehicleGroup.add(engine);
+        
+        // 작은 엔진 글로우 효과
+        const glowGeometry = new THREE.CylinderGeometry(1.5 * scale, 1.5 * scale, 0.2 * scale, 12);
+        const glowMaterial = new THREE.MeshBasicMaterial({
+            color: glowColor,
+            transparent: true,
+            opacity: 0.6
+        });
+        const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+        glow.position.set(0, 0, -3 * scale);
+        glow.rotation.x = Math.PI / 2;
+        vehicleGroup.add(glow);
+        
+        // 사용자 데이터에 엔진 정보 저장
+        vehicleGroup.userData.engine = engine;
+        vehicleGroup.userData.glow = glow;
+    }
+
+    /**
      * 총알 생성
      */
     createBullet(bulletData) {
@@ -797,34 +876,55 @@ export class GameClient {
         
         const explosionGroup = new THREE.Group();
         
-        // 메인 폭발
-        const explosionGeometry = new THREE.SphereGeometry(explosionConfig.radius || 1, 16, 16);
+        // 메인 폭발 (더 크게)
+        const explosionRadius = (explosionConfig.radius || 1) * (explosionData.radius || 1);
+        const explosionGeometry = new THREE.SphereGeometry(explosionRadius, 32, 32); // 더 세밀하게
         const explosionMaterial = new THREE.MeshBasicMaterial({
             color: explosionConfig.color || "#FF4400",
             transparent: true,
-            opacity: explosionConfig.opacity || 0.8
+            opacity: explosionConfig.opacity || 1.0
         });
         const explosion = new THREE.Mesh(explosionGeometry, explosionMaterial);
         explosionGroup.add(explosion);
         
-        // 파티클 효과
-        const particleCount = explosionConfig.particleCount || 20;
-        const particleColors = explosionConfig.particleColors || ["#FF4400", "#FFAA00"];
+        // 외부 글로우 효과 추가
+        const glowGeometry = new THREE.SphereGeometry(explosionRadius * 1.5, 16, 16);
+        const glowMaterial = new THREE.MeshBasicMaterial({
+            color: "#FFAA00",
+            transparent: true,
+            opacity: 0.3
+        });
+        const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+        explosionGroup.add(glow);
+        
+        // 파티클 효과 (더 많이, 더 넓게)
+        const particleCount = (explosionConfig.particleCount || 20) * 2; // 2배 증가
+        const particleColors = explosionConfig.particleColors || ["#FF4400", "#FFAA00", "#FF0000", "#FFFF00"];
+        const spreadRange = explosionRadius * 3; // 확산 범위 3배 증가
         
         for (let i = 0; i < particleCount; i++) {
-            const particleGeometry = new THREE.SphereGeometry(explosionConfig.particleRadius || 0.2, 4, 4);
+            const particleRadius = (explosionConfig.particleRadius || 0.2) * (1 + Math.random());
+            const particleGeometry = new THREE.SphereGeometry(particleRadius, 8, 8);
             const particleColor = particleColors[Math.floor(Math.random() * particleColors.length)];
             const particleMaterial = new THREE.MeshBasicMaterial({
                 color: particleColor,
                 transparent: true,
-                opacity: explosionConfig.particleOpacity || 0.7
+                opacity: explosionConfig.particleOpacity || 0.9
             });
             const particle = new THREE.Mesh(particleGeometry, particleMaterial);
             
+            // 더 넓은 범위로 파티클 확산
             particle.position.set(
-                (Math.random() - 0.5) * 10,
-                (Math.random() - 0.5) * 10,
-                (Math.random() - 0.5) * 10
+                (Math.random() - 0.5) * spreadRange,
+                (Math.random() - 0.5) * spreadRange,
+                (Math.random() - 0.5) * spreadRange
+            );
+            
+            // 파티클에 속도 정보 저장 (애니메이션용)
+            particle.userData.velocity = new THREE.Vector3(
+                (Math.random() - 0.5) * 20,
+                (Math.random() - 0.5) * 20,
+                (Math.random() - 0.5) * 20
             );
             
             explosionGroup.add(particle);
@@ -835,12 +935,78 @@ export class GameClient {
             explosionData.position.y || 0,
             explosionData.position.z || 0
         );
-        explosionGroup.userData = { explosionData: explosionData };
+        explosionGroup.userData = { 
+            explosionData: explosionData,
+            createdAt: Date.now(),
+            duration: explosionData.duration || 2000
+        };
         
         this.explosions.set(explosionData.id, explosionGroup);
         this.scene.add(explosionGroup);
         
+        // 폭발 애니메이션 시작
+        this.animateExplosion(explosionGroup);
+        
         return explosionGroup;
+    }
+
+    /**
+     * 폭발 애니메이션
+     */
+    animateExplosion(explosionGroup) {
+        const startTime = Date.now();
+        const duration = explosionGroup.userData.duration || 2000;
+        
+        const animate = () => {
+            const elapsed = Date.now() - startTime;
+            const progress = elapsed / duration;
+            
+            if (progress >= 1.0) {
+                // 애니메이션 완료 - 폭발 제거
+                this.scene.remove(explosionGroup);
+                this.explosions.delete(explosionGroup.userData.explosionData.id);
+                return;
+            }
+            
+            // 메인 폭발 스케일 애니메이션 (확장 후 축소)
+            const scaleProgress = progress < 0.3 ? progress / 0.3 : 1 - ((progress - 0.3) / 0.7);
+            const scale = 0.5 + scaleProgress * 1.5; // 0.5에서 2.0까지 확장 후 축소
+            
+            explosionGroup.children.forEach((child, index) => {
+                if (index === 0) {
+                    // 메인 폭발
+                    child.scale.setScalar(scale);
+                    child.material.opacity = (1 - progress) * 1.0;
+                } else if (index === 1) {
+                    // 글로우 효과
+                    child.scale.setScalar(scale * 1.2);
+                    child.material.opacity = (1 - progress) * 0.3;
+                } else {
+                    // 파티클들
+                    if (child.userData.velocity) {
+                        // 파티클 이동
+                        child.position.add(child.userData.velocity.clone().multiplyScalar(0.016)); // 60fps 기준
+                        
+                        // 중력 효과
+                        child.userData.velocity.y -= 0.5;
+                        
+                        // 공기 저항
+                        child.userData.velocity.multiplyScalar(0.98);
+                        
+                        // 파티클 페이드 아웃
+                        child.material.opacity = (1 - progress) * 0.9;
+                        
+                        // 파티클 크기 변화
+                        const particleScale = 1 - progress * 0.5;
+                        child.scale.setScalar(particleScale);
+                    }
+                }
+            });
+            
+            requestAnimationFrame(animate);
+        };
+        
+        animate();
     }
 
     /**
@@ -1439,11 +1605,21 @@ export class GameClient {
         
         this.socket.on('vehicleDestroyed', (data) => {
             console.log('Vehicle destroyed:', data);
+            
+            // 파괴된 차량을 즉시 숨기기
+            if (data.shouldHide) {
+                const vehicle = this.vehicles.get(data.vehicleId);
+                if (vehicle) {
+                    vehicle.visible = false;
+                    console.log(`Vehicle ${data.vehicleId} hidden after destruction`);
+                }
+            }
         });
         
         this.socket.on('vehicleRespawned', (data) => {
             const vehicle = this.vehicles.get(data.vehicle.id);
             if (vehicle) {
+                // 위치와 회전 업데이트
                 vehicle.position.set(
                     data.vehicle.position.x || 0,
                     data.vehicle.position.y || 50,
@@ -1454,7 +1630,15 @@ export class GameClient {
                     data.vehicle.rotation.y || 0,
                     data.vehicle.rotation.z || 0
                 );
+                
+                // 차량 데이터 업데이트
                 vehicle.userData.vehicleData = data.vehicle;
+                
+                // 차량을 다시 보이게 만들기
+                if (data.shouldShow) {
+                    vehicle.visible = true;
+                    console.log(`Vehicle ${data.vehicle.id} shown after respawn`);
+                }
             }
         });
         
@@ -1509,6 +1693,14 @@ export class GameClient {
                     vehicleData.rotation.z || 0, 
                     0.3
                 ); // 롤 (Q/E)
+                
+                // 차량 가시성 상태 업데이트 (서버에서 visible 정보가 있는 경우)
+                if (vehicleData.hasOwnProperty('visible')) {
+                    vehicle.visible = vehicleData.visible;
+                } else if (vehicleData.hasOwnProperty('active')) {
+                    // active 상태에 따라 가시성 결정 (fallback)
+                    vehicle.visible = vehicleData.active;
+                }
                 
                 // 엔진 글로우 효과 (추력에 따라 밝기 조절)
                 if (vehicle.userData.engine && vehicle.userData.glow) {

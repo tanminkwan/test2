@@ -8,13 +8,30 @@ game:
   maxPlayers: 8                      # 최대 플레이어 수
   minPlayersToStart: 1               # 게임 시작에 필요한 최소 플레이어 수
   gameMode: "deathmatch"             # 게임 모드 (deathmatch, team, etc.)
-  respawnTime: 3000                  # 리스폰 시간 (밀리초)
+  respawnTime: 5000                  # 리스폰 시간 (밀리초) - 5초로 변경
   
 server:
   port: 3001                         # 서버 포트 번호
   host: "0.0.0.0"                    # 서버 호스트 (0.0.0.0 = 모든 인터페이스)
   tickRate: 60                       # 서버 업데이트 주기 (Hz, 초당 프레임)
   
+# 점수 시스템 설정
+scoring:
+  killReward: 100                    # 적 격추 시 점수
+  billboardDestroyReward: 50         # 광고판 파괴 시 점수
+  assistReward: 25                   # 어시스트 점수 (미래 기능)
+  
+# 충돌 및 물리 상수
+collision:
+  safeDistance: 15                   # 광고판 충돌 시 안전 거리
+  velocityReflection: 0.5            # 충돌 시 속도 반사 계수
+  explosionRadiusSmall: 5            # 작은 폭발 반지름 (피격 시)
+  explosionRadiusLarge: 25           # 큰 폭발 반지름 (파괴 시)
+  explosionDurationSmall: 1000       # 작은 폭발 지속시간 (ms)
+  explosionDurationLarge: 3000       # 큰 폭발 지속시간 (ms)
+  explosionIntensitySmall: 0.5       # 작은 폭발 강도
+  explosionIntensityLarge: 1.5       # 큰 폭발 강도
+
 # 네트워크 설정
 network:
   allowExternalAccess: true          # 외부 네트워크에서 접근 허용 여부
@@ -22,6 +39,9 @@ network:
     enabled: true                    # CORS (Cross-Origin Resource Sharing) 활성화
     origins: "*"                     # 허용할 도메인 (* = 모든 도메인)
   publicUrl: ""                      # 공개 URL (비어있으면 자동 감지)
+  syncInterval: 16                   # 게임 상태 동기화 간격 (ms, ~60fps)
+  maxPacketSize: 1024                # 최대 패킷 크기 (bytes)
+  compressionEnabled: false          # 데이터 압축 활성화 (미래 기능)
   
 world:
   size: 400                          # 맵 크기 (정사각형, 단위: 게임 유닛)
@@ -183,7 +203,7 @@ physics:
   collisionRadius: 5                 # 기본 충돌 반경
   
 effects:
-  explosionDuration: 2               # 폭발 지속 시간 (초)
+  explosionDuration: 3               # 폭발 지속 시간 (초) - 3초로 증가
   bulletTrailLength: 10              # 총알 궤적 길이
   muzzleFlash:                       # 총구 스파크 효과
     duration: 150                    # 지속 시간 (ms)
@@ -198,13 +218,13 @@ effects:
     trailColor: "#FF8800"            # 궤적 색상 (주황색)
     glowOpacity: 0.3                 # 글로우 투명도
   explosion:                         # 폭발 시각 효과
-    radius: 1                        # 폭발 반지름
-    particleCount: 20                # 파티클 개수
-    particleRadius: 0.2              # 파티클 반지름
+    radius: 8                        # 폭발 반지름 (8배 증가)
+    particleCount: 50                # 파티클 개수 (50개로 증가)
+    particleRadius: 0.5              # 파티클 반지름 (2.5배 증가)
     color: "#FF4400"                 # 메인 폭발 색상
-    particleColors: ["#FF4400", "#FFAA00"]  # 파티클 색상 목록
-    opacity: 0.8                     # 메인 폭발 투명도
-    particleOpacity: 0.7             # 파티클 투명도
+    particleColors: ["#FF4400", "#FFAA00", "#FF0000", "#FFFF00"]  # 파티클 색상 목록 (더 다양하게)
+    opacity: 1.0                     # 메인 폭발 투명도 (완전 불투명)
+    particleOpacity: 0.9             # 파티클 투명도 (더 진하게)
   
 camera:
   followDistance: 50                 # 3인칭 시점 거리
@@ -237,4 +257,25 @@ client:
     shadowMapType: "basic"           # 그림자 타입 ("basic", "pcf", "pcfsoft")
     antialias: false                 # 안티앨리어싱 비활성화 (성능 향상)
     powerPreference: "low-power"     # GPU 전력 설정 ("default", "high-performance", "low-power")
-    lowPerformanceMode: true         # 저성능 모드 활성화 (추가 최적화) 
+    lowPerformanceMode: true         # 저성능 모드 활성화 (추가 최적화)
+
+# 성능 모니터링 설정
+performance:
+  enabled: true                      # 성능 모니터링 활성화
+  monitoringInterval: 5000           # 모니터링 간격 (ms)
+  maxMetricHistory: 100              # 메트릭 히스토리 최대 개수
+  maxFrameTime: 33                   # 최대 프레임 시간 (ms, 30fps)
+  maxMemoryUsage: 512                # 최대 메모리 사용량 (MB)
+  maxEntityCount: 1000               # 최대 엔티티 개수
+  autoOptimization: false            # 자동 최적화 활성화 (미래 기능)
+  reportInterval: 60000              # 성능 리포트 간격 (ms, 1분)
+
+# 로깅 설정
+logging:
+  level: "info"                      # 로그 레벨 (debug, info, warn, error)
+  enableFileLogging: false           # 파일 로깅 활성화
+  logDirectory: "./logs"             # 로그 파일 디렉토리
+  maxLogFiles: 10                    # 최대 로그 파일 개수
+  maxLogSize: "10MB"                 # 로그 파일 최대 크기
+  enablePerformanceLogs: true        # 성능 로그 활성화
+  enableEventLogs: true              # 이벤트 로그 활성화 

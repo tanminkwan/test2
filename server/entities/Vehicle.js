@@ -49,6 +49,7 @@ export default class Vehicle extends GameEntity {
         
         // 활성 상태
         this.active = true;
+        this.visible = true; // 가시성 상태 (기본적으로 보임)
     }
 
     /**
@@ -81,6 +82,19 @@ export default class Vehicle extends GameEntity {
                 bulletDamage: 15,
                 bulletSpeed: 180,
                 bulletRange: 350
+            },
+            test: {
+                health: 20,  // 매우 낮은 체력 (총알 2발로 파괴)
+                maxSpeed: 100,
+                acceleration: 60,
+                turnSpeed: 2.5,
+                rollSpeed: 3.5,
+                pitchSpeed: 2.5,
+                yawSpeed: 2.5,
+                fireRate: 80,
+                bulletDamage: 8,
+                bulletSpeed: 220,
+                bulletRange: 280
             }
         };
         
@@ -237,7 +251,7 @@ export default class Vehicle extends GameEntity {
     }
 
     /**
-     * 데미지 받기
+     * 데미지 처리
      */
     takeDamage(damage) {
         if (!this.active) return false;
@@ -250,7 +264,7 @@ export default class Vehicle extends GameEntity {
             return true; // 파괴됨
         }
         
-        return false;
+        return false; // 파괴되지 않음
     }
 
     /**
@@ -278,6 +292,7 @@ export default class Vehicle extends GameEntity {
         this.velocity = { x: 0, y: 0, z: 0 };
         this.health = this.maxHealth;
         this.active = true;
+        this.visible = true; // 리스폰 시 다시 보이게
     }
 
     /**
@@ -295,6 +310,7 @@ export default class Vehicle extends GameEntity {
             color: this.color,
             vehicleType: this.vehicleType,
             active: this.active,
+            visible: this.visible,
             timestamp: Date.now()
         };
     }

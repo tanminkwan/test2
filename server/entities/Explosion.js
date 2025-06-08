@@ -43,18 +43,24 @@ export default class Explosion extends GameEntity {
     }
 
     /**
-     * 파괴 여부 확인
+     * 폭발이 파괴되어야 하는지 확인
      */
     shouldDestroy() {
-        return !this.active || this.age >= this.duration;
+        const age = Date.now() - this.timestamp;
+        const shouldDestroy = age > this.duration;
+        
+        if (shouldDestroy && this.active) {
+            this.active = false;
+        }
+        
+        return shouldDestroy;
     }
 
     /**
-     * 엔티티 제거 (오버라이드)
+     * 폭발 파괴
      */
     destroy() {
-        console.log(`Explosion ${this.id} destroyed`);
-        super.destroy();
+        this.active = false;
     }
 
     /**

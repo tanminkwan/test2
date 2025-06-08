@@ -245,8 +245,8 @@
                 <br>
                 <div style="margin: 15px 0; text-align: center;">
                     <h4 style="margin: 10px 0; color: white;">비행체 선택:</h4>
-                    <div style="display: flex; gap: 15px; justify-content: center; margin: 15px 0;">
-                        <button id="fighterBtn" class="vehicle-select-btn selected" onclick="selectVehicle('fighter')" style="
+                    <div style="display: flex; gap: 20px; justify-content: center; margin: 20px 0;">
+                        <button id="fighterBtn" class="vehicle-select-btn" onclick="selectVehicle('fighter')" style="
                             padding: 15px 20px;
                             border: 3px solid #4CAF50;
                             border-radius: 10px;
@@ -259,7 +259,7 @@
                         ">
                             <div style="font-size: 24px; margin-bottom: 5px;">✈️</div>
                             <div style="font-weight: bold;">전투기</div>
-                            <div style="font-size: 12px; margin-top: 5px;">빠르고 민첩<br>미사일 4발</div>
+                            <div style="font-size: 12px; margin-top: 5px;">빠르고 민첩<br>체력: 80</div>
                         </button>
                         <button id="heavyBtn" class="vehicle-select-btn" onclick="selectVehicle('heavy')" style="
                             padding: 15px 20px;
@@ -274,7 +274,22 @@
                         ">
                             <div style="font-size: 24px; margin-bottom: 5px;">🚀</div>
                             <div style="font-weight: bold;">중형기</div>
-                            <div style="font-size: 12px; margin-top: 5px;">강력하고 튼튼<br>미사일 6발</div>
+                            <div style="font-size: 12px; margin-top: 5px;">강력하고 튼튼<br>체력: 150</div>
+                        </button>
+                        <button id="testBtn" class="vehicle-select-btn" onclick="selectVehicle('test')" style="
+                            padding: 15px 20px;
+                            border: 3px solid #666;
+                            border-radius: 10px;
+                            background: rgba(255, 255, 255, 0.1);
+                            color: white;
+                            cursor: pointer;
+                            transition: all 0.3s;
+                            min-width: 150px;
+                            text-align: center;
+                        ">
+                            <div style="font-size: 24px; margin-bottom: 5px;">🎯</div>
+                            <div style="font-weight: bold;">테스트기</div>
+                            <div style="font-size: 12px; margin-top: 5px;">약하고 빠름<br>체력: 20</div>
                         </button>
                     </div>
                 </div>
@@ -361,14 +376,19 @@
             document.getElementById('fighterBtn').style.background = 'rgba(255, 255, 255, 0.1)';
             document.getElementById('heavyBtn').style.border = '3px solid #666';
             document.getElementById('heavyBtn').style.background = 'rgba(255, 255, 255, 0.1)';
+            document.getElementById('testBtn').style.border = '3px solid #666';
+            document.getElementById('testBtn').style.background = 'rgba(255, 255, 255, 0.1)';
             
             // 선택된 버튼 스타일 적용
             if (vehicleType === 'fighter') {
                 document.getElementById('fighterBtn').style.border = '3px solid #4CAF50';
                 document.getElementById('fighterBtn').style.background = 'rgba(76, 175, 80, 0.2)';
-            } else {
+            } else if (vehicleType === 'heavy') {
                 document.getElementById('heavyBtn').style.border = '3px solid #FF9800';
                 document.getElementById('heavyBtn').style.background = 'rgba(255, 152, 0, 0.2)';
+            } else {
+                document.getElementById('testBtn').style.border = '3px solid #FF9800';
+                document.getElementById('testBtn').style.background = 'rgba(255, 152, 0, 0.2)';
             }
         }
         

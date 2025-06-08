@@ -13,20 +13,25 @@ export class EffectSystem {
     /**
      * 폭발 효과 생성
      */
-    createExplosion(position, config = {}) {
-        const explosionId = `explosion_${Date.now()}_${Math.random()}`;
-        const explosion = new Explosion(explosionId, position, {
-            damage: 0, // 시각 효과만
-            radius: 10,
-            duration: 2000,
-            ...config
-        });
-
-        // timestamp 명시적으로 설정
-        explosion.timestamp = explosion.createdAt;
+    createExplosion(position, radius, duration, intensity = 1.0) {
+        const explosion = new Explosion(
+            `explosion_${Date.now()}_${Math.random()}`,
+            position,
+            radius,
+            duration,
+            intensity
+        );
         
-        this.effects.set(explosionId, explosion);
-        console.log(`Created explosion ${explosionId} at (${position.x}, ${position.y}, ${position.z}) with duration ${explosion.duration}ms`);
+        // timestamp 설정 (EffectSystem과 호환성을 위해)
+        explosion.timestamp = Date.now();
+        
+        this.effects.set(explosion.id, explosion);
+        
+        // 폭발 이벤트 발생
+        this.eventEmitter.emit('explosionCreated', {
+            explosion: explosion.serialize()
+        });
+        
         return explosion;
     }
 
@@ -101,58 +106,33 @@ export class EffectSystem {
     /**
      * 효과 업데이트
      */
-    updateEffects(deltaTime) {
-        const toRemove = [];
+    update() {
         const now = Date.now();
-
-        // 일반 효과 업데이트
+        const effectsToRemove = [];
+        
         for (const [id, effect] of this.effects) {
-            // 효과 업데이트 (Explosion 객체인 경우)
-            if (effect.update && typeof effect.update === 'function') {
-                effect.update(deltaTime);
-                
-                // Explosion 객체가 파괴되었는지 확인
-                if (effect.shouldDestroy && effect.shouldDestroy()) {
-                    toRemove.push(id);
-                    continue;
+            // 효과가 shouldDestroy() 메서드를 가지고 있는지 확인
+            if (typeof effect.shouldDestroy === 'function') {
+                if (effect.shouldDestroy()) {
+                    effectsToRemove.push(id);
+                    effect.destroy();
                 }
-                
-                // active 상태 확인
-                if (effect.active === false) {
-                    toRemove.push(id);
-                    continue;
+            } else {
+                // 폴백: timestamp 기반 만료 확인
+                const age = now - (effect.timestamp || effect.createdAt || 0);
+                if (age > (effect.duration || 2000)) {
+                    effectsToRemove.push(id);
+                    if (typeof effect.destroy === 'function') {
+                        effect.destroy();
+                    }
                 }
-            }
-
-            // 지속시간 확인 (timestamp 또는 createdAt 사용)
-            const creationTime = effect.timestamp || effect.createdAt || 0;
-            const elapsed = now - creationTime;
-            const duration = effect.duration || 2000;
-            
-            if (elapsed > duration) {
-                toRemove.push(id);
-                console.log(`Removing expired effect ${id} (elapsed: ${elapsed}ms, duration: ${duration}ms)`);
             }
         }
-
-        // 총구 스파크 효과 업데이트
-        for (const [playerId, muzzleFlash] of this.muzzleFlashes) {
-            const elapsed = now - muzzleFlash.timestamp;
-            if (elapsed > muzzleFlash.duration) {
-                this.muzzleFlashes.delete(playerId);
-            }
+        
+        // 만료된 효과들 제거
+        for (const id of effectsToRemove) {
+            this.effects.delete(id);
         }
-
-        // 만료된 효과 제거
-        toRemove.forEach(id => {
-            const effect = this.effects.get(id);
-            if (effect) {
-                console.log(`Removing effect ${id} of type ${effect.type || 'explosion'}`);
-                this.effects.delete(id);
-            }
-        });
-
-        return toRemove;
     }
 
     /**

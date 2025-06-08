@@ -3,6 +3,7 @@ import Vehicle from '../entities/Vehicle.js';
 import Billboard from '../entities/Billboard.js';
 import { WeaponSystem } from './WeaponSystem.js';
 import { EffectSystem } from './EffectSystem.js';
+import { VehicleFactory } from './VehicleFactory.js';
 
 /**
  * 게임 매니저 클래스 (Dependency Inversion Principle)
@@ -23,6 +24,7 @@ export default class GameManager {
         // 시스템들 (Dependency Injection)
         this.weaponSystem = new WeaponSystem();
         this.effectSystem = new EffectSystem();
+        this.vehicleFactory = new VehicleFactory(config); // Factory 패턴 적용
         
         // WeaponSystem에 이벤트 에미터 설정
         this.weaponSystem.setEventEmitter(this.eventEmitter);
@@ -210,10 +212,10 @@ export default class GameManager {
         const vehicleId = uuidv4();
         const spawnPosition = this.getSpawnPosition();
         
-        const vehicle = new Vehicle(vehicleId, playerId, spawnPosition, {
+        // Factory 패턴을 사용하여 비행체 생성
+        const vehicle = this.vehicleFactory.createVehicle(vehicleId, playerId, spawnPosition, {
             color: color,
-            vehicleType: vehicleType,
-            config: this.config
+            vehicleType: vehicleType
         });
 
         // 무기 장착 (기본 기관총)
@@ -457,25 +459,30 @@ export default class GameManager {
             const normalY = dy / distance;
             const normalZ = dz / distance;
             
-            // 광고판 경계에서 안전한 거리만큼 밀어내기 (더 크게)
-            const safeDistance = Math.max(billboard.width, billboard.height, billboard.thickness) / 2 + 15;
+            // config에서 안전 거리 가져오기
+            const collisionConfig = this.config.collision || {};
+            const safeDistance = Math.max(billboard.width, billboard.height, billboard.thickness) / 2 + 
+                                (collisionConfig.safeDistance || 15);
             
             // 강제로 안전한 위치로 이동
             vehicle.position.x = billboard.position.x + normalX * safeDistance;
             vehicle.position.y = billboard.position.y + normalY * safeDistance;
             vehicle.position.z = billboard.position.z + normalZ * safeDistance;
             
-            // 속도를 충돌 방향으로 반사 (더 강한 효과)
+            // 속도를 충돌 방향으로 반사
             const velocityMagnitude = Math.sqrt(
                 vehicle.velocity.x * vehicle.velocity.x + 
                 vehicle.velocity.y * vehicle.velocity.y + 
                 vehicle.velocity.z * vehicle.velocity.z
             );
             
+            // config에서 속도 반사 계수 가져오기
+            const velocityReflection = collisionConfig.velocityReflection || 0.5;
+            
             // 반사된 속도 적용
-            vehicle.velocity.x = normalX * velocityMagnitude * 0.5;
-            vehicle.velocity.y = normalY * velocityMagnitude * 0.5;
-            vehicle.velocity.z = normalZ * velocityMagnitude * 0.5;
+            vehicle.velocity.x = normalX * velocityMagnitude * velocityReflection;
+            vehicle.velocity.y = normalY * velocityMagnitude * velocityReflection;
+            vehicle.velocity.z = normalZ * velocityMagnitude * velocityReflection;
             
             // 충돌 효과 생성
             this.effectSystem.createImpactEffect(vehicle.position, 'collision');
@@ -543,18 +550,33 @@ export default class GameManager {
         const vehicle = this.vehicles.get(collision.targetId);
         if (!vehicle) return;
 
-        vehicle.takeDamage(collision.damage);
-
-        if (vehicle.health <= 0) {
-            // 차량 파괴
-            this.handleVehicleDestroyed(vehicle, collision);
+        // 이미 비활성 차량인 경우 처리하지 않음
+        if (!vehicle.active) {
+            return;
         }
+        
+        // 파괴 여부를 미리 확인 (takeDamage 전에)
+        const willBeDestroyed = (vehicle.health - collision.damage) <= 0;
+        
+        const wasDestroyed = vehicle.takeDamage(collision.damage);
 
-        // 폭발 효과
-        this.effectSystem.createExplosion(collision.position, {
-            radius: 8,
-            duration: 1500
-        });
+        if (willBeDestroyed || wasDestroyed) {
+            // 차량 파괴 처리
+            this.handleVehicleDestroyed(vehicle, collision);
+        } else {
+            // 일반 피격 효과 (작은 폭발)
+            const collisionConfig = this.config.collision || {};
+            const explosionRadius = collisionConfig.explosionRadiusSmall || 5;
+            const explosionDuration = collisionConfig.explosionDurationSmall || 1000;
+            const explosionIntensity = collisionConfig.explosionIntensitySmall || 0.5;
+            
+            this.effectSystem.createExplosion(
+                vehicle.position,
+                explosionRadius,
+                explosionDuration,
+                explosionIntensity
+            );
+        }
     }
 
     /**
@@ -612,18 +634,24 @@ export default class GameManager {
      * 차량 파괴 처리
      */
     handleVehicleDestroyed(vehicle, collision) {
-        // 이미 파괴된 차량인지 확인 (중복 처리 방지)
-        if (!vehicle.active) {
+        // 이미 파괴 처리가 완료된 차량인지 확인 (중복 처리 방지)
+        // active가 false이고 health가 maxHealth인 경우는 이미 리스폰 처리된 것
+        if (!vehicle.active && vehicle.health === vehicle.maxHealth) {
             return;
         }
 
         // 차량을 비활성화하여 중복 처리 방지
-        vehicle.active = false;
+        if (vehicle.active) {
+            vehicle.active = false;
+        }
 
+        // 차량을 즉시 숨김 처리 (시각적으로 사라지게)
+        vehicle.visible = false;
+
+        // 플레이어 사망 처리
         const player = this.players.get(vehicle.playerId);
         if (player) {
             player.deaths++;
-            console.log(`Player ${player.name} died. Deaths: ${player.deaths}`);
         }
 
         // 킬 점수 처리 (발사체 소유자)
@@ -631,21 +659,38 @@ export default class GameManager {
             const killer = this.players.get(collision.ownerId);
             if (killer) {
                 killer.kills++;
-                killer.score += 100; // 킬당 100점
+                // config에서 킬 보상 점수 가져오기
+                const scoringConfig = this.config.scoring || {};
+                const killReward = scoringConfig.killReward || 100;
+                killer.score += killReward;
                 console.log(`Player ${killer.name} got a kill! Kills: ${killer.kills}, Score: ${killer.score}`);
             }
         }
 
-        // 차량 파괴 이벤트 발생
+        // 차량 파괴 이벤트 발생 (더 상세한 정보 포함)
         this.eventEmitter.emit('vehicleDestroyed', {
             vehicleId: vehicle.id,
             playerId: vehicle.playerId,
             killedBy: collision.ownerId || null,
-            position: vehicle.position
+            position: vehicle.position,
+            shouldHide: true // 클라이언트에서 즉시 숨기라는 플래그
         });
 
-        // 차량 리스폰 (config에서 시간 가져오기)
-        const respawnTime = this.config.game?.respawnTime || 3000;
+        // 큰 폭발 효과 생성 (차량 파괴 시)
+        const collisionConfig = this.config.collision || {};
+        const explosionRadius = collisionConfig.explosionRadiusLarge || 25;
+        const explosionDuration = collisionConfig.explosionDurationLarge || 3000;
+        const explosionIntensity = collisionConfig.explosionIntensityLarge || 1.5;
+        
+        this.effectSystem.createExplosion(
+            vehicle.position,
+            explosionRadius,
+            explosionDuration,
+            explosionIntensity
+        );
+
+        // 리스폰 타이머 설정
+        const respawnTime = this.config.game?.respawnTime || 5000;
         setTimeout(() => {
             this.respawnVehicle(vehicle);
         }, respawnTime);
@@ -657,6 +702,15 @@ export default class GameManager {
     respawnVehicle(vehicle) {
         const spawnPosition = this.getSpawnPosition();
         vehicle.respawn(spawnPosition);
+        
+        // 차량을 다시 보이게 만들기
+        vehicle.visible = true;
+        
+        // 리스폰 이벤트 발생 (shouldShow 플래그 포함)
+        this.eventEmitter.emit('vehicleRespawned', {
+            vehicle: vehicle.serialize(),
+            shouldShow: true // 클라이언트에서 다시 보이게 하라는 플래그
+        });
     }
 
     /**

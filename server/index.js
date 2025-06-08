@@ -1,13 +1,18 @@
-const express = require('express');
-const http = require('http');
-const socketIo = require('socket.io');
-const path = require('path');
-const fs = require('fs');
-const yaml = require('yaml');
-const { EventEmitter } = require('events');
-const os = require('os');
+import express from 'express';
+import { createServer } from 'http';
+import { Server as SocketIOServer } from 'socket.io';
+import path from 'path';
+import fs from 'fs';
+import yaml from 'yaml';
+import { EventEmitter } from 'events';
+import os from 'os';
+import { fileURLToPath } from 'url';
 
-const GameManager = require('./services/GameManager');
+import GameManager from './services/GameManager.js';
+
+// ES6 모듈에서 __dirname 대체
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // 설정 파일 로드
 const configPath = path.join(__dirname, 'config', 'game-config.yaml');
@@ -20,11 +25,11 @@ function getNetworkInterfaces() {
     const addresses = [];
     
     for (const name of Object.keys(interfaces)) {
-        for (const interface of interfaces[name]) {
-            if (interface.family === 'IPv4' && !interface.internal) {
+        for (const netInterface of interfaces[name]) {
+            if (netInterface.family === 'IPv4' && !netInterface.internal) {
                 addresses.push({
                     name: name,
-                    address: interface.address
+                    address: netInterface.address
                 });
             }
         }
@@ -35,7 +40,7 @@ function getNetworkInterfaces() {
 
 // Express 앱 생성
 const app = express();
-const server = http.createServer(app);
+const server = createServer(app);
 
 // Socket.IO 설정 (CORS 설정 포함)
 const socketConfig = {
@@ -46,7 +51,7 @@ const socketConfig = {
     }
 };
 
-const io = socketIo(server, socketConfig);
+const io = new SocketIOServer(server, socketConfig);
 
 // CORS 미들웨어 설정
 if (config.network?.cors?.enabled) {
@@ -90,13 +95,14 @@ io.on('connection', (socket) => {
     // 플레이어 조인
     socket.on('joinGame', (data) => {
         const playerName = data.name || `Player_${socket.id.substring(0, 6)}`;
-        const vehicleType = data.vehicleType || 'fighter'; // 기본값: fighter
+        const vehicleType = data.vehicleType || 'fighter';
         const result = gameManager.addPlayer(socket.id, playerName, vehicleType);
         
         if (result.success) {
             socket.emit('joinSuccess', {
                 player: result.player,
                 vehicle: result.vehicle,
+                weapons: result.weapons,
                 gameState: gameManager.getGameState(),
                 config: {
                     world: config.world,
@@ -105,8 +111,6 @@ io.on('connection', (socket) => {
                     camera: config.camera
                 }
             });
-            
-            console.log(`Player ${playerName} (${socket.id}) joined the game with ${vehicleType} vehicle`);
         } else {
             socket.emit('joinFailed', { reason: result.reason });
         }
@@ -127,26 +131,11 @@ io.on('connection', (socket) => {
 // 게임 이벤트 리스너 설정
 function setupGameEventListeners() {
     gameEventEmitter.on('gameStarted', (data) => {
-        console.log(`Game started with ${data.players.length} players`);
         io.emit('gameStarted', data);
-        
-        // 플레이어 정보 출력
-        data.players.forEach(player => {
-            console.log(`Player ${player.name} (${player.id}) joined the game`);
-        });
     });
     
     gameEventEmitter.on('gameEnded', () => {
-        console.log('Game ended');
         io.emit('gameEnded');
-    });
-    
-    gameEventEmitter.on('playerJoined', (data) => {
-        io.emit('playerJoined', data);
-    });
-    
-    gameEventEmitter.on('playerLeft', (data) => {
-        io.emit('playerLeft', data);
     });
     
     gameEventEmitter.on('bulletCreated', (data) => {
@@ -157,12 +146,16 @@ function setupGameEventListeners() {
         io.emit('bulletDestroyed', data);
     });
     
-    gameEventEmitter.on('explosionCreated', (data) => {
-        io.emit('explosionCreated', data);
+    gameEventEmitter.on('muzzleFlash', (data) => {
+        io.emit('muzzleFlash', data);
     });
     
-    gameEventEmitter.on('explosionDestroyed', (data) => {
-        io.emit('explosionDestroyed', data);
+    gameEventEmitter.on('projectilesRemoved', (projectileIds) => {
+        io.emit('projectilesRemoved', projectileIds);
+    });
+    
+    gameEventEmitter.on('effectsRemoved', (effectIds) => {
+        io.emit('effectsRemoved', effectIds);
     });
     
     gameEventEmitter.on('vehicleDestroyed', (data) => {
@@ -185,7 +178,7 @@ app.get('/api/status', (req, res) => {
     
     res.json({
         status: 'running',
-        gameState: gameState.state,
+        gameState: gameState.gameState,
         players: gameState.players.length,
         maxPlayers: config.game.maxPlayers,
         uptime: process.uptime(),
@@ -194,36 +187,48 @@ app.get('/api/status', (req, res) => {
             interfaces: networkInterfaces,
             publicUrl: config.network?.publicUrl || null
         },
+        weaponSystem: gameState.effects,
         config: config
     });
 });
 
-app.get('/api/config', (req, res) => {
-    res.json(config);
-});
-
+// 네트워크 정보 API 엔드포인트
 app.get('/api/network', (req, res) => {
     const networkInterfaces = getNetworkInterfaces();
+    const externalAccess = config.network?.allowExternalAccess || false;
     const port = config.server.port || 3001;
     
+    const accessUrls = networkInterfaces.map(iface => `http://${iface.address}:${port}`);
+    
     res.json({
-        externalAccess: config.network?.allowExternalAccess || false,
+        externalAccess: externalAccess,
+        host: externalAccess ? '0.0.0.0' : 'localhost',
         port: port,
-        host: config.server.host || '0.0.0.0',
         interfaces: networkInterfaces,
-        accessUrls: networkInterfaces.map(iface => `http://${iface.address}:${port}`),
+        accessUrls: accessUrls,
         publicUrl: config.network?.publicUrl || null
     });
 });
 
-// 메인 페이지
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, '../client/index.html'));
+// 클라이언트 설정 API 엔드포인트
+app.get('/api/config', (req, res) => {
+    // 클라이언트에 필요한 설정만 전달
+    const clientConfig = {
+        world: config.world,
+        vehicles: config.vehicles,
+        weapons: config.weapons,
+        camera: config.camera,
+        client: config.client,
+        effects: config.effects,
+        physics: config.physics
+    };
+    
+    res.json(clientConfig);
 });
 
 // 서버 시작
 const PORT = config.server.port || 3001;
-const HOST = config.server.host || '0.0.0.0';
+const HOST = config.network?.allowExternalAccess ? '0.0.0.0' : 'localhost';
 
 server.listen(PORT, HOST, () => {
     const networkInterfaces = getNetworkInterfaces();
@@ -232,25 +237,20 @@ server.listen(PORT, HOST, () => {
     console.log(`📊 Server Status: http://localhost:${PORT}/api/status`);
     console.log(`🎮 Game Client: http://localhost:${PORT}`);
     
-    if (config.network?.allowExternalAccess) {
-        console.log('\n🌐 External Access Enabled:');
+    if (config.network?.allowExternalAccess && networkInterfaces.length > 0) {
+        console.log('🌐 External Access Enabled:');
         networkInterfaces.forEach(iface => {
             console.log(`   📡 ${iface.name}: http://${iface.address}:${PORT}`);
         });
         
-        if (config.network.publicUrl) {
-            console.log(`   🌍 Public URL: ${config.network.publicUrl}`);
-        }
-        
-        console.log('\n⚠️  Security Notice:');
+        console.log('⚠️  Security Notice:');
         console.log('   - Server is accessible from external networks');
         console.log('   - Consider using firewall rules for production');
         console.log('   - Monitor server logs for security');
-    } else {
-        console.log('\n🔒 Local Access Only (External access disabled)');
     }
     
-    console.log('\nSOLID Principles Applied:');
+    // SOLID 원칙 적용 상태 출력
+    console.log('SOLID Principles Applied:');
     console.log('✅ Single Responsibility: Each class has one reason to change');
     console.log('✅ Open/Closed: Entities extend GameEntity without modification');
     console.log('✅ Liskov Substitution: All entities can be used interchangeably');
@@ -268,7 +268,7 @@ process.on('SIGINT', () => {
 });
 
 process.on('SIGTERM', () => {
-    console.log('\n🛑 Shutting down server...');
+    console.log('\n🛑 Received SIGTERM, shutting down gracefully...');
     server.close(() => {
         console.log('✅ Server closed');
         process.exit(0);

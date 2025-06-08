@@ -2,10 +2,9 @@
  * 기본 게임 엔티티 클래스 (Single Responsibility Principle)
  * 모든 게임 오브젝트의 기본 속성과 동작을 정의
  */
-class GameEntity {
-    constructor(id, type, position = { x: 0, y: 0, z: 0 }) {
+export default class GameEntity {
+    constructor(id, position = { x: 0, y: 0, z: 0 }) {
         this.id = id;
-        this.type = type;
         this.position = { ...position };
         this.rotation = { x: 0, y: 0, z: 0 };
         this.velocity = { x: 0, y: 0, z: 0 };
@@ -68,16 +67,18 @@ class GameEntity {
     }
 
     /**
-     * 클라이언트 전송용 데이터 생성
+     * 직렬화
      */
-    toClientData() {
+    serialize() {
         return {
             id: this.id,
-            type: this.type,
             position: this.position,
             rotation: this.rotation,
+            velocity: this.velocity,
             scale: this.scale,
-            active: this.active
+            active: this.active,
+            createdAt: this.createdAt,
+            lastUpdated: this.lastUpdated
         };
     }
 
@@ -92,11 +93,22 @@ class GameEntity {
     }
 
     /**
-     * 경계 박스 충돌 검사
+     * 다른 엔티티와의 충돌 검사 (구형 충돌)
      */
-    intersects(other, radius1 = 5, radius2 = 5) {
-        return this.distanceTo(other) < (radius1 + radius2);
+    intersects(other, radius1 = null, radius2 = null) {
+        if (!other) return false;
+        
+        // config에서 기본 충돌 반지름 가져오기 (없으면 5 사용)
+        const defaultRadius = this.config?.physics?.collisionRadius || 5;
+        
+        const r1 = radius1 !== null ? radius1 : defaultRadius;
+        const r2 = radius2 !== null ? radius2 : defaultRadius;
+        
+        const dx = this.position.x - other.position.x;
+        const dy = this.position.y - other.position.y;
+        const dz = this.position.z - other.position.z;
+        
+        const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        return distance < (r1 + r2);
     }
-}
-
-module.exports = GameEntity; 
+} 

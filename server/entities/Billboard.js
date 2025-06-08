@@ -1,4 +1,4 @@
-const GameEntity = require('./GameEntity');
+import GameEntity from './GameEntity.js';
 
 /**
  * Billboard 클래스 - 지상에 설치되는 대형 광고판
@@ -7,9 +7,9 @@ const GameEntity = require('./GameEntity');
  * - Open/Closed: GameEntity를 확장하여 새로운 기능 추가
  * - Liskov Substitution: GameEntity의 모든 메서드를 올바르게 구현
  */
-class Billboard extends GameEntity {
+export default class Billboard extends GameEntity {
     constructor(id, position, rotation, config) {
-        super(id, 'billboard', position);
+        super(id, position);
         
         this.rotation = rotation || { x: 0, y: 0, z: 0 };
         this.width = config.width || 40;
@@ -18,14 +18,17 @@ class Billboard extends GameEntity {
         this.frontImage = config.frontImage || 'assets/billboards/front.jpg';
         this.backImage = config.backImage || 'assets/billboards/back.jpg';
         
+        // 게임 설정 저장
+        this.gameConfig = config.gameConfig || null;
+        
         // 광고판은 정적 오브젝트이지만 파괴 가능
         this.isStatic = true;
         this.maxHealth = config.health || 100; // 광고판 체력
         this.health = this.maxHealth;
         
-        // 총알 자국 관리
+        // 총알 자국 관리 (config에서 값 가져오기)
         this.bulletHoles = []; // { position: {x, y, z}, side: 'front'|'back', timestamp: number }
-        this.maxBulletHoles = 50; // 최대 총알 자국 수
+        this.maxBulletHoles = this.gameConfig?.billboards?.maxBulletHoles || 50; // 최대 총알 자국 수
         
         // 파괴 상태
         this.isDestroyed = false;
@@ -41,10 +44,10 @@ class Billboard extends GameEntity {
     }
     
     /**
-     * 광고판과 다른 엔티티의 충돌 검사
+     * 광고판과 다른 엔티티의 충돌 검사 (개선된 버전)
      */
     checkCollision(entity) {
-        if (!entity || entity.type === 'billboard' || this.isDestroyed) return false;
+        if (!entity || this.isDestroyed) return false;
         
         const dx = entity.position.x - this.position.x;
         const dy = entity.position.y - this.position.y;
@@ -55,16 +58,24 @@ class Billboard extends GameEntity {
         const halfHeight = this.height / 2;
         const halfThickness = this.thickness / 2;
         
-        // 간단한 AABB (Axis-Aligned Bounding Box) 충돌 검사
-        return Math.abs(dx) < halfWidth && 
-               Math.abs(dy) < halfHeight && 
-               Math.abs(dz) < halfThickness;
+        // 비행체의 크기 (config에서 가져오기)
+        const collision = this.gameConfig?.billboards?.collision || {};
+        const vehicleHalfWidth = collision.vehicleHalfWidth || 8;
+        const vehicleHalfHeight = collision.vehicleHalfHeight || 3;
+        const vehicleHalfLength = collision.vehicleHalfLength || 8;
+        
+        // 확장된 AABB 충돌 검사 (비행체 크기 포함)
+        const collisionX = Math.abs(dx) < (halfWidth + vehicleHalfWidth);
+        const collisionY = Math.abs(dy) < (halfHeight + vehicleHalfHeight);
+        const collisionZ = Math.abs(dz) < (halfThickness + vehicleHalfLength);
+        
+        return collisionX && collisionY && collisionZ;
     }
     
     /**
      * 총알 자국 추가
      */
-    addBulletHole(bulletPosition, bulletDirection) {
+    addBulletHole(bulletPosition, damage) {
         if (this.isDestroyed) return null;
         
         // 광고판 로컬 좌표계로 변환
@@ -168,11 +179,11 @@ class Billboard extends GameEntity {
     }
     
     /**
-     * 클라이언트로 전송할 데이터 직렬화
+     * 직렬화
      */
-    toClientData() {
+    serialize() {
         return {
-            ...super.toClientData(),
+            ...super.serialize(),
             rotation: this.rotation,
             width: this.width,
             height: this.height,
@@ -188,5 +199,3 @@ class Billboard extends GameEntity {
         };
     }
 }
-
-module.exports = Billboard; 

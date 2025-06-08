@@ -1,62 +1,61 @@
-const GameEntity = require('./GameEntity');
+import GameEntity from './GameEntity.js';
 
 /**
- * 폭발 효과 클래스
- * GameEntity를 확장하여 폭발 효과 구현
+ * 폭발 클래스 (Single Responsibility Principle)
+ * 폭발 효과의 생명주기와 시각적 표현을 담당
  */
-class Explosion extends GameEntity {
-    constructor(id, position, config) {
-        super(id, 'explosion', position);
+export default class Explosion extends GameEntity {
+    constructor(id, position, config = {}) {
+        super(id, position);
         
-        this.duration = config.effects.explosionDuration;
-        this.maxScale = 10;
-        this.startTime = Date.now();
+        this.damage = config.damage || 0; // 시각 효과용은 데미지 0
+        this.radius = config.radius || 10;
+        this.duration = config.duration || 2000; // 2초
+        this.color = config.color || 0xff4400;
         
-        // 초기 스케일은 0
-        this.scale = { x: 0, y: 0, z: 0 };
+        // 폭발 상태
+        this.age = 0;
+        this.intensity = 1.0; // 0.0 ~ 1.0
+        this.createdAt = Date.now();
     }
 
     /**
-     * 폭발 효과 업데이트
+     * 폭발 업데이트
      */
-    afterUpdate(deltaTime) {
-        const elapsed = (Date.now() - this.startTime) / 1000;
-        const progress = elapsed / this.duration;
+    update(deltaTime) {
+        if (!this.active) return;
         
-        if (progress >= 1) {
+        this.age += deltaTime * 1000; // 밀리초로 변환
+        
+        // 강도 계산 (시간에 따라 감소)
+        this.intensity = Math.max(0, 1.0 - (this.age / this.duration));
+        
+        // 지속시간 초과 시 제거
+        if (this.age >= this.duration) {
             this.destroy();
-            return;
         }
-        
-        // 폭발 애니메이션 (빠르게 확장 후 서서히 축소)
-        let scaleProgress;
-        if (progress < 0.3) {
-            // 빠른 확장
-            scaleProgress = progress / 0.3;
-        } else {
-            // 서서히 축소
-            scaleProgress = 1 - ((progress - 0.3) / 0.7);
-        }
-        
-        const currentScale = scaleProgress * this.maxScale;
-        this.scale.x = currentScale;
-        this.scale.y = currentScale;
-        this.scale.z = currentScale;
     }
 
     /**
-     * 클라이언트 전송용 데이터
+     * 파괴 여부 확인
      */
-    toClientData() {
-        const elapsed = (Date.now() - this.startTime) / 1000;
-        const progress = elapsed / this.duration;
-        
+    shouldDestroy() {
+        return !this.active || this.age >= this.duration;
+    }
+
+    /**
+     * 직렬화
+     */
+    serialize() {
         return {
-            ...super.toClientData(),
-            progress: progress,
-            duration: this.duration
+            ...super.serialize(),
+            damage: this.damage,
+            radius: this.radius,
+            duration: this.duration,
+            color: this.color,
+            age: this.age,
+            intensity: this.intensity,
+            type: 'explosion'
         };
     }
-}
-
-module.exports = Explosion; 
+} 

@@ -1,74 +1,70 @@
-const GameEntity = require('./GameEntity');
+import GameEntity from './GameEntity.js';
 
 /**
- * 총알 클래스
- * GameEntity를 확장하여 총알 특화 기능 구현
+ * 총알 클래스 (Single Responsibility Principle)
+ * 발사체의 물리 시뮬레이션과 충돌 검사를 담당
  */
-class Bullet extends GameEntity {
-    constructor(id, position, direction, shooterId, config) {
-        super(id, 'bullet', position);
+export default class Bullet extends GameEntity {
+    constructor(id, ownerId, position, velocity, config = {}) {
+        super(id, position);
         
-        this.shooterId = shooterId;
-        this.damage = config.weapons.machineGun.damage;
-        this.speed = config.weapons.machineGun.bulletSpeed;
-        this.range = config.weapons.machineGun.range;
-        this.lifetime = config.weapons.machineGun.bulletLifetime;
+        this.ownerId = ownerId;
+        this.velocity = { ...velocity };
+        this.damage = config.damage || 10;
+        this.speed = config.speed || 200;
+        this.range = config.range || 300;
+        
+        // 발사체 상태
+        this.distanceTraveled = 0;
         this.startPosition = { ...position };
-        
-        // 방향에 따른 속도 설정
-        this.velocity.x = direction.x * this.speed;
-        this.velocity.y = direction.y * this.speed;
-        this.velocity.z = direction.z * this.speed;
-        
-        // 회전을 방향에 맞게 설정
-        this.rotation.y = Math.atan2(direction.x, direction.z);
-        this.rotation.x = -Math.asin(direction.y);
+        this.createdAt = Date.now();
     }
 
     /**
      * 총알 업데이트
      */
-    afterUpdate(deltaTime) {
-        // 생존 시간 체크
-        const age = (Date.now() - this.createdAt) / 1000;
-        if (age > this.lifetime) {
-            this.destroy();
-            return;
-        }
+    update(deltaTime) {
+        if (!this.active) return;
         
-        // 사거리 체크
-        const distance = this.distanceFromStart();
-        if (distance > this.range) {
-            this.destroy();
-            return;
-        }
+        // 이전 위치 저장
+        const prevPosition = { ...this.position };
         
-        // 지형 충돌 체크 (간단한 높이 체크)
-        if (this.position.y < 0) {
+        // 위치 업데이트
+        this.position.x += this.velocity.x * deltaTime;
+        this.position.y += this.velocity.y * deltaTime;
+        this.position.z += this.velocity.z * deltaTime;
+        
+        // 이동 거리 계산
+        const dx = this.position.x - prevPosition.x;
+        const dy = this.position.y - prevPosition.y;
+        const dz = this.position.z - prevPosition.z;
+        this.distanceTraveled += Math.sqrt(dx * dx + dy * dy + dz * dz);
+        
+        // 사거리 초과 시 제거
+        if (this.distanceTraveled > this.range) {
             this.destroy();
         }
     }
 
     /**
-     * 시작 위치로부터의 거리 계산
+     * 파괴 여부 확인
      */
-    distanceFromStart() {
-        const dx = this.position.x - this.startPosition.x;
-        const dy = this.position.y - this.startPosition.y;
-        const dz = this.position.z - this.startPosition.z;
-        return Math.sqrt(dx * dx + dy * dy + dz * dz);
+    shouldDestroy() {
+        return !this.active || this.distanceTraveled > this.range;
     }
 
     /**
-     * 클라이언트 전송용 데이터
+     * 직렬화
      */
-    toClientData() {
+    serialize() {
         return {
-            ...super.toClientData(),
-            shooterId: this.shooterId,
-            damage: this.damage
+            ...super.serialize(),
+            ownerId: this.ownerId,
+            damage: this.damage,
+            speed: this.speed,
+            range: this.range,
+            distanceTraveled: this.distanceTraveled,
+            type: 'bullet'
         };
     }
-}
-
-module.exports = Bullet; 
+} 

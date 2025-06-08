@@ -1,14 +1,15 @@
-const { v4: uuidv4 } = require('uuid');
-const Vehicle = require('../entities/Vehicle');
-const Bullet = require('../entities/Bullet');
-const Explosion = require('../entities/Explosion');
-const Billboard = require('../entities/Billboard');
+import { v4 as uuidv4 } from 'uuid';
+import Vehicle from '../entities/Vehicle.js';
+import Billboard from '../entities/Billboard.js';
+import { WeaponSystem } from './WeaponSystem.js';
+import { EffectSystem } from './EffectSystem.js';
 
 /**
  * 게임 매니저 클래스 (Dependency Inversion Principle)
  * 게임의 전체적인 상태와 로직을 관리
+ * SOLID 원칙에 따라 리팩토링됨
  */
-class GameManager {
+export default class GameManager {
     constructor(config, eventEmitter) {
         this.config = config;
         this.eventEmitter = eventEmitter;
@@ -17,9 +18,14 @@ class GameManager {
         this.gameState = 'waiting'; // waiting, playing, ended
         this.players = new Map();
         this.vehicles = new Map();
-        this.bullets = new Map();
-        this.explosions = new Map();
-        this.billboards = new Map(); // 광고판 추가
+        this.billboards = new Map();
+        
+        // 시스템들 (Dependency Injection)
+        this.weaponSystem = new WeaponSystem();
+        this.effectSystem = new EffectSystem();
+        
+        // WeaponSystem에 이벤트 에미터 설정
+        this.weaponSystem.setEventEmitter(this.eventEmitter);
         
         // 게임 설정
         this.maxPlayers = config.game.maxPlayers;
@@ -52,40 +58,34 @@ class GameManager {
         const worldSize = this.config.world.size;
         const count = billboardConfig.count || 5;
         const minDistance = billboardConfig.minDistance || 80;
+        const maxAttempts = billboardConfig.maxPlacementAttempts || 100;
 
         const positions = [];
 
         for (let i = 0; i < count; i++) {
             let position;
             let attempts = 0;
-            const maxAttempts = 100; // 더 많은 시도 횟수
 
-            // 다른 광고판과 충분한 거리를 두고 평평한 지역에 배치
             do {
-                // 더 넓은 범위에서 위치 선택 (중앙 지역 선호)
                 const angle = Math.random() * Math.PI * 2;
-                const distance = Math.random() * worldSize * 0.3 + 50; // 중심에서 50-200 거리
+                const distance = Math.random() * worldSize * 0.3 + 50;
                 
                 const x = Math.cos(angle) * distance;
                 const z = Math.sin(angle) * distance;
                 
-                // 지형 높이 계산 (클라이언트와 동일한 공식 사용)
                 const terrainHeight = this.getTerrainHeight(x, z);
-                
-                // 평평한 지역인지 확인 (주변 높이 차이 검사)
-                const isFlat = this.isTerrainFlat(x, z, 20); // 20 단위 반경 내 평평함 검사
                 
                 position = {
                     x: x,
-                    y: Math.max(terrainHeight + billboardConfig.height / 2 + 5, this.config.world.waterLevel + billboardConfig.height / 2 + 5), // 지형 위 5 단위 여유
+                    y: Math.max(terrainHeight + billboardConfig.height / 2 + 5, this.config.world.waterLevel + billboardConfig.height / 2 + 5),
                     z: z
                 };
                 
                 attempts++;
             } while (attempts < maxAttempts && 
-                    (!this.isTerrainFlat(position.x, position.z, 15) || 
+                    (!this.isTerrainFlat(position.x, position.z, billboardConfig.terrainFlatness?.checkRadius || 15) || 
                      this.isTooCloseToOtherBillboards(position, positions, minDistance) ||
-                     this.getTerrainHeight(position.x, position.z) < this.config.world.waterLevel + 5)); // 물 위 5 단위 이상
+                     this.getTerrainHeight(position.x, position.z) < this.config.world.waterLevel + 5));
 
             if (attempts < maxAttempts) {
                 positions.push(position);
@@ -93,11 +93,10 @@ class GameManager {
                 const billboardId = uuidv4();
                 const rotation = {
                     x: 0,
-                    y: Math.random() * Math.PI * 2, // 랜덤 방향
+                    y: Math.random() * Math.PI * 2,
                     z: 0
                 };
 
-                // 이미지 선택 (배열인 경우 랜덤 선택)
                 const frontImage = this.selectRandomImage(billboardConfig.images.front);
                 const backImage = this.selectRandomImage(billboardConfig.images.back);
 
@@ -106,7 +105,8 @@ class GameManager {
                     height: billboardConfig.height,
                     thickness: billboardConfig.thickness,
                     frontImage: frontImage,
-                    backImage: backImage
+                    backImage: backImage,
+                    gameConfig: this.config // 게임 설정 전달
                 });
 
                 this.billboards.set(billboardId, billboard);
@@ -138,8 +138,8 @@ class GameManager {
      */
     isTerrainFlat(x, z, radius) {
         const centerHeight = this.getTerrainHeight(x, z);
-        const checkPoints = 8; // 8방향 체크
-        const maxHeightDiff = 10; // 최대 높이 차이 허용값
+        const checkPoints = this.config.billboards?.terrainFlatness?.checkPoints || 8;
+        const maxHeightDiff = this.config.billboards?.terrainFlatness?.maxHeightDiff || 10;
         
         for (let i = 0; i < checkPoints; i++) {
             const angle = (i / checkPoints) * Math.PI * 2;
@@ -148,7 +148,7 @@ class GameManager {
             const checkHeight = this.getTerrainHeight(checkX, checkZ);
             
             if (Math.abs(checkHeight - centerHeight) > maxHeightDiff) {
-                return false; // 높이 차이가 너무 크면 평평하지 않음
+                return false;
             }
         }
         
@@ -189,7 +189,6 @@ class GameManager {
             return { success: false, reason: 'Game is full' };
         }
 
-        // 색상 할당
         const color = this.assignColor();
         if (!color) {
             return { success: false, reason: 'No available colors' };
@@ -199,32 +198,40 @@ class GameManager {
         const player = {
             id: playerId,
             name: playerName,
-            color: color,
             score: 0,
             kills: 0,
             deaths: 0,
+            color: color,
+            vehicleType: vehicleType,
             joinedAt: Date.now()
         };
 
-        this.players.set(playerId, player);
-
-        // 비행체 생성
+        // 차량 생성
         const vehicleId = uuidv4();
-        const vehicle = new Vehicle(vehicleId, playerId, color, this.config, vehicleType);
+        const spawnPosition = this.getSpawnPosition();
+        
+        const vehicle = new Vehicle(vehicleId, playerId, spawnPosition, {
+            color: color,
+            vehicleType: vehicleType,
+            config: this.config
+        });
+
+        // 무기 장착 (기본 기관총)
+        this.weaponSystem.equipWeapon(playerId, 'machinegun');
+
+        this.players.set(playerId, player);
         this.vehicles.set(vehicleId, vehicle);
 
-        // 게임 시작 체크
-        this.checkGameStart();
+        console.log(`Player ${playerName} (${playerId}) joined the game with ${vehicleType} vehicle`);
 
-        this.eventEmitter.emit('playerJoined', {
-            player: player,
-            vehicle: vehicle.toClientData()
-        });
+        this.checkGameStart();
+        this.syncGameState();
 
         return { 
             success: true, 
             player: player,
-            vehicle: vehicle.toClientData()
+            vehicle: vehicle.serialize(),
+            weapons: this.weaponSystem.getPlayerWeapons(playerId)
         };
     }
 
@@ -233,12 +240,12 @@ class GameManager {
      */
     removePlayer(playerId) {
         const player = this.players.get(playerId);
-        if (!player) return;
+        if (!player) return false;
 
         // 색상 반환
         this.returnColor(player.color);
 
-        // 비행체 제거
+        // 플레이어 차량 찾기 및 제거
         for (const [vehicleId, vehicle] of this.vehicles) {
             if (vehicle.playerId === playerId) {
                 this.vehicles.delete(vehicleId);
@@ -246,12 +253,18 @@ class GameManager {
             }
         }
 
+        // 무기 제거
+        this.weaponSystem.removePlayerWeapons(playerId);
+
+        // 플레이어 제거
         this.players.delete(playerId);
 
-        this.eventEmitter.emit('playerLeft', { playerId });
+        console.log(`Player ${player.name} (${playerId}) left the game`);
 
-        // 게임 종료 체크
         this.checkGameEnd();
+        this.syncGameState();
+
+        return true;
     }
 
     /**
@@ -259,51 +272,31 @@ class GameManager {
      */
     handlePlayerInput(playerId, inputs) {
         const vehicle = this.getPlayerVehicle(playerId);
-        if (!vehicle || !vehicle.active) return;
+        if (!vehicle) return;
 
-        vehicle.updateInputs(inputs);
+        // 차량 입력 처리
+        vehicle.handleInput(inputs);
 
-        // 발사 처리
-        if (inputs.fire && vehicle.canFire()) {
-            const bulletData = vehicle.fire();
-            if (bulletData) {
-                this.createBullet(bulletData);
+        // 무기 발사 처리
+        if (inputs.fire) {
+            const projectile = this.weaponSystem.fireWeapon(
+                playerId, 
+                'machinegun', 
+                vehicle.position, 
+                vehicle.rotation
+            );
+
+            if (projectile) {
+                // 총구 스파크 효과 생성
+                this.effectSystem.createMuzzleFlash(playerId, vehicle.position, vehicle.rotation);
+                
+                // 클라이언트에 총구 스파크 이벤트 전송
+                this.eventEmitter.emit('muzzleFlash', {
+                    playerId: playerId,
+                    vehicleId: vehicle.id
+                });
             }
         }
-    }
-
-    /**
-     * 총알 생성
-     */
-    createBullet(bulletData) {
-        const bulletId = uuidv4();
-        const bullet = new Bullet(
-            bulletId,
-            bulletData.position,
-            bulletData.direction,
-            bulletData.shooterId,
-            this.config
-        );
-
-        this.bullets.set(bulletId, bullet);
-
-        this.eventEmitter.emit('bulletCreated', {
-            bullet: bullet.toClientData()
-        });
-    }
-
-    /**
-     * 폭발 생성
-     */
-    createExplosion(position) {
-        const explosionId = uuidv4();
-        const explosion = new Explosion(explosionId, position, this.config);
-
-        this.explosions.set(explosionId, explosion);
-
-        this.eventEmitter.emit('explosionCreated', {
-            explosion: explosion.toClientData()
-        });
     }
 
     /**
@@ -327,7 +320,7 @@ class GameManager {
     }
 
     /**
-     * 플레이어 비행체 가져오기
+     * 플레이어 차량 가져오기
      */
     getPlayerVehicle(playerId) {
         for (const vehicle of this.vehicles.values()) {
@@ -339,7 +332,26 @@ class GameManager {
     }
 
     /**
-     * 게임 시작 체크
+     * 스폰 위치 계산
+     */
+    getSpawnPosition() {
+        const angle = Math.random() * Math.PI * 2;
+        const minDistance = this.config.world?.spawnDistance?.min || 50;
+        const maxDistance = this.config.world?.spawnDistance?.max || 150;
+        const distance = minDistance + Math.random() * (maxDistance - minDistance);
+        
+        const minHeight = this.config.world?.spawnHeight?.min || 50;
+        const maxHeight = this.config.world?.spawnHeight?.max || 70;
+        
+        return {
+            x: Math.cos(angle) * distance,
+            y: minHeight + Math.random() * (maxHeight - minHeight),
+            z: Math.sin(angle) * distance
+        };
+    }
+
+    /**
+     * 게임 시작 확인
      */
     checkGameStart() {
         if (this.gameState === 'waiting' && this.players.size >= this.minPlayersToStart) {
@@ -352,14 +364,14 @@ class GameManager {
      */
     startGame() {
         this.gameState = 'playing';
+        console.log(`Game started with ${this.players.size} players`);
         this.eventEmitter.emit('gameStarted', {
-            players: Array.from(this.players.values()),
-            vehicles: Array.from(this.vehicles.values()).map(v => v.toClientData())
+            playerCount: this.players.size
         });
     }
 
     /**
-     * 게임 종료 체크
+     * 게임 종료 확인
      */
     checkGameEnd() {
         if (this.gameState === 'playing' && this.players.size < this.minPlayersToStart) {
@@ -372,6 +384,7 @@ class GameManager {
      */
     endGame() {
         this.gameState = 'waiting';
+        console.log('Game ended');
         this.eventEmitter.emit('gameEnded');
     }
 
@@ -392,68 +405,106 @@ class GameManager {
         const deltaTime = (now - this.lastUpdateTime) / 1000;
         this.lastUpdateTime = now;
 
-        if (this.gameState !== 'playing') return;
-
-        // 엔티티 업데이트
+        if (this.gameState === 'playing') {
         this.updateVehicles(deltaTime);
-        this.updateBullets(deltaTime);
-        this.updateExplosions(deltaTime);
-
-        // 충돌 검사
+            this.updateWeapons(deltaTime);
+            this.updateEffects(deltaTime);
         this.checkCollisions();
+        }
 
-        // 상태 동기화
         this.syncGameState();
     }
 
     /**
-     * 비행체 업데이트
+     * 차량 업데이트
      */
     updateVehicles(deltaTime) {
         for (const vehicle of this.vehicles.values()) {
             vehicle.update(deltaTime);
+            
+            // 비행체와 광고판 충돌 검사
+            this.checkVehicleBillboardCollisions(vehicle);
         }
     }
 
     /**
-     * 총알 업데이트
+     * 비행체와 광고판 충돌 검사
      */
-    updateBullets(deltaTime) {
-        const bulletsToRemove = [];
-
-        for (const [bulletId, bullet] of this.bullets) {
-            bullet.update(deltaTime);
-            
-            if (!bullet.active) {
-                bulletsToRemove.push(bulletId);
+    checkVehicleBillboardCollisions(vehicle) {
+        for (const billboard of this.billboards.values()) {
+            if (billboard.checkCollision(vehicle)) {
+                // 충돌 시 비행체를 광고판에서 밀어내기
+                this.resolveVehicleBillboardCollision(vehicle, billboard);
             }
-        }
-
-        // 비활성 총알 제거
-        for (const bulletId of bulletsToRemove) {
-            this.bullets.delete(bulletId);
-            this.eventEmitter.emit('bulletDestroyed', { bulletId });
         }
     }
 
     /**
-     * 폭발 업데이트
+     * 비행체-광고판 충돌 해결
      */
-    updateExplosions(deltaTime) {
-        const explosionsToRemove = [];
-
-        for (const [explosionId, explosion] of this.explosions) {
-            explosion.update(deltaTime);
+    resolveVehicleBillboardCollision(vehicle, billboard) {
+        // 광고판 중심에서 비행체로의 벡터 계산
+        const dx = vehicle.position.x - billboard.position.x;
+        const dy = vehicle.position.y - billboard.position.y;
+        const dz = vehicle.position.z - billboard.position.z;
+        
+        // 거리 계산
+        const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        
+        if (distance > 0) {
+            // 정규화된 방향 벡터
+            const normalX = dx / distance;
+            const normalY = dy / distance;
+            const normalZ = dz / distance;
             
-            if (!explosion.active) {
-                explosionsToRemove.push(explosionId);
-            }
+            // 광고판 경계에서 안전한 거리만큼 밀어내기 (더 크게)
+            const safeDistance = Math.max(billboard.width, billboard.height, billboard.thickness) / 2 + 15;
+            
+            // 강제로 안전한 위치로 이동
+            vehicle.position.x = billboard.position.x + normalX * safeDistance;
+            vehicle.position.y = billboard.position.y + normalY * safeDistance;
+            vehicle.position.z = billboard.position.z + normalZ * safeDistance;
+            
+            // 속도를 충돌 방향으로 반사 (더 강한 효과)
+            const velocityMagnitude = Math.sqrt(
+                vehicle.velocity.x * vehicle.velocity.x + 
+                vehicle.velocity.y * vehicle.velocity.y + 
+                vehicle.velocity.z * vehicle.velocity.z
+            );
+            
+            // 반사된 속도 적용
+            vehicle.velocity.x = normalX * velocityMagnitude * 0.5;
+            vehicle.velocity.y = normalY * velocityMagnitude * 0.5;
+            vehicle.velocity.z = normalZ * velocityMagnitude * 0.5;
+            
+            // 충돌 효과 생성
+            this.effectSystem.createImpactEffect(vehicle.position, 'collision');
+            
+            console.log(`Vehicle collision with billboard at (${billboard.position.x}, ${billboard.position.y}, ${billboard.position.z})`);
         }
+    }
 
-        // 비활성 폭발 제거
-        for (const explosionId of explosionsToRemove) {
-            this.explosions.delete(explosionId);
-            this.eventEmitter.emit('explosionDestroyed', { explosionId });
+    /**
+     * 무기 시스템 업데이트
+     */
+    updateWeapons(deltaTime) {
+        const removedProjectiles = this.weaponSystem.updateProjectiles(deltaTime);
+        
+        // 제거된 발사체들에 대한 이벤트 발생
+        if (removedProjectiles.length > 0) {
+            this.eventEmitter.emit('projectilesRemoved', removedProjectiles);
+        }
+    }
+
+    /**
+     * 효과 시스템 업데이트
+     */
+    updateEffects(deltaTime) {
+        const removedEffects = this.effectSystem.updateEffects(deltaTime);
+        
+        // 제거된 효과들에 대한 이벤트 발생
+        if (removedEffects.length > 0) {
+            this.eventEmitter.emit('effectsRemoved', removedEffects);
         }
     }
 
@@ -461,150 +512,149 @@ class GameManager {
      * 충돌 검사
      */
     checkCollisions() {
-        // 총알과 비행체 충돌
-        for (const [bulletId, bullet] of this.bullets) {
-            if (!bullet.active) continue;
+        const collisions = this.weaponSystem.checkCollisions(this.vehicles, this.billboards);
 
-            // 비행체와의 충돌 검사
-            for (const [vehicleId, vehicle] of this.vehicles) {
-                if (!vehicle.active) continue;
-                if (bullet.shooterId === vehicle.playerId) continue;
-
-                if (bullet.intersects(vehicle, 2, 8)) {
-                    // 충돌 처리
-                    const destroyed = vehicle.takeDamage(bullet.damage);
-                    
-                    // 폭발 생성
-                    this.createExplosion(vehicle.position);
-                    
-                    // 총알 제거
-                    bullet.destroy();
-                    
-                    if (destroyed) {
-                        // 킬/데스 점수 업데이트
-                        const shooter = this.players.get(bullet.shooterId);
-                        const victim = this.players.get(vehicle.playerId);
-                        
-                        if (shooter) {
-                            shooter.kills++;
-                            shooter.score += 100;
-                        }
-                        
-                        if (victim) {
-                            victim.deaths++;
-                        }
-                        
-                        this.eventEmitter.emit('vehicleDestroyed', {
-                            vehicleId: vehicleId,
-                            shooterId: bullet.shooterId,
-                            victimId: vehicle.playerId
-                        });
-                        
-                        // 3초 후 리스폰
-                        setTimeout(() => {
-                            if (this.vehicles.has(vehicleId)) {
-                                vehicle.respawn();
-                                this.eventEmitter.emit('vehicleRespawned', {
-                                    vehicle: vehicle.toClientData()
-                                });
-                            }
-                        }, 3000);
-                    }
-                    
-                    break;
-                }
-            }
-            
-            // 총알이 이미 제거되었으면 다음 총알로
-            if (!bullet.active) continue;
-            
-            // 광고판과의 충돌 검사
-            for (const [billboardId, billboard] of this.billboards) {
-                if (billboard.checkCollision(bullet)) {
-                    // 광고판에 데미지 적용
-                    const destroyed = billboard.takeDamage(bullet.damage);
-                    
-                    if (destroyed) {
-                        // 광고판 파괴 시 폭발 효과
-                        this.createExplosion(billboard.position);
-                        
-                        // 파편 생성
-                        const debrisData = billboard.getDebrisData();
-                        
-                        // 광고판 파괴 이벤트 발생
-                        this.eventEmitter.emit('billboardDestroyed', {
-                            billboardId: billboardId,
-                            billboard: billboard.toClientData(),
-                            debris: debrisData,
-                            destroyedBy: bullet.shooterId
-                        });
-                        
-                        // 파괴자에게 점수 추가
-                        const shooter = this.players.get(bullet.shooterId);
-                        if (shooter) {
-                            shooter.score += 50; // 광고판 파괴 점수
-                        }
-                        
-                        console.log(`Billboard ${billboardId} destroyed by player ${bullet.shooterId}`);
-                    } else {
-                        // 파괴되지 않았다면 총알 자국 추가
-                        const bulletHole = billboard.addBulletHole(bullet.position, bullet.velocity);
-                        
-                        if (bulletHole) {
-                            // 총알 자국 생성 이벤트 발생
-                            this.eventEmitter.emit('bulletHoleCreated', {
-                                billboardId: billboardId,
-                                bulletHole: bulletHole
-                            });
-                        }
-                    }
-                    
-                    // 총알 제거
-                    bullet.destroy();
-                    break;
-                }
-            }
+        for (const collision of collisions) {
+            this.handleCollision(collision);
         }
+    }
+
+    /**
+     * 충돌 처리
+     */
+    handleCollision(collision) {
+        // 발사체 제거
+        this.weaponSystem.removeProjectile(collision.projectileId);
+
+        if (collision.type === 'vehicle') {
+            this.handleVehicleHit(collision);
+        } else if (collision.type === 'billboard') {
+            this.handleBillboardHit(collision);
+        }
+
+        // 충돌 효과 생성
+        this.effectSystem.createImpactEffect(collision.position, collision.type);
+    }
+
+    /**
+     * 차량 피격 처리
+     */
+    handleVehicleHit(collision) {
+        const vehicle = this.vehicles.get(collision.targetId);
+        if (!vehicle) return;
+
+        vehicle.takeDamage(collision.damage);
+
+        if (vehicle.health <= 0) {
+            // 차량 파괴
+            this.handleVehicleDestroyed(vehicle, collision);
+        }
+
+        // 폭발 효과
+        this.effectSystem.createExplosion(collision.position, {
+            radius: 8,
+            duration: 1500
+        });
+    }
+
+    /**
+     * 광고판 피격 처리
+     */
+    handleBillboardHit(collision) {
+        const billboard = this.billboards.get(collision.targetId);
+        if (!billboard) return;
+
+        // 총알 자국 추가
+        billboard.addBulletHole(collision.position, collision.damage);
+
+        // 광고판에 데미지 적용
+        const isDestroyed = billboard.takeDamage(collision.damage);
+        
+        console.log(`Billboard hit! Health: ${billboard.health}/${billboard.maxHealth}, Damage: ${collision.damage}`);
+
+        if (isDestroyed) {
+            // 광고판 파괴 처리
+            this.handleBillboardDestroyed(billboard, collision);
+        } else {
+            // 파편 효과 (파괴되지 않은 경우)
+            this.effectSystem.createImpactEffect(collision.position, 'billboard');
+        }
+    }
+
+    /**
+     * 광고판 파괴 처리
+     */
+    handleBillboardDestroyed(billboard, collision) {
+        console.log(`Billboard ${billboard.id} destroyed!`);
+        
+        // 파괴 효과 생성
+        this.effectSystem.createExplosion(billboard.position, {
+            radius: 15,
+            duration: 2000
+        });
+
+        // 파편 효과 생성
+        const debrisData = billboard.getDebrisData();
+        if (debrisData) {
+            // 클라이언트에 파편 효과 전송
+            this.eventEmitter.emit('billboardDestroyed', {
+                billboardId: billboard.id,
+                debris: debrisData,
+                destroyedBy: collision.ownerId || 'unknown'
+            });
+        }
+
+        // 광고판을 맵에서 제거 (게임 상태 업데이트에서 자동으로 클라이언트에 반영됨)
+        this.billboards.delete(billboard.id);
+    }
+
+    /**
+     * 차량 파괴 처리
+     */
+    handleVehicleDestroyed(vehicle, collision) {
+        const player = this.players.get(vehicle.playerId);
+        if (player) {
+            player.deaths++;
+        }
+
+        // 킬 점수 처리 (발사체 소유자)
+        // TODO: 발사체에서 소유자 정보 가져와서 킬 점수 추가
+
+        // 차량 리스폰 (config에서 시간 가져오기)
+        const respawnTime = this.config.game?.respawnTime || 3000;
+        setTimeout(() => {
+            this.respawnVehicle(vehicle);
+        }, respawnTime);
+    }
+
+    /**
+     * 차량 리스폰
+     */
+    respawnVehicle(vehicle) {
+        const spawnPosition = this.getSpawnPosition();
+        vehicle.respawn(spawnPosition);
     }
 
     /**
      * 게임 상태 동기화
      */
     syncGameState() {
-        const gameState = {
-            vehicles: Array.from(this.vehicles.values())
-                .filter(v => v.active)
-                .map(v => v.toClientData()),
-            bullets: Array.from(this.bullets.values())
-                .filter(b => b.active)
-                .map(b => b.toClientData()),
-            explosions: Array.from(this.explosions.values())
-                .filter(e => e.active)
-                .map(e => e.toClientData()),
-            billboards: Array.from(this.billboards.values())
-                .filter(b => !b.isDestroyed)
-                .map(b => b.toClientData()),
-            players: Array.from(this.players.values())
-        };
-
+        const gameState = this.getGameState();
         this.eventEmitter.emit('gameStateUpdate', gameState);
     }
 
     /**
-     * 현재 게임 상태 가져오기
+     * 게임 상태 가져오기
      */
     getGameState() {
         return {
-            state: this.gameState,
+            gameState: this.gameState,
             players: Array.from(this.players.values()),
-            vehicles: Array.from(this.vehicles.values()).map(v => v.toClientData()),
-            bullets: Array.from(this.bullets.values()).map(b => b.toClientData()),
-            explosions: Array.from(this.explosions.values()).map(e => e.toClientData()),
-            billboards: Array.from(this.billboards.values())
-                .filter(b => !b.isDestroyed) // 파괴된 광고판 제외
-                .map(b => b.toClientData())
+            vehicles: Array.from(this.vehicles.values()).map(v => v.serialize()),
+            projectiles: this.weaponSystem.getAllProjectiles().map(p => p.serialize()),
+            effects: this.effectSystem.serialize(),
+            billboards: Array.from(this.billboards.values()).map(b => b.serialize()),
+            timestamp: Date.now()
         };
     }
-}
-
-module.exports = GameManager; 
+} 

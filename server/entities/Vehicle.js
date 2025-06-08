@@ -1,19 +1,22 @@
-const GameEntity = require('./GameEntity');
+import GameEntity from './GameEntity.js';
 
 /**
  * 기본 비행체 클래스 (Liskov Substitution Principle)
  * GameEntity를 확장하여 비행체 특화 기능 구현
  */
-class Vehicle extends GameEntity {
-    constructor(id, playerId, color, config, vehicleType = 'fighter') {
-        super(id, 'vehicle');
+export default class Vehicle extends GameEntity {
+    constructor(id, playerId, spawnPosition, options = {}) {
+        super(id, spawnPosition);
         
         this.playerId = playerId;
-        this.color = color;
-        this.vehicleType = vehicleType; // 비행체 타입 추가
+        this.color = options.color || '#ff0000';
+        this.vehicleType = options.vehicleType || 'fighter';
         
-        // 타입별 설정 적용
-        const typeConfig = this.getTypeConfig(config, vehicleType);
+        // 게임 설정 저장 (맵 경계 계산용)
+        this.config = options.config || null;
+        
+        // 타입별 기본 설정
+        const typeConfig = this.getTypeConfig(this.vehicleType);
         
         this.health = typeConfig.health;
         this.maxHealth = typeConfig.health;
@@ -27,8 +30,8 @@ class Vehicle extends GameEntity {
         // 물리 속성
         this.thrust = 0;
         this.angularVelocity = { x: 0, y: 0, z: 0 };
-        this.airResistance = config.physics.airResistance;
-        this.groundFriction = config.physics.groundFriction;
+        this.airResistance = 0.98;
+        this.groundFriction = 0.9;
         
         // 입력 상태
         this.inputs = {
@@ -40,65 +43,65 @@ class Vehicle extends GameEntity {
             fire: false
         };
         
-        // 무기 상태
+        // 무기 상태 (WeaponSystem으로 이동됨)
         this.lastFireTime = 0;
         this.fireRate = typeConfig.fireRate;
         
-        // 스폰 위치 설정
-        this.setRandomSpawnPosition();
+        // 활성 상태
+        this.active = true;
     }
 
     /**
      * 비행체 타입별 설정 가져오기
      */
-    getTypeConfig(config, vehicleType) {
-        // 새로운 설정 구조에서 비행체별 설정 가져오기
-        const vehicleConfig = config.vehicles[vehicleType];
-        
-        if (!vehicleConfig) {
-            // 기본값으로 전투기 설정 사용
-            console.warn(`Unknown vehicle type: ${vehicleType}, using fighter config`);
-            return config.vehicles.fighter;
-        }
-        
-        return {
-            health: vehicleConfig.health,
-            maxSpeed: vehicleConfig.maxSpeed,
-            acceleration: vehicleConfig.acceleration,
-            turnSpeed: vehicleConfig.turnSpeed,
-            rollSpeed: vehicleConfig.rollSpeed,
-            pitchSpeed: vehicleConfig.pitchSpeed,
-            yawSpeed: vehicleConfig.yawSpeed,
-            fireRate: vehicleConfig.fireRate,
-            bulletDamage: vehicleConfig.bulletDamage,
-            bulletSpeed: vehicleConfig.bulletSpeed,
-            bulletRange: vehicleConfig.bulletRange,
-            scale: vehicleConfig.scale,
-            engineType: vehicleConfig.engineType,
-            engineColor: vehicleConfig.engineColor,
-            glowColor: vehicleConfig.glowColor
+    getTypeConfig(vehicleType) {
+        const configs = {
+            fighter: {
+                health: 80,
+                maxSpeed: 120,
+                acceleration: 80,
+                turnSpeed: 2.0,
+                rollSpeed: 3.0,
+                pitchSpeed: 2.0,
+                yawSpeed: 2.0,
+                fireRate: 100,
+                bulletDamage: 10,
+                bulletSpeed: 200,
+                bulletRange: 300
+            },
+            heavy: {
+                health: 150,
+                maxSpeed: 80,
+                acceleration: 50,
+                turnSpeed: 1.5,
+                rollSpeed: 2.0,
+                pitchSpeed: 1.5,
+                yawSpeed: 1.5,
+                fireRate: 150,
+                bulletDamage: 15,
+                bulletSpeed: 180,
+                bulletRange: 350
+            }
         };
+        
+        return configs[vehicleType] || configs.fighter;
     }
 
     /**
-     * 랜덤 스폰 위치 설정
+     * 입력 처리
      */
-    setRandomSpawnPosition() {
-        const angle = Math.random() * Math.PI * 2;
-        const distance = 50 + Math.random() * 100;
-        
-        this.position.x = Math.cos(angle) * distance;
-        this.position.z = Math.sin(angle) * distance;
-        this.position.y = 80 + Math.random() * 40; // 더 높은 고도에서 스폰 (80-120)
-        
-        this.rotation.y = angle + Math.PI; // 중앙을 향하도록
-    }
-
-    /**
-     * 입력 업데이트
-     */
-    updateInputs(inputs) {
+    handleInput(inputs) {
         this.inputs = { ...this.inputs, ...inputs };
+    }
+
+    /**
+     * 차량 업데이트
+     */
+    update(deltaTime) {
+        if (!this.active) return;
+        
+        this.updateRotation(deltaTime);
+        this.updatePosition(deltaTime);
     }
 
     /**
@@ -109,10 +112,9 @@ class Vehicle extends GameEntity {
         const thrustForce = this.inputs.thrust * this.acceleration;
         
         // 전진 방향 계산 (뾰족한 부분이 앞쪽 +Z 방향)
-        // Y축 회전(요)과 X축 회전(피치)을 고려
         const forward = {
             x: Math.sin(this.rotation.y) * Math.cos(this.rotation.x),
-            y: -Math.sin(this.rotation.x), // 피치에 따른 상하 방향
+            y: -Math.sin(this.rotation.x),
             z: Math.cos(this.rotation.y) * Math.cos(this.rotation.x)
         };
         
@@ -129,9 +131,6 @@ class Vehicle extends GameEntity {
         this.velocity.y *= this.airResistance;
         this.velocity.z *= this.airResistance;
         
-        // 중력 제거 - 원래 게임에는 중력이 없었음
-        // this.velocity.y += -9.81 * deltaTime;
-        
         // 속도 제한
         const speed = Math.sqrt(
             this.velocity.x * this.velocity.x + 
@@ -147,11 +146,44 @@ class Vehicle extends GameEntity {
         }
         
         // 위치 업데이트
-        super.updatePosition(deltaTime);
+        this.position.x += this.velocity.x * deltaTime;
+        this.position.y += this.velocity.y * deltaTime;
+        this.position.z += this.velocity.z * deltaTime;
         
-        // 지형 충돌 검사 - 실제 지형 높이 계산
+        // 맵 경계 제한 (config에서 월드 크기 가져오기)
+        if (this.config && this.config.world) {
+            const mapBoundary = this.config.world.size / 2; // 맵 크기의 절반
+            const boundaryBuffer = this.config.world.boundaryBuffer || 10; // config에서 경계 여유 공간 가져오기
+            
+            // X축 경계 검사
+            if (this.position.x > mapBoundary - boundaryBuffer) {
+                this.position.x = mapBoundary - boundaryBuffer;
+                this.velocity.x = Math.min(0, this.velocity.x); // 바깥쪽 속도 제거
+            } else if (this.position.x < -mapBoundary + boundaryBuffer) {
+                this.position.x = -mapBoundary + boundaryBuffer;
+                this.velocity.x = Math.max(0, this.velocity.x); // 바깥쪽 속도 제거
+            }
+            
+            // Z축 경계 검사
+            if (this.position.z > mapBoundary - boundaryBuffer) {
+                this.position.z = mapBoundary - boundaryBuffer;
+                this.velocity.z = Math.min(0, this.velocity.z); // 바깥쪽 속도 제거
+            } else if (this.position.z < -mapBoundary + boundaryBuffer) {
+                this.position.z = -mapBoundary + boundaryBuffer;
+                this.velocity.z = Math.max(0, this.velocity.z); // 바깥쪽 속도 제거
+            }
+            
+            // Y축 경계 검사 (높이 제한)
+            const maxHeight = this.config.world.maxHeight || 200; // config에서 최대 높이 가져오기
+            if (this.position.y > maxHeight) {
+                this.position.y = maxHeight;
+                this.velocity.y = Math.min(0, this.velocity.y); // 위쪽 속도 제거
+            }
+        }
+        
+        // 지형 충돌 검사
         const terrainHeight = this.getTerrainHeight(this.position.x, this.position.z);
-        const minHeight = terrainHeight + 5; // 지형 위 최소 5 단위
+        const minHeight = terrainHeight + 5;
         
         if (this.position.y < minHeight) {
             this.position.y = minHeight;
@@ -173,16 +205,13 @@ class Vehicle extends GameEntity {
             Math.sin(x * 0.05) * 4 +
             Math.cos(z * 0.05) * 4;
             
-        return Math.max(height, -5 + 1); // 물 레벨(-5) 위에만
+        return Math.max(height, -4); // 물 레벨 위에만
     }
 
     /**
      * 회전 업데이트
      */
     updateRotation(deltaTime) {
-        // 직접적인 회전 제어 (원래 게임 방식)
-        // 각속도 대신 직접 회전값 변경
-        
         // 피치 (W/S): 기수 위아래 - X축 회전
         this.rotation.x += this.inputs.pitch * this.pitchSpeed * deltaTime;
         
@@ -203,98 +232,70 @@ class Vehicle extends GameEntity {
             this.rotation.y += Math.PI * 2;
         }
         
-        // 롤 제한 (-π ~ π)
-        this.rotation.z = Math.max(-Math.PI, Math.min(Math.PI, this.rotation.z));
-        
-        // 롤 자동 복원 (원래 게임처럼)
-        if (this.inputs.roll === 0) {
-            this.rotation.z *= 0.95; // 부드럽게 0으로 복원
-        }
+        // 롤 제한 (-45도 ~ 45도)
+        this.rotation.z = Math.max(-Math.PI/4, Math.min(Math.PI/4, this.rotation.z));
     }
 
     /**
-     * 발사 가능 여부 확인
-     */
-    canFire() {
-        const now = Date.now();
-        const fireInterval = 1000 / this.fireRate;
-        return (now - this.lastFireTime) >= fireInterval;
-    }
-
-    /**
-     * 발사 실행
-     */
-    fire() {
-        if (!this.canFire()) return null;
-        
-        this.lastFireTime = Date.now();
-        
-        // 총구 위치 계산 (비행체 앞쪽)
-        const muzzleOffset = {
-            x: Math.sin(this.rotation.y) * Math.cos(this.rotation.x) * 8,
-            y: -Math.sin(this.rotation.x) * 8,
-            z: Math.cos(this.rotation.y) * Math.cos(this.rotation.x) * 8
-        };
-        
-        const muzzlePosition = {
-            x: this.position.x + muzzleOffset.x,
-            y: this.position.y + muzzleOffset.y,
-            z: this.position.z + muzzleOffset.z
-        };
-        
-        // 발사 방향 계산 (전진 방향과 동일)
-        const direction = {
-            x: Math.sin(this.rotation.y) * Math.cos(this.rotation.x),
-            y: -Math.sin(this.rotation.x),
-            z: Math.cos(this.rotation.y) * Math.cos(this.rotation.x)
-        };
-        
-        return {
-            position: muzzlePosition,
-            direction: direction,
-            shooterId: this.playerId
-        };
-    }
-
-    /**
-     * 데미지 적용
+     * 데미지 받기
      */
     takeDamage(damage) {
+        if (!this.active) return false;
+        
         this.health -= damage;
+        
         if (this.health <= 0) {
             this.health = 0;
-            this.destroy();
+            this.active = false;
+            return true; // 파괴됨
         }
-        return this.health <= 0;
+        
+        return false;
     }
 
     /**
      * 리스폰
      */
-    respawn() {
+    respawn(spawnPosition = null) {
+        if (spawnPosition) {
+            this.position = { ...spawnPosition };
+        } else {
+            // 랜덤 스폰 위치 (config에서 값 가져오기)
+            const angle = Math.random() * Math.PI * 2;
+            const minDistance = this.config?.world?.spawnDistance?.min || 50;
+            const maxDistance = this.config?.world?.spawnDistance?.max || 150;
+            const distance = minDistance + Math.random() * (maxDistance - minDistance);
+            
+            this.position.x = Math.cos(angle) * distance;
+            this.position.z = Math.sin(angle) * distance;
+            
+            const minHeight = this.config?.world?.spawnHeight?.min || 80;
+            const maxHeight = this.config?.world?.spawnHeight?.max || 120;
+            this.position.y = minHeight + Math.random() * (maxHeight - minHeight);
+        }
+        
+        this.rotation = { x: 0, y: 0, z: 0 };
+        this.velocity = { x: 0, y: 0, z: 0 };
         this.health = this.maxHealth;
         this.active = true;
-        this.velocity = { x: 0, y: 0, z: 0 };
-        this.angularVelocity = { x: 0, y: 0, z: 0 };
-        this.setRandomSpawnPosition();
     }
 
     /**
-     * 클라이언트 전송용 데이터
+     * 직렬화
      */
-    toClientData() {
+    serialize() {
         return {
-            ...super.toClientData(),
+            id: this.id,
             playerId: this.playerId,
-            color: this.color,
-            vehicleType: this.vehicleType,
-            health: this.health,
-            maxHealth: this.maxHealth,
+            position: this.position,
             rotation: this.rotation,
             velocity: this.velocity,
-            angularVelocity: this.angularVelocity
+            health: this.health,
+            maxHealth: this.maxHealth,
+            color: this.color,
+            vehicleType: this.vehicleType,
+            active: this.active,
+            timestamp: Date.now()
         };
     }
-}
-
-module.exports = Vehicle; 
+} 

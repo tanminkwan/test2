@@ -1,114 +1,240 @@
 # 게임 설정 파일
+# 이 파일은 멀티플레이어 3D 비행체 전투 게임의 모든 설정을 관리합니다.
+# 하드코딩을 피하고 SOLID 원칙을 따르기 위해 모든 값을 config에서 관리합니다.
+
 game:
-  name: "Multiplayer Vehicle Combat"
-  version: "1.0.0"
-  maxPlayers: 8
-  minPlayersToStart: 1
-  gameMode: "deathmatch"
+  name: "Multiplayer Vehicle Combat"  # 게임 이름
+  version: "1.0.0"                   # 게임 버전
+  maxPlayers: 8                      # 최대 플레이어 수
+  minPlayersToStart: 1               # 게임 시작에 필요한 최소 플레이어 수
+  gameMode: "deathmatch"             # 게임 모드 (deathmatch, team, etc.)
+  respawnTime: 3000                  # 리스폰 시간 (밀리초)
   
 server:
-  port: 3001
-  host: "0.0.0.0"  # 모든 인터페이스에서 접근 허용 (외부 접근용)
-  tickRate: 60  # 서버 업데이트 주기 (Hz)
+  port: 3001                         # 서버 포트 번호
+  host: "0.0.0.0"                    # 서버 호스트 (0.0.0.0 = 모든 인터페이스)
+  tickRate: 60                       # 서버 업데이트 주기 (Hz, 초당 프레임)
   
 # 네트워크 설정
 network:
-  allowExternalAccess: true  # 외부 접근 허용 여부
+  allowExternalAccess: true          # 외부 네트워크에서 접근 허용 여부
   cors:
-    enabled: true
-    origins: "*"  # 허용할 도메인 (* = 모든 도메인)
-  publicUrl: ""  # 공개 URL (비어있으면 자동 감지)
+    enabled: true                    # CORS (Cross-Origin Resource Sharing) 활성화
+    origins: "*"                     # 허용할 도메인 (* = 모든 도메인)
+  publicUrl: ""                      # 공개 URL (비어있으면 자동 감지)
   
 world:
-  size: 400
-  terrainDetail: 100
-  waterLevel: -5
-  gravity: -9.81
+  size: 400                          # 맵 크기 (정사각형, 단위: 게임 유닛)
+  terrainDetail: 100                 # 지형 세부도 (높을수록 더 세밀한 지형)
+  waterLevel: -5                     # 물 높이 (Y축 좌표)
+  maxHeight: 200                     # 최대 비행 높이 (맵 경계)
+  gravity: -9.81                     # 중력 가속도 (m/s²)
+  boundaryBuffer: 10                 # 맵 경계에서 여유 공간 (충돌 방지)
+  spawnDistance:                     # 스폰 위치 설정
+    min: 50                          # 맵 중심에서 최소 거리
+    max: 150                         # 맵 중심에서 최대 거리
+  spawnHeight:                       # 스폰 높이 설정
+    min: 80                          # 최소 스폰 높이
+    max: 120                         # 최대 스폰 높이
   
-# 광고판 설정
+# 광고판 설정 (파괴 가능한 오브젝트)
 billboards:
-  enabled: true
-  count: 5  # 광고판 개수
-  width: 40  # 광고판 너비
-  height: 20  # 광고판 높이
-  thickness: 2  # 광고판 두께
-  health: 80  # 광고판 체력 (총알 8발 정도로 파괴)
-  minDistance: 80  # 광고판 간 최소 거리
-  images:
-    front: 
+  enabled: true                      # 광고판 활성화 여부
+  count: 5                           # 맵에 생성할 광고판 개수
+  width: 40                          # 광고판 너비
+  height: 20                         # 광고판 높이
+  thickness: 2                       # 광고판 두께
+  health: 80                         # 광고판 체력 (총알 8발로 파괴)
+  minDistance: 80                    # 광고판 간 최소 거리 (겹침 방지)
+  maxBulletHoles: 50                 # 광고판당 최대 총알 자국 수
+  maxPlacementAttempts: 100          # 광고판 배치 최대 시도 횟수
+  terrainFlatness:                   # 지형 평탄도 검사 (광고판 배치용)
+    checkPoints: 8                   # 평탄도 검사 포인트 수
+    maxHeightDiff: 10                # 허용 최대 높이 차이
+    checkRadius: 15                  # 검사 반경
+  collision:                         # 비행체-광고판 충돌 검사
+    vehicleHalfWidth: 8              # 비행체 반폭
+    vehicleHalfHeight: 3             # 비행체 반높이
+    vehicleHalfLength: 8             # 비행체 반길이
+  debris:                            # 파괴 시 파편 효과
+    minCount: 8                      # 최소 파편 개수
+    maxCount: 20                     # 최대 파편 개수
+    lifeTimeMin: 3000                # 파편 최소 지속 시간 (ms)
+    lifeTimeMax: 5000                # 파편 최대 지속 시간 (ms)
+  images:                            # 광고판 이미지 경로
+    front:                           # 앞면 이미지 목록
       - "assets/billboards/front.svg"
       - "assets/billboards/kimhk.jpg"
-    back:
+    back:                            # 뒷면 이미지 목록
       - "assets/billboards/back.svg"
       - "assets/billboards/kimhk.jpg"
   
 vehicles:
-  colors:
-    - "#FF0000"  # 빨강
-    - "#00FF00"  # 초록
-    - "#0000FF"  # 파랑
-    - "#FFFF00"  # 노랑
-    - "#FF00FF"  # 마젠타
-    - "#00FFFF"  # 시안
-    - "#FFA500"  # 주황
-    - "#800080"  # 보라
+  colors:                            # 플레이어별 비행체 색상 목록
+    - "#FF0000"                      # 빨강
+    - "#00FF00"                      # 초록
+    - "#0000FF"                      # 파랑
+    - "#FFFF00"                      # 노랑
+    - "#FF00FF"                      # 마젠타
+    - "#00FFFF"                      # 시안
+    - "#FFA500"                      # 주황
+    - "#800080"                      # 보라
   
-  fighter:
-    maxSpeed: 120
-    acceleration: 60
-    turnSpeed: 3.5
-    rollSpeed: 3.0
-    pitchSpeed: 3.0
-    yawSpeed: 2.5
-    health: 80
-    fireRate: 12  # 초당 발사 수
-    bulletDamage: 8
-    bulletSpeed: 220
-    bulletRange: 300
-    scale: 1.0
-    engineType: "single"
-    engineColor: "#00AAFF"
-    glowColor: "#0088FF"
-    missileCount: 4
-    missileReloadTime: 25  # 초
+  fighter:                           # 전투기 설정 (빠르고 민첩)
+    maxSpeed: 120                    # 최대 속도
+    acceleration: 60                 # 가속도
+    turnSpeed: 3.5                   # 회전 속도 (요/피치/롤)
+    rollSpeed: 3.0                   # 롤 속도
+    pitchSpeed: 3.0                  # 피치 속도
+    yawSpeed: 2.5                    # 요 속도
+    health: 80                       # 체력
+    fireRate: 12                     # 초당 발사 수
+    bulletDamage: 8                  # 총알 데미지
+    bulletSpeed: 220                 # 총알 속도
+    bulletRange: 300                 # 총알 사거리
+    scale: 1.0                       # 모델 크기 배율
+    engineType: "single"             # 엔진 타입 (단일)
+    engineColor: "#00AAFF"           # 엔진 색상 (파란색)
+    glowColor: "#0088FF"             # 엔진 글로우 색상
+    missileCount: 4                  # 미사일 개수 (미래 기능)
+    missileReloadTime: 25            # 미사일 재장전 시간 (초)
+    model:                           # 3D 모델 상세 설정
+      head:                          # 기수 (뾰족한 앞부분)
+        radius: 1.5                  # 반지름
+        length: 8                    # 길이
+      cockpit:                       # 조종석 (투명 돔)
+        radius: 1.2                  # 반지름
+        position: { x: 0, y: 0.5, z: 1 }  # 위치 (x, y, z)
+      body:                          # 메인 바디
+        width: 2                     # 너비
+        height: 1                    # 높이
+        length: 6                    # 길이
+      wings:                         # 날개
+        width: 12                    # 너비 (좌우 폭)
+        height: 0.5                  # 높이 (두께)
+        length: 3                    # 길이 (앞뒤)
+      engine:                        # 엔진 (단일)
+        radius: 1.5                  # 반지름
+        length: 0.5                  # 길이
+        position: { x: 0, y: 0, z: -4 }   # 위치 (뒤쪽)
+      glow:                          # 엔진 글로우 효과
+        radius: 2.5                  # 반지름
+        length: 0.2                  # 길이
+        position: { x: 0, y: 0, z: -4.5 } # 위치 (엔진 뒤)
     
-  heavy:
-    maxSpeed: 80
-    acceleration: 35
-    turnSpeed: 2.0
-    rollSpeed: 1.5
-    pitchSpeed: 1.8
-    yawSpeed: 1.5
-    health: 150
-    fireRate: 8  # 초당 발사 수
-    bulletDamage: 15
-    bulletSpeed: 180
-    bulletRange: 350
-    scale: 1.4
-    engineType: "dual"
-    engineColor: "#FF4400"
-    glowColor: "#FF6600"
-    missileCount: 6
-    missileReloadTime: 30  # 초
+  heavy:                             # 중형기 설정 (느리지만 강력)
+    maxSpeed: 80                     # 최대 속도 (전투기보다 느림)
+    acceleration: 35                 # 가속도 (전투기보다 느림)
+    turnSpeed: 2.0                   # 회전 속도 (전투기보다 느림)
+    rollSpeed: 1.5                   # 롤 속도
+    pitchSpeed: 1.8                  # 피치 속도
+    yawSpeed: 1.5                    # 요 속도
+    health: 150                      # 체력 (전투기보다 높음)
+    fireRate: 8                      # 초당 발사 수 (전투기보다 낮음)
+    bulletDamage: 15                 # 총알 데미지 (전투기보다 높음)
+    bulletSpeed: 180                 # 총알 속도
+    bulletRange: 350                 # 총알 사거리 (전투기보다 김)
+    scale: 1.4                       # 모델 크기 배율 (전투기보다 큼)
+    engineType: "dual"               # 엔진 타입 (듀얼)
+    engineColor: "#FF4400"           # 엔진 색상 (주황색)
+    glowColor: "#FF6600"             # 엔진 글로우 색상
+    missileCount: 6                  # 미사일 개수 (전투기보다 많음)
+    missileReloadTime: 30            # 미사일 재장전 시간 (초)
+    model:                           # 3D 모델 상세 설정
+      head:                          # 기수 (전투기보다 큼)
+        radius: 2                    # 반지름
+        length: 10                   # 길이
+      cockpit:                       # 조종석 (전투기보다 큼)
+        radius: 1.6                  # 반지름
+        position: { x: 0, y: 0.8, z: 1.5 }  # 위치
+      body:                          # 메인 바디 (전투기보다 큼)
+        width: 3                     # 너비
+        height: 1.5                  # 높이
+        length: 8                    # 길이
+      wings:                         # 날개 (전투기보다 큼)
+        width: 16                    # 너비
+        height: 0.8                  # 높이
+        length: 4                    # 길이
+      engines:                       # 듀얼 엔진
+        radius: 1.2                  # 반지름
+        length: 0.6                  # 길이
+        positions:                   # 좌우 엔진 위치
+          - { x: -3, y: 0, z: -5 }   # 좌측 엔진
+          - { x: 3, y: 0, z: -5 }    # 우측 엔진
+      glows:                         # 듀얼 엔진 글로우
+        radius: 2                    # 반지름
+        length: 0.3                  # 길이
+        positions:                   # 좌우 글로우 위치
+          - { x: -3, y: 0, z: -5.5 } # 좌측 글로우
+          - { x: 3, y: 0, z: -5.5 }  # 우측 글로우
   
 weapons:
-  machineGun:
-    damage: 10
-    fireRate: 10  # 초당 발사 수
-    bulletSpeed: 200
-    range: 300
-    bulletLifetime: 3  # 초
+  machineGun:                        # 기관총 설정
+    damage: 10                       # 데미지 (기본값)
+    fireRate: 10                     # 초당 발사 수 (기본값)
+    bulletSpeed: 200                 # 총알 속도 (기본값)
+    range: 300                       # 사거리 (기본값)
+    bulletLifetime: 3                # 총알 지속 시간 (초)
     
 physics:
-  airResistance: 0.98
-  groundFriction: 0.95
-  collisionDamping: 0.5
+  airResistance: 0.98                # 공기 저항 (0.98 = 2% 감속)
+  groundFriction: 0.95               # 지면 마찰 (지면 충돌 시)
+  collisionDamping: 0.5              # 충돌 감쇠 (충돌 시 속도 감소)
+  collisionRadius: 5                 # 기본 충돌 반경
   
 effects:
-  explosionDuration: 2  # 초
-  bulletTrailLength: 10
+  explosionDuration: 2               # 폭발 지속 시간 (초)
+  bulletTrailLength: 10              # 총알 궤적 길이
+  muzzleFlash:                       # 총구 스파크 효과
+    duration: 150                    # 지속 시간 (ms)
+    particleCount: 15                # 파티클 개수
+    spreadDistance: 3                # 확산 거리
+  bullet:                            # 총알 시각 효과
+    radius: 0.5                      # 총알 반지름
+    trailRadius: 0.1                 # 궤적 반지름
+    trailLength: 3                   # 궤적 길이
+    glowRadius: 0.8                  # 글로우 반지름
+    color: "#FFFF00"                 # 총알 색상 (노란색)
+    trailColor: "#FF8800"            # 궤적 색상 (주황색)
+    glowOpacity: 0.3                 # 글로우 투명도
+  explosion:                         # 폭발 시각 효과
+    radius: 1                        # 폭발 반지름
+    particleCount: 20                # 파티클 개수
+    particleRadius: 0.2              # 파티클 반지름
+    color: "#FF4400"                 # 메인 폭발 색상
+    particleColors: ["#FF4400", "#FFAA00"]  # 파티클 색상 목록
+    opacity: 0.8                     # 메인 폭발 투명도
+    particleOpacity: 0.7             # 파티클 투명도
   
 camera:
-  followDistance: 50
-  followHeight: 20
-  smoothing: 0.1 
+  followDistance: 50                 # 3인칭 시점 거리
+  followHeight: 20                   # 3인칭 시점 높이
+  smoothing: 0.1                     # 카메라 부드러움 (0.1 = 10% 보간)
+  minDistance: 10                    # OrbitControls 최소 거리
+  maxDistance: 500                   # OrbitControls 최대 거리
+  
+client:
+  inputSendRate: 60                  # 입력 전송 주기 (Hz)
+  messageDisplayDuration: 3000       # 메시지 표시 시간 (ms)
+  clouds:                            # 구름 설정
+    count: 10                        # 구름 개수 (성능 최적화로 감소)
+    heightMin: 50                    # 최소 높이
+    heightMax: 150                   # 최대 높이
+  trees:                             # 나무 설정
+    count: 50                        # 나무 개수 (성능 최적화로 감소)
+    minHeightAboveWater: 2           # 물 위 최소 높이
+  lighting:                          # 조명 설정
+    shadowMapSize: 2048              # 그림자 맵 크기 (픽셀)
+    shadowCameraFar: 500             # 그림자 카메라 원거리
+    shadowCameraBounds: 100          # 그림자 카메라 경계
+  ui:                                # UI 설정
+    canvas:                          # 캔버스 텍스트 설정
+      textWidth: 512                 # 텍스트 캔버스 너비
+      textHeight: 256                # 텍스트 캔버스 높이
+      lineHeight: 60                 # 줄 간격
+  performance:                       # 성능 최적화 설정
+    enableShadows: false             # 그림자 비활성화 (성능 향상)
+    shadowMapType: "basic"           # 그림자 타입 ("basic", "pcf", "pcfsoft")
+    antialias: false                 # 안티앨리어싱 비활성화 (성능 향상)
+    powerPreference: "low-power"     # GPU 전력 설정 ("default", "high-performance", "low-power")
+    lowPerformanceMode: true         # 저성능 모드 활성화 (추가 최적화) 

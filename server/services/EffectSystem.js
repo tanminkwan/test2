@@ -5,9 +5,10 @@ import Explosion from '../entities/Explosion.js';
  * 시각 효과 관련 로직만 담당
  */
 export class EffectSystem {
-    constructor() {
+    constructor(eventEmitter = null) {
         this.effects = new Map(); // effectId -> effect instance
         this.muzzleFlashes = new Map(); // playerId -> muzzle flash data
+        this.eventEmitter = eventEmitter;
     }
 
     /**
@@ -17,9 +18,11 @@ export class EffectSystem {
         const explosion = new Explosion(
             `explosion_${Date.now()}_${Math.random()}`,
             position,
-            radius,
-            duration,
-            intensity
+            {
+                radius: radius,
+                duration: duration,
+                intensity: intensity
+            }
         );
         
         // timestamp 설정 (EffectSystem과 호환성을 위해)
@@ -27,10 +30,12 @@ export class EffectSystem {
         
         this.effects.set(explosion.id, explosion);
         
-        // 폭발 이벤트 발생
-        this.eventEmitter.emit('explosionCreated', {
-            explosion: explosion.serialize()
-        });
+        // 폭발 이벤트 발생 (eventEmitter가 있을 때만)
+        if (this.eventEmitter) {
+            this.eventEmitter.emit('explosionCreated', {
+                explosion: explosion.serialize()
+            });
+        }
         
         return explosion;
     }
@@ -62,11 +67,12 @@ export class EffectSystem {
         let effect;
         switch (type) {
             case 'vehicle':
-                effect = this.createExplosion(position, {
-                    radius: 5,
-                    duration: 1000,
-                    color: 0xff4400
-                });
+                effect = this.createExplosion(
+                    position,
+                    5,      // radius
+                    1000,   // duration
+                    0.5     // intensity
+                );
                 break;
             case 'billboard':
                 effect = {
@@ -94,10 +100,12 @@ export class EffectSystem {
                 this.effects.set(effectId, effect);
                 break;
             default:
-                effect = this.createExplosion(position, {
-                    radius: 3,
-                    duration: 800
-                });
+                effect = this.createExplosion(
+                    position,
+                    3,      // radius
+                    800,    // duration
+                    0.3     // intensity
+                );
         }
 
         return effect;
@@ -106,15 +114,18 @@ export class EffectSystem {
     /**
      * 효과 업데이트
      */
-    update() {
+    update(deltaTime) {
         const now = Date.now();
         const effectsToRemove = [];
+        const removedEffects = [];
         
+        // 일반 효과들 업데이트
         for (const [id, effect] of this.effects) {
             // 효과가 shouldDestroy() 메서드를 가지고 있는지 확인
             if (typeof effect.shouldDestroy === 'function') {
                 if (effect.shouldDestroy()) {
                     effectsToRemove.push(id);
+                    removedEffects.push(effect);
                     effect.destroy();
                 }
             } else {
@@ -122,6 +133,7 @@ export class EffectSystem {
                 const age = now - (effect.timestamp || effect.createdAt || 0);
                 if (age > (effect.duration || 2000)) {
                     effectsToRemove.push(id);
+                    removedEffects.push(effect);
                     if (typeof effect.destroy === 'function') {
                         effect.destroy();
                     }
@@ -133,6 +145,23 @@ export class EffectSystem {
         for (const id of effectsToRemove) {
             this.effects.delete(id);
         }
+
+        // 총구 스파크 효과 업데이트
+        const muzzleFlashesToRemove = [];
+        for (const [playerId, muzzleFlash] of this.muzzleFlashes) {
+            const age = now - muzzleFlash.timestamp;
+            if (age > muzzleFlash.duration) {
+                muzzleFlashesToRemove.push(playerId);
+                removedEffects.push(muzzleFlash);
+            }
+        }
+
+        // 만료된 총구 스파크 제거
+        for (const playerId of muzzleFlashesToRemove) {
+            this.muzzleFlashes.delete(playerId);
+        }
+
+        return removedEffects;
     }
 
     /**

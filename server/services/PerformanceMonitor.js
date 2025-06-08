@@ -3,9 +3,9 @@
  * 서버 성능 모니터링 및 최적화 제안
  */
 export class PerformanceMonitor {
-    constructor(eventManager, config) {
+    constructor(config, eventManager = null) {
+        this.config = config || {};
         this.eventManager = eventManager;
-        this.config = config;
         
         // 성능 메트릭
         this.metrics = {
@@ -18,14 +18,14 @@ export class PerformanceMonitor {
         
         // 성능 임계값
         this.thresholds = {
-            maxFrameTime: config.performance?.maxFrameTime || 33, // 30fps
-            maxMemoryUsage: config.performance?.maxMemoryUsage || 512, // 512MB
-            maxEntityCount: config.performance?.maxEntityCount || 1000
+            maxFrameTime: this.config.performance?.maxFrameTime || 33, // 30fps
+            maxMemoryUsage: this.config.performance?.maxMemoryUsage || 512, // 512MB
+            maxEntityCount: this.config.performance?.maxEntityCount || 1000
         };
         
         // 모니터링 설정
-        this.monitoringInterval = config.performance?.monitoringInterval || 5000; // 5초
-        this.maxMetricHistory = config.performance?.maxMetricHistory || 100;
+        this.monitoringInterval = this.config.performance?.monitoringInterval || 5000; // 5초
+        this.maxMetricHistory = this.config.performance?.maxMetricHistory || 100;
         
         this.startMonitoring();
     }
@@ -161,11 +161,19 @@ export class PerformanceMonitor {
         
         // 성능 이슈가 있으면 이벤트 발생
         if (issues.length > 0) {
-            this.eventManager.emitWithHistory('performanceWarning', {
-                issues,
-                timestamp: Date.now(),
-                metrics: this.getPerformanceSummary()
-            });
+            if (this.eventManager && typeof this.eventManager.emitWithHistory === 'function') {
+                this.eventManager.emitWithHistory('performanceWarning', {
+                    issues,
+                    timestamp: Date.now(),
+                    metrics: this.getPerformanceSummary()
+                });
+            } else {
+                // eventManager가 없으면 콘솔에 로그 출력
+                console.warn('Performance Warning:', {
+                    issues: issues.map(issue => issue.message),
+                    timestamp: Date.now()
+                });
+            }
         }
     }
 

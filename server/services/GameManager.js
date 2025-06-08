@@ -4,6 +4,7 @@ import Billboard from '../entities/Billboard.js';
 import { WeaponSystem } from './WeaponSystem.js';
 import { EffectSystem } from './EffectSystem.js';
 import { VehicleFactory } from './VehicleFactory.js';
+import { PerformanceMonitor } from './PerformanceMonitor.js';
 
 /**
  * 게임 매니저 클래스 (Dependency Inversion Principle)
@@ -22,12 +23,10 @@ export default class GameManager {
         this.billboards = new Map();
         
         // 시스템들 (Dependency Injection)
-        this.weaponSystem = new WeaponSystem();
-        this.effectSystem = new EffectSystem();
-        this.vehicleFactory = new VehicleFactory(config); // Factory 패턴 적용
-        
-        // WeaponSystem에 이벤트 에미터 설정
-        this.weaponSystem.setEventEmitter(this.eventEmitter);
+        this.weaponSystem = new WeaponSystem(this.config);
+        this.effectSystem = new EffectSystem(this.eventEmitter);
+        this.vehicleFactory = new VehicleFactory(this.config);
+        this.performanceMonitor = new PerformanceMonitor(this.config);
         
         // 게임 설정
         this.maxPlayers = config.game.maxPlayers;
@@ -507,7 +506,7 @@ export default class GameManager {
      * 효과 시스템 업데이트
      */
     updateEffects(deltaTime) {
-        const removedEffects = this.effectSystem.updateEffects(deltaTime);
+        const removedEffects = this.effectSystem.update(deltaTime);
         
         // 제거된 효과들에 대한 이벤트 발생
         if (removedEffects.length > 0) {
@@ -539,8 +538,8 @@ export default class GameManager {
             this.handleBillboardHit(collision);
         }
 
-        // 충돌 효과 생성
-        this.effectSystem.createImpactEffect(collision.position, collision.type);
+        // 충돌 효과는 각 핸들러에서 개별적으로 처리하므로 여기서는 제거
+        // this.effectSystem.createImpactEffect(collision.position, collision.type);
     }
 
     /**
@@ -569,6 +568,8 @@ export default class GameManager {
             const explosionRadius = collisionConfig.explosionRadiusSmall || 5;
             const explosionDuration = collisionConfig.explosionDurationSmall || 1000;
             const explosionIntensity = collisionConfig.explosionIntensitySmall || 0.5;
+            
+            console.log(`Vehicle hit (not destroyed): Creating small explosion with duration ${explosionDuration}ms`);
             
             this.effectSystem.createExplosion(
                 vehicle.position,
@@ -610,10 +611,12 @@ export default class GameManager {
         console.log(`Billboard ${billboard.id} destroyed!`);
         
         // 파괴 효과 생성
-        this.effectSystem.createExplosion(billboard.position, {
-            radius: 15,
-            duration: 2000
-        });
+        this.effectSystem.createExplosion(
+            billboard.position,
+            15,    // radius
+            2000,  // duration
+            1.0    // intensity
+        );
 
         // 파편 효과 생성
         const debrisData = billboard.getDebrisData();
@@ -681,6 +684,8 @@ export default class GameManager {
         const explosionRadius = collisionConfig.explosionRadiusLarge || 25;
         const explosionDuration = collisionConfig.explosionDurationLarge || 3000;
         const explosionIntensity = collisionConfig.explosionIntensityLarge || 1.5;
+        
+        console.log(`Vehicle destroyed: Creating large explosion with duration ${explosionDuration}ms`);
         
         this.effectSystem.createExplosion(
             vehicle.position,

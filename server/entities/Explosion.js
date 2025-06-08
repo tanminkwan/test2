@@ -17,6 +17,9 @@ export default class Explosion extends GameEntity {
         this.age = 0;
         this.intensity = 1.0; // 0.0 ~ 1.0
         this.createdAt = Date.now();
+        this.timestamp = this.createdAt; // EffectSystem과의 호환성을 위해
+        
+        console.log(`Explosion ${id} created with duration ${this.duration}ms`);
     }
 
     /**
@@ -32,8 +35,11 @@ export default class Explosion extends GameEntity {
         
         // 지속시간 초과 시 제거
         if (this.age >= this.duration) {
+            console.log(`Explosion ${this.id} expired (age: ${this.age}ms, duration: ${this.duration}ms)`);
             this.destroy();
         }
+        
+        this.lastUpdated = Date.now();
     }
 
     /**
@@ -41,6 +47,14 @@ export default class Explosion extends GameEntity {
      */
     shouldDestroy() {
         return !this.active || this.age >= this.duration;
+    }
+
+    /**
+     * 엔티티 제거 (오버라이드)
+     */
+    destroy() {
+        console.log(`Explosion ${this.id} destroyed`);
+        super.destroy();
     }
 
     /**

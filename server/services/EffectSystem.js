@@ -22,7 +22,11 @@ export class EffectSystem {
             ...config
         });
 
+        // timestamp 명시적으로 설정
+        explosion.timestamp = explosion.createdAt;
+        
         this.effects.set(explosionId, explosion);
+        console.log(`Created explosion ${explosionId} at (${position.x}, ${position.y}, ${position.z}) with duration ${explosion.duration}ms`);
         return explosion;
     }
 
@@ -48,6 +52,7 @@ export class EffectSystem {
      */
     createImpactEffect(position, type = 'default') {
         const effectId = `impact_${Date.now()}_${Math.random()}`;
+        const timestamp = Date.now();
         
         let effect;
         switch (type) {
@@ -63,7 +68,8 @@ export class EffectSystem {
                     id: effectId,
                     type: 'sparks',
                     position: { ...position },
-                    timestamp: Date.now(),
+                    timestamp: timestamp,
+                    createdAt: timestamp,
                     duration: 500,
                     particles: 15
                 };
@@ -74,7 +80,8 @@ export class EffectSystem {
                     id: effectId,
                     type: 'collision_sparks',
                     position: { ...position },
-                    timestamp: Date.now(),
+                    timestamp: timestamp,
+                    createdAt: timestamp,
                     duration: 800,
                     particles: 10,
                     color: 0xffaa00
@@ -100,14 +107,31 @@ export class EffectSystem {
 
         // 일반 효과 업데이트
         for (const [id, effect] of this.effects) {
-            if (effect.update) {
+            // 효과 업데이트 (Explosion 객체인 경우)
+            if (effect.update && typeof effect.update === 'function') {
                 effect.update(deltaTime);
+                
+                // Explosion 객체가 파괴되었는지 확인
+                if (effect.shouldDestroy && effect.shouldDestroy()) {
+                    toRemove.push(id);
+                    continue;
+                }
+                
+                // active 상태 확인
+                if (effect.active === false) {
+                    toRemove.push(id);
+                    continue;
+                }
             }
 
-            // 지속시간 확인
-            const elapsed = now - (effect.timestamp || effect.createdAt || 0);
-            if (elapsed > (effect.duration || 2000)) {
+            // 지속시간 확인 (timestamp 또는 createdAt 사용)
+            const creationTime = effect.timestamp || effect.createdAt || 0;
+            const elapsed = now - creationTime;
+            const duration = effect.duration || 2000;
+            
+            if (elapsed > duration) {
                 toRemove.push(id);
+                console.log(`Removing expired effect ${id} (elapsed: ${elapsed}ms, duration: ${duration}ms)`);
             }
         }
 
@@ -121,7 +145,11 @@ export class EffectSystem {
 
         // 만료된 효과 제거
         toRemove.forEach(id => {
-            this.effects.delete(id);
+            const effect = this.effects.get(id);
+            if (effect) {
+                console.log(`Removing effect ${id} of type ${effect.type || 'explosion'}`);
+                this.effects.delete(id);
+            }
         });
 
         return toRemove;
@@ -131,7 +159,11 @@ export class EffectSystem {
      * 효과 제거
      */
     removeEffect(effectId) {
-        return this.effects.delete(effectId);
+        const removed = this.effects.delete(effectId);
+        if (removed) {
+            console.log(`Manually removed effect ${effectId}`);
+        }
+        return removed;
     }
 
     /**
@@ -159,6 +191,7 @@ export class EffectSystem {
      * 효과 시스템 정리
      */
     cleanup() {
+        console.log(`Cleaning up ${this.effects.size} effects and ${this.muzzleFlashes.size} muzzle flashes`);
         this.effects.clear();
         this.muzzleFlashes.clear();
     }

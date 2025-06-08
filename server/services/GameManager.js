@@ -612,13 +612,37 @@ export default class GameManager {
      * 차량 파괴 처리
      */
     handleVehicleDestroyed(vehicle, collision) {
+        // 이미 파괴된 차량인지 확인 (중복 처리 방지)
+        if (!vehicle.active) {
+            return;
+        }
+
+        // 차량을 비활성화하여 중복 처리 방지
+        vehicle.active = false;
+
         const player = this.players.get(vehicle.playerId);
         if (player) {
             player.deaths++;
+            console.log(`Player ${player.name} died. Deaths: ${player.deaths}`);
         }
 
         // 킬 점수 처리 (발사체 소유자)
-        // TODO: 발사체에서 소유자 정보 가져와서 킬 점수 추가
+        if (collision.ownerId && collision.ownerId !== vehicle.playerId) {
+            const killer = this.players.get(collision.ownerId);
+            if (killer) {
+                killer.kills++;
+                killer.score += 100; // 킬당 100점
+                console.log(`Player ${killer.name} got a kill! Kills: ${killer.kills}, Score: ${killer.score}`);
+            }
+        }
+
+        // 차량 파괴 이벤트 발생
+        this.eventEmitter.emit('vehicleDestroyed', {
+            vehicleId: vehicle.id,
+            playerId: vehicle.playerId,
+            killedBy: collision.ownerId || null,
+            position: vehicle.position
+        });
 
         // 차량 리스폰 (config에서 시간 가져오기)
         const respawnTime = this.config.game?.respawnTime || 3000;

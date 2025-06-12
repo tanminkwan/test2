@@ -45,7 +45,7 @@ graph TB
     end
     
     subgraph "Load Balancer / CDN"
-        E[Nginx API Gateway<br/>Port 80]
+        E["Nginx API Gateway<br/>Port 80"]
     end
     
     subgraph "Authentication Layer"
@@ -55,18 +55,18 @@ graph TB
     end
     
     subgraph "Microservices"
-        I[User Service<br/>Port 3002]
-        J[Game Service<br/>Port 3001]
+        I["User Service<br/>Port 3002"]
+        J["Game Service<br/>Port 3001"]
     end
     
     subgraph "Data Layer"
-        K[PostgreSQL<br/>user_service DB]
-        L[Redis Cache<br/>(Future)]
+        K["PostgreSQL<br/>user_service DB"]
+        L["Redis Cache<br/>Future"]
     end
     
     subgraph "External Services"
-        M[Email Service<br/>(Future)]
-        N[Analytics<br/>(Future)]
+        M["Email Service<br/>Future"]
+        N["Analytics<br/>Future"]
     end
     
     A --> E

@@ -1,7 +1,7 @@
 # 🏗️ 시스템 아키텍처 문서
 
 **Version:** v4.0  
-**Last Updated:** 2025-01-25  
+**Last Updated:** 2025-06-12  
 **Architecture Type:** Independent Microservices with JWT Authentication
 
 ## 📋 목차

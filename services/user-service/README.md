@@ -289,7 +289,7 @@ Authorization: Bearer <jwt_token>
       "equippedItems": ["skin1"]
     },
     "gamePoints": 100,
-    "lastLoginAt": "2025-01-25T10:00:00Z",
+    "lastLoginAt": "2025-06-12T10:00:00Z",
     "createdAt": "2025-01-20T10:00:00Z"
   }
 }

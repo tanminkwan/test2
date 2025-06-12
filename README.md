@@ -1,7 +1,7 @@
 # 🚁 Multiplayer 3D Vehicle Combat Game
 
 **Version:** v4.0  
-**Last Updated:** 2025-01-25  
+**Last Updated:** 2025-06-12  
 **Architecture:** Independent Microservices with JWT Authentication
 
 ## 📖 게임 소개

@@ -1,7 +1,7 @@
 # 🖥️ Windows 개발 환경 설정 가이드
 
 **Version:** v4.0  
-**Last Updated:** 2025-01-25  
+**Last Updated:** 2025-06-12  
 **Architecture:** Independent Microservices
 
 ## 📋 목차

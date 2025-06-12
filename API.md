@@ -1,23 +1,23 @@
-# 🌐 API 문서
+# ?�� API 문서
 
 **Version:** v4.0  
-**Last Updated:** 2025-01-25  
+**Last Updated:** 2025-06-12  
 **Architecture:** Independent Microservices with JWT Authentication
 
-## 📋 목차
+## ?�� 목차
 
 1. [API 개요](#api-개요)
-2. [인증 시스템](#인증-시스템)
+2. [?�증 ?�스??(#?�증-?�스??
 3. [User Service API](#user-service-api)
 4. [Game Service API](#game-service-api)
-5. [WebSocket 이벤트](#websocket-이벤트)
-6. [에러 처리](#에러-처리)
+5. [WebSocket ?�벤??(#websocket-?�벤??
+6. [?�러 처리](#?�러-처리)
 7. [Rate Limiting](#rate-limiting)
-8. [API 테스트](#api-테스트)
+8. [API ?�스??(#api-?�스??
 
-## 🎯 API 개요
+## ?�� API 개요
 
-### 마이크로서비스 구조
+### 마이?�로?�비??구조
 
 ```mermaid
 graph TB
@@ -52,30 +52,30 @@ graph TB
     style F fill:#99ff99
 ```
 
-### API 라우팅 규칙
+### API ?�우??규칙
 
-| 경로 | 대상 서비스 | 인증 필요 | 설명 |
+| 경로 | ?�???�비??| ?�증 ?�요 | ?�명 |
 |------|-------------|-----------|------|
-| `/api/auth/*` | User Service | ❌ | 인증 관련 API |
-| `/api/user/*` | User Service | ✅ | 사용자 관리 API |
-| `/socket.io/*` | Game Service | ✅ | WebSocket 연결 |
-| `/api/status` | Game Service | ❌ | 게임 서버 상태 |
+| `/api/auth/*` | User Service | ??| ?�증 관??API |
+| `/api/user/*` | User Service | ??| ?�용??관�?API |
+| `/socket.io/*` | Game Service | ??| WebSocket ?�결 |
+| `/api/status` | Game Service | ??| 게임 ?�버 ?�태 |
 
-### 공통 응답 형식
+### 공통 ?�답 ?�식
 
-#### 성공 응답
+#### ?�공 ?�답
 ```json
 {
   "success": true,
   "message": "Operation completed successfully",
   "data": {
-    // 응답 데이터
+    // ?�답 ?�이??
   },
-  "timestamp": "2025-01-25T10:00:00Z"
+  "timestamp": "2025-06-12T10:00:00Z"
 }
 ```
 
-#### 에러 응답
+#### ?�러 ?�답
 ```json
 {
   "success": false,
@@ -84,13 +84,13 @@ graph TB
     "message": "Human readable error message",
     "details": "Additional error details"
   },
-  "timestamp": "2025-01-25T10:00:00Z"
+  "timestamp": "2025-06-12T10:00:00Z"
 }
 ```
 
-## 🔐 인증 시스템
+## ?�� ?�증 ?�스??
 
-### JWT 토큰 구조
+### JWT ?�큰 구조
 
 ```json
 {
@@ -108,27 +108,27 @@ graph TB
 }
 ```
 
-### 인증 헤더 형식
+### ?�증 ?�더 ?�식
 
 ```http
 Authorization: Bearer <jwt_token>
 ```
 
-### 토큰 만료 시간
+### ?�큰 만료 ?�간
 
-- **기본**: 24시간
-- **게스트**: 24시간 (세션 종료 시 삭제)
-- **등록 사용자**: 24시간 (갱신 가능)
+- **기본**: 24?�간
+- **게스??*: 24?�간 (?�션 종료 ????��)
+- **?�록 ?�용??*: 24?�간 (갱신 가??
 
-## 👤 User Service API
+## ?�� User Service API
 
 **Base URL**: `http://localhost/api/`  
-**Port**: 3002 (nginx를 통해 라우팅)
+**Port**: 3002 (nginx�??�해 ?�우??
 
-### 🔓 인증 API (인증 불필요)
+### ?�� ?�증 API (?�증 불필??
 
 #### POST /api/auth/users/register
-사용자 회원가입
+?�용???�원가??
 
 **Request:**
 ```http
@@ -154,7 +154,7 @@ Content-Type: application/json
       "email": "test@example.com",
       "isGuest": false,
       "preferredVehicleType": "fighter",
-      "createdAt": "2025-01-25T10:00:00Z"
+      "createdAt": "2025-06-12T10:00:00Z"
     },
     "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
   }
@@ -162,14 +162,14 @@ Content-Type: application/json
 ```
 
 **Validation Rules:**
-- `username`: 3-50자, 영문/숫자/언더스코어만 허용
-- `email`: 유효한 이메일 형식
-- `password`: 최소 6자 이상
+- `username`: 3-50?? ?�문/?�자/?�더?�코?�만 ?�용
+- `email`: ?�효???�메???�식
+- `password`: 최소 6???�상
 
 ---
 
 #### POST /api/auth/users/login
-사용자 로그인
+?�용??로그??
 
 **Request:**
 ```http
@@ -202,17 +202,18 @@ Content-Type: application/json
         "bestScore": 800,
         "playTime": 7200
       },
-      "lastLoginAt": "2025-01-25T10:00:00Z"
+      "lastLoginAt": "2025-06-12T10:00:00Z"
     },
     "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-  }
+  },
+  "timestamp": "2025-06-12T10:00:00Z"
 }
 ```
 
 ---
 
 #### POST /api/auth/users/guest
-게스트 계정 생성
+게스??계정 ?�성
 
 **Request:**
 ```http
@@ -233,7 +234,7 @@ Content-Type: application/json
       "username": "Guest_12345",
       "isGuest": true,
       "preferredVehicleType": "fighter",
-      "createdAt": "2025-01-25T10:00:00Z"
+      "createdAt": "2025-06-12T10:00:00Z"
     },
     "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
   }
@@ -243,7 +244,7 @@ Content-Type: application/json
 ---
 
 #### GET /api/auth/users/verify-token
-JWT 토큰 검증 (nginx 내부 사용)
+JWT ?�큰 검�?(nginx ?��? ?�용)
 
 **Request:**
 ```http
@@ -263,10 +264,10 @@ Authorization: Bearer <jwt_token>
 }
 ```
 
-### 🔒 사용자 관리 API (인증 필요)
+### ?�� ?�용??관�?API (?�증 ?�요)
 
 #### GET /api/user/users/profile
-사용자 프로필 조회
+?�용???�로??조회
 
 **Request:**
 ```http
@@ -298,9 +299,9 @@ Authorization: Bearer <jwt_token>
       "equippedItems": ["skin1"]
     },
     "gamePoints": 150,
-    "lastLoginAt": "2025-01-25T10:00:00Z",
+    "lastLoginAt": "2025-06-12T10:00:00Z",
     "createdAt": "2025-01-20T10:00:00Z",
-    "updatedAt": "2025-01-25T10:00:00Z"
+    "updatedAt": "2025-06-12T10:00:00Z"
   }
 }
 ```
@@ -308,7 +309,7 @@ Authorization: Bearer <jwt_token>
 ---
 
 #### PUT /api/user/users/vehicle-settings
-차량 설정 업데이트
+차량 ?�정 ?�데?�트
 
 **Request:**
 ```http
@@ -342,14 +343,14 @@ Content-Type: application/json
 ```
 
 **Valid Vehicle Types:**
-- `fighter`: 균형잡힌 전투기
-- `heavy`: 중형 전투기
-- `test`: 테스트용 전투기
+- `fighter`: 균형?�힌 ?�투�?
+- `heavy`: 중형 ?�투�?
+- `test`: ?�스?�용 ?�투�?
 
 ---
 
 #### POST /api/user/users/game-stats
-게임 통계 업데이트
+게임 ?�계 ?�데?�트
 
 **Request:**
 ```http
@@ -387,7 +388,7 @@ Content-Type: application/json
 ---
 
 #### GET /api/user/users/list
-사용자 목록 조회 (관리자용)
+?�용??목록 조회 (관리자??
 
 **Request:**
 ```http
@@ -396,11 +397,11 @@ Authorization: Bearer <jwt_token>
 ```
 
 **Query Parameters:**
-- `page`: 페이지 번호 (기본값: 1)
-- `limit`: 페이지당 항목 수 (기본값: 10, 최대: 100)
-- `search`: 검색어 (사용자명 또는 이메일)
-- `isGuest`: 게스트 필터 (true/false)
-- `isActive`: 활성 상태 필터 (true/false)
+- `page`: ?�이지 번호 (기본�? 1)
+- `limit`: ?�이지????�� ??(기본�? 10, 최�?: 100)
+- `search`: 검?�어 (?�용?�명 ?�는 ?�메??
+- `isGuest`: 게스???�터 (true/false)
+- `isActive`: ?�성 ?�태 ?�터 (true/false)
 
 **Response (200):**
 ```json
@@ -419,7 +420,7 @@ Authorization: Bearer <jwt_token>
           "totalDeaths": 8,
           "totalGames": 5
         },
-        "lastLoginAt": "2025-01-25T10:00:00Z",
+        "lastLoginAt": "2025-06-12T10:00:00Z",
         "createdAt": "2025-01-20T10:00:00Z"
       }
     ],
@@ -438,7 +439,7 @@ Authorization: Bearer <jwt_token>
 ---
 
 #### GET /api/user/database/info
-데이터베이스 정보 조회
+?�이?�베?�스 ?�보 조회
 
 **Request:**
 ```http
@@ -456,7 +457,7 @@ Authorization: Bearer <jwt_token>
     "guestUsers": 30,
     "registeredUsers": 120,
     "databaseStatus": "connected",
-    "lastBackup": "2025-01-25T06:00:00Z",
+    "lastBackup": "2025-06-12T06:00:00Z",
     "statistics": {
       "newUsersToday": 5,
       "activeUsersToday": 45,
@@ -467,15 +468,15 @@ Authorization: Bearer <jwt_token>
 }
 ```
 
-## 🎮 Game Service API
+## ?�� Game Service API
 
 **Base URL**: `http://localhost:3001/api/`  
 **Direct Port**: 3001
 
-### 📊 게임 상태 API (인증 불필요)
+### ?�� 게임 ?�태 API (?�증 불필??
 
 #### GET /api/status
-게임 서버 상태 조회
+게임 ?�버 ?�태 조회
 
 **Request:**
 ```http
@@ -505,17 +506,17 @@ GET /api/status
       "memoryUsage": "45.2 MB",
       "cpuUsage": "25%"
     },
-    "lastRestart": "2025-01-25T08:00:00Z"
+    "lastRestart": "2025-06-12T08:00:00Z"
   }
 }
 ```
 
-## 🔄 WebSocket 이벤트
+## ?�� WebSocket ?�벤??
 
 **Connection URL**: `ws://localhost/socket.io/`  
 **Authentication**: JWT Token required
 
-### 연결 설정
+### ?�결 ?�정
 
 ```javascript
 const socket = io('http://localhost', {
@@ -523,10 +524,10 @@ const socket = io('http://localhost', {
 });
 ```
 
-### 클라이언트 → 서버 이벤트
+### ?�라?�언?????�버 ?�벤??
 
 #### `join-game`
-게임 참여 요청
+게임 참여 ?�청
 
 **Payload:**
 ```json
@@ -537,13 +538,13 @@ const socket = io('http://localhost', {
 ```
 
 **Response Events:**
-- `game-joined`: 게임 참여 성공
-- `error`: 참여 실패
+- `game-joined`: 게임 참여 ?�공
+- `error`: 참여 ?�패
 
 ---
 
 #### `player-input`
-플레이어 입력 전송 (60fps)
+?�레?�어 ?�력 ?�송 (60fps)
 
 **Payload:**
 ```json
@@ -589,17 +590,17 @@ const socket = io('http://localhost', {
 ---
 
 #### `leave-game`
-게임 퇴장
+게임 ?�장
 
 **Payload:**
 ```json
 {}
 ```
 
-### 서버 → 클라이언트 이벤트
+### ?�버 ???�라?�언???�벤??
 
 #### `game-state`
-게임 상태 동기화 (60fps)
+게임 ?�태 ?�기??(60fps)
 
 **Payload:**
 ```json
@@ -656,7 +657,7 @@ const socket = io('http://localhost', {
 ---
 
 #### `player-joined`
-플레이어 참여 알림
+?�레?�어 참여 ?�림
 
 **Payload:**
 ```json
@@ -675,7 +676,7 @@ const socket = io('http://localhost', {
 ---
 
 #### `player-left`
-플레이어 퇴장 알림
+?�레?�어 ?�장 ?�림
 
 **Payload:**
 ```json
@@ -689,7 +690,7 @@ const socket = io('http://localhost', {
 ---
 
 #### `vehicle-destroyed`
-차량 파괴 알림
+차량 ?�괴 ?�림
 
 **Payload:**
 ```json
@@ -709,7 +710,7 @@ const socket = io('http://localhost', {
 ---
 
 #### `explosion-created`
-폭발 효과 생성
+??�� ?�과 ?�성
 
 **Payload:**
 ```json
@@ -729,7 +730,7 @@ const socket = io('http://localhost', {
 ---
 
 #### `game-joined`
-게임 참여 성공
+게임 참여 ?�공
 
 **Payload:**
 ```json
@@ -737,7 +738,7 @@ const socket = io('http://localhost', {
   "playerId": "player_456",
   "vehicleId": "vehicle_123",
   "gameState": {
-    // 현재 게임 상태
+    // ?�재 게임 ?�태
   }
 }
 ```
@@ -745,7 +746,7 @@ const socket = io('http://localhost', {
 ---
 
 #### `error`
-에러 발생
+?�러 발생
 
 **Payload:**
 ```json
@@ -756,50 +757,50 @@ const socket = io('http://localhost', {
 }
 ```
 
-## ❌ 에러 처리
+## ???�러 처리
 
-### HTTP 상태 코드
+### HTTP ?�태 코드
 
-| 코드 | 의미 | 설명 |
+| 코드 | ?��? | ?�명 |
 |------|------|------|
-| 200 | OK | 요청 성공 |
-| 201 | Created | 리소스 생성 성공 |
-| 400 | Bad Request | 잘못된 요청 |
-| 401 | Unauthorized | 인증 실패 |
-| 403 | Forbidden | 권한 없음 |
-| 404 | Not Found | 리소스 없음 |
-| 409 | Conflict | 리소스 충돌 |
+| 200 | OK | ?�청 ?�공 |
+| 201 | Created | 리소???�성 ?�공 |
+| 400 | Bad Request | ?�못???�청 |
+| 401 | Unauthorized | ?�증 ?�패 |
+| 403 | Forbidden | 권한 ?�음 |
+| 404 | Not Found | 리소???�음 |
+| 409 | Conflict | 리소??충돌 |
 | 429 | Too Many Requests | Rate limit 초과 |
-| 500 | Internal Server Error | 서버 오류 |
+| 500 | Internal Server Error | ?�버 ?�류 |
 
-### 에러 코드
+### ?�러 코드
 
-#### User Service 에러
+#### User Service ?�러
 
-| 코드 | 설명 |
+| 코드 | ?�명 |
 |------|------|
-| `USER_NOT_FOUND` | 사용자를 찾을 수 없음 |
-| `INVALID_CREDENTIALS` | 잘못된 인증 정보 |
-| `USERNAME_TAKEN` | 사용자명 이미 사용 중 |
-| `EMAIL_TAKEN` | 이메일 이미 사용 중 |
-| `INVALID_TOKEN` | 유효하지 않은 JWT 토큰 |
-| `TOKEN_EXPIRED` | 만료된 JWT 토큰 |
-| `VALIDATION_ERROR` | 입력 데이터 검증 실패 |
-| `DATABASE_ERROR` | 데이터베이스 오류 |
+| `USER_NOT_FOUND` | ?�용?��? 찾을 ???�음 |
+| `INVALID_CREDENTIALS` | ?�못???�증 ?�보 |
+| `USERNAME_TAKEN` | ?�용?�명 ?��? ?�용 �?|
+| `EMAIL_TAKEN` | ?�메???��? ?�용 �?|
+| `INVALID_TOKEN` | ?�효?��? ?��? JWT ?�큰 |
+| `TOKEN_EXPIRED` | 만료??JWT ?�큰 |
+| `VALIDATION_ERROR` | ?�력 ?�이??검�??�패 |
+| `DATABASE_ERROR` | ?�이?�베?�스 ?�류 |
 
-#### Game Service 에러
+#### Game Service ?�러
 
-| 코드 | 설명 |
+| 코드 | ?�명 |
 |------|------|
-| `AUTHENTICATION_ERROR` | WebSocket 인증 실패 |
-| `INVALID_VEHICLE_TYPE` | 유효하지 않은 차량 타입 |
-| `GAME_FULL` | 게임 서버 만원 |
-| `PLAYER_NOT_FOUND` | 플레이어를 찾을 수 없음 |
-| `INVALID_INPUT` | 유효하지 않은 입력 |
-| `FIRE_RATE_EXCEEDED` | 발사 속도 제한 초과 |
-| `SERVER_ERROR` | 게임 서버 오류 |
+| `AUTHENTICATION_ERROR` | WebSocket ?�증 ?�패 |
+| `INVALID_VEHICLE_TYPE` | ?�효?��? ?��? 차량 ?�??|
+| `GAME_FULL` | 게임 ?�버 만원 |
+| `PLAYER_NOT_FOUND` | ?�레?�어�?찾을 ???�음 |
+| `INVALID_INPUT` | ?�효?��? ?��? ?�력 |
+| `FIRE_RATE_EXCEEDED` | 발사 ?�도 ?�한 초과 |
+| `SERVER_ERROR` | 게임 ?�버 ?�류 |
 
-### 에러 응답 예시
+### ?�러 ?�답 ?�시
 
 #### 400 Bad Request
 ```json
@@ -813,7 +814,7 @@ const socket = io('http://localhost', {
       "email": "Invalid email format"
     }
   },
-  "timestamp": "2025-01-25T10:00:00Z"
+  "timestamp": "2025-06-12T10:00:00Z"
 }
 ```
 
@@ -826,7 +827,7 @@ const socket = io('http://localhost', {
     "message": "Invalid or expired JWT token",
     "details": "Token signature verification failed"
   },
-  "timestamp": "2025-01-25T10:00:00Z"
+  "timestamp": "2025-06-12T10:00:00Z"
 }
 ```
 
@@ -840,29 +841,29 @@ const socket = io('http://localhost', {
     "details": "Rate limit: 1000 requests per 15 minutes",
     "retryAfter": 300
   },
-  "timestamp": "2025-01-25T10:00:00Z"
+  "timestamp": "2025-06-12T10:00:00Z"
 }
 ```
 
-## 🚦 Rate Limiting
+## ?�� Rate Limiting
 
 ### User Service Rate Limits
 
-| 엔드포인트 | 제한 | 윈도우 |
+| ?�드?�인??| ?�한 | ?�도??|
 |------------|------|--------|
-| `/api/auth/*` | 100 requests | 15분 |
-| `/api/user/*` | 1000 requests | 15분 |
-| 전체 | 1000 requests | 15분 |
+| `/api/auth/*` | 100 requests | 15�?|
+| `/api/user/*` | 1000 requests | 15�?|
+| ?�체 | 1000 requests | 15�?|
 
 ### Game Service Rate Limits
 
-| 이벤트 | 제한 | 설명 |
+| ?�벤??| ?�한 | ?�명 |
 |--------|------|------|
-| `player-input` | 60 events/sec | 게임 입력 |
-| `fire-weapon` | 차량별 제한 | 무기 발사 속도 |
-| WebSocket 연결 | 10 connections/min | 연결 시도 |
+| `player-input` | 60 events/sec | 게임 ?�력 |
+| `fire-weapon` | 차량�??�한 | 무기 발사 ?�도 |
+| WebSocket ?�결 | 10 connections/min | ?�결 ?�도 |
 
-### Rate Limit 헤더
+### Rate Limit ?�더
 
 ```http
 X-RateLimit-Limit: 1000
@@ -870,11 +871,11 @@ X-RateLimit-Remaining: 999
 X-RateLimit-Reset: 1706177700
 ```
 
-## 🧪 API 테스트
+## ?�� API ?�스??
 
-### cURL 예시
+### cURL ?�시
 
-#### 회원가입
+#### ?�원가??
 ```bash
 curl -X POST http://localhost/api/auth/users/register \
   -H "Content-Type: application/json" \
@@ -885,7 +886,7 @@ curl -X POST http://localhost/api/auth/users/register \
   }'
 ```
 
-#### 로그인
+#### 로그??
 ```bash
 curl -X POST http://localhost/api/auth/users/login \
   -H "Content-Type: application/json" \
@@ -895,20 +896,20 @@ curl -X POST http://localhost/api/auth/users/login \
   }'
 ```
 
-#### 프로필 조회
+#### ?�로??조회
 ```bash
 curl -X GET http://localhost/api/user/users/profile \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
-#### 게임 서버 상태
+#### 게임 ?�버 ?�태
 ```bash
 curl -X GET http://localhost:3001/api/status
 ```
 
-### JavaScript 예시
+### JavaScript ?�시
 
-#### API 클라이언트
+#### API ?�라?�언??
 ```javascript
 class GameAPI {
   constructor(baseURL = 'http://localhost') {
@@ -936,7 +937,7 @@ class GameAPI {
     return data;
   }
 
-  // 인증 API
+  // ?�증 API
   async register(username, email, password) {
     const data = await this.request('/api/auth/users/register', {
       method: 'POST',
@@ -969,7 +970,7 @@ class GameAPI {
     return data;
   }
 
-  // 사용자 API
+  // ?�용??API
   async getProfile() {
     return this.request('/api/user/users/profile');
   }
@@ -995,7 +996,7 @@ class GameAPI {
 }
 ```
 
-#### WebSocket 클라이언트
+#### WebSocket ?�라?�언??
 ```javascript
 class GameSocket {
   constructor(token) {
@@ -1074,15 +1075,15 @@ class GameSocket {
 }
 ```
 
-### 테스트 시나리오
+### ?�스???�나리오
 
-#### 1. 사용자 등록 및 로그인 플로우
+#### 1. ?�용???�록 �?로그???�로??
 ```javascript
 async function testUserFlow() {
   const api = new GameAPI();
   
   try {
-    // 1. 회원가입
+    // 1. ?�원가??
     const registerResult = await api.register(
       'testuser',
       'test@example.com',
@@ -1092,10 +1093,10 @@ async function testUserFlow() {
     
 ---
 
-**📋 문서 버전 관리**
+**?�� 문서 버전 관�?*
 
-- v3.0: 마이크로서비스 API 문서화
-- v2.x: 모놀리식 API 문서
+- v3.0: 마이?�로?�비??API 문서??
+- v2.x: 모�?리식 API 문서
 - v1.x: 초기 API 문서
 
-**🔄 업데이트 주기**: API 변경 시 즉시 업데이트 
+**?�� ?�데?�트 주기**: API 변�???즉시 ?�데?�트 

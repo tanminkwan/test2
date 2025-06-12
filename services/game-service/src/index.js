@@ -312,7 +312,7 @@ app.get('/api/config', (req, res) => {
 
 // 서버 시작
 const PORT = config.server.port || 3001;
-const HOST = config.network?.allowExternalAccess ? '0.0.0.0' : 'localhost';
+const HOST = config.network?.allowExternalAccess ? '0.0.0.0' : (config.server.host || '127.0.0.1');
 
 server.listen(PORT, HOST, () => {
     const networkInterfaces = getNetworkInterfaces();

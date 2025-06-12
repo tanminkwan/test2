@@ -1,0 +1,43 @@
+# Docker Compose Override for Development
+# 개발 환경에서 사용할 추가 설정들
+
+version: '3.8'
+
+services:
+  user-service-db:
+    # 개발 환경에서는 데이터베이스 로그 활성화
+    command: postgres -c log_statement=all -c log_destination=stderr
+    environment:
+      # 개발 환경용 로깅 설정
+      POSTGRES_LOG_STATEMENT: all
+
+  user-service:
+    # 개발 환경에서는 소스 코드 볼륨 마운트
+    volumes:
+      - ./services/user-service/src:/app/services/user-service/src:ro
+    environment:
+      # 개발 환경 설정
+      NODE_ENV: development
+      DEBUG: "app:*"
+    # 개발 환경에서는 nodemon 사용
+    command: npm run dev
+
+  game-service:
+    # 개발 환경에서는 소스 코드 볼륨 마운트
+    volumes:
+      - ./services/game-service/src:/app/services/game-service/src:ro
+    environment:
+      # 개발 환경 설정
+      NODE_ENV: development
+      DEBUG: "game:*"
+    # 개발 환경에서는 nodemon 사용
+    command: npm run dev
+
+  nginx:
+    # 개발 환경에서는 nginx 설정 파일 볼륨 마운트
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./client:/usr/share/nginx/html:ro
+    # 개발 환경에서는 더 자주 헬스체크
+    healthcheck:
+      interval: 10s 

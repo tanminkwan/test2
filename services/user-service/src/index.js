@@ -17,8 +17,8 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3002;
 
-// Trust proxy 설정 (nginx 뒤에서 실행되므로)
-app.set('trust proxy', true);
+// Trust proxy 설정 (nginx 뒤에서 실행되므로) - 보안을 위해 구체적으로 설정
+app.set('trust proxy', 1); // nginx가 첫 번째 프록시이므로 1로 설정
 
 // 설정
 const config = {
@@ -33,7 +33,7 @@ app.use(cors()); // CORS 허용
 app.use(express.json({ limit: '10mb' })); // JSON 파싱
 app.use(express.urlencoded({ extended: true })); // URL 인코딩
 
-// Rate Limiting
+// Rate Limiting - trust proxy 설정과 호환되도록 수정
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15분
   max: 1000, // 최대 1000 요청으로 증가
@@ -41,10 +41,15 @@ const limiter = rateLimit({
     success: false,
     message: 'Too many requests, please try again later.'
   },
+  // 신뢰할 수 있는 프록시 설정 (nginx)
+  trustProxy: 1,
   // 토큰 검증 엔드포인트는 rate limiting 제외
   skip: (req) => {
     return req.path === '/api/users/verify-token' || req.path === '/health';
-  }
+  },
+  // 표준 헤더 사용
+  standardHeaders: true,
+  legacyHeaders: false
 });
 app.use(limiter);
 
@@ -151,14 +156,15 @@ async function startServer() {
       console.log('✅ Database tables synchronized.');
     }
 
-    // 서버 시작
-    app.listen(PORT, () => {
-      console.log(`🚀 User Service running on port ${PORT}`);
+    // 서버 시작 - localhost에서만 바인딩 (보안상 nginx를 통해서만 접근)
+    app.listen(PORT, '127.0.0.1', () => {
+      console.log(`🚀 User Service running on localhost:${PORT} (nginx proxy only)`);
       console.log(`📊 Health check: http://localhost:${PORT}/health`);
       console.log(`👤 API endpoints: http://localhost:${PORT}/api/users`);
       console.log(`🗄️  Database info: http://localhost:${PORT}/api/database/info`);
       console.log(`🔧 Environment: ${config.nodeEnv}`);
       console.log(`💾 Database: ${process.env.DB_TYPE || 'sqlite'}`);
+      console.log(`🔒 Security: Bound to localhost only (nginx reverse proxy required)`);
       
       if (config.nodeEnv === 'development') {
         console.log('\n📋 Available endpoints:');

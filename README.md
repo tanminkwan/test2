@@ -29,7 +29,7 @@ graph TB
     end
     
     subgraph "Database"
-        H[PostgreSQL<br/>user_service DB]
+        H[PostgreSQL<br/>vehicle_game DB]
     end
     
     A --> E
@@ -89,7 +89,8 @@ sequenceDiagram
 
 ### 🔒 보안 시스템
 - **JWT 인증**: 토큰 기반 사용자 인증
-- **API 게이트웨이**: nginx를 통한 중앙집중식 라우팅
+- **API 게이트웨이**: nginx를 통한 중앙집중식 라우팅 (외부 접근 허용)
+- **마이크로서비스 격리**: User/Game Service는 localhost만 허용 (외부 직접 접근 차단)
 - **WebSocket 보안**: JWT 토큰 검증을 통한 WebSocket 연결 보호
 - **Rate Limiting**: API 호출 제한으로 DDoS 방지
 - **CORS 설정**: 적절한 Cross-Origin 정책
@@ -143,39 +144,64 @@ GRANT ALL PRIVILEGES ON DATABASE user_service TO app_user;
 
 #### 3. 환경 변수 설정 (.env 파일 생성)
 
+각 서비스 디렉토리에 `.env` 파일을 생성하세요. `sample.env` 파일을 참고하여 복사 후 수정하시면 됩니다.
+
 **User Service 환경 변수** (`services/user-service/.env`):
 ```env
 # 서버 설정
-NODE_ENV=development
-PORT=3002
+NODE_ENV=development              # 실행 환경 (development/production)
+HOST=127.0.0.1                   # 서버 바인딩 주소 (보안상 localhost만 허용)
+PORT=3002                         # User Service 포트 번호
 
-# 데이터베이스 설정
-DB_TYPE=postgres
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=user_service
-DB_USER=app_user
-DB_PASS="app123!@#"
+# 데이터베이스 설정 (PostgreSQL)
+DB_TYPE=postgres                  # 데이터베이스 타입 (postgres/sqlite)
+DB_HOST=localhost                 # 데이터베이스 호스트 주소
+DB_PORT=5432                      # PostgreSQL 기본 포트
+DB_NAME=vehicle_game              # 데이터베이스 이름 (변경됨: user_service -> vehicle_game)
+DB_USER=app_user                  # 데이터베이스 사용자명
+DB_PASS="app123!@#"              # 데이터베이스 비밀번호 (특수문자 포함시 따옴표 필요)
 
-# JWT 설정
-JWT_SECRET="your-super-secret-jwt-key-change-in-production"
-JWT_EXPIRY=24h
+# JWT 인증 설정
+JWT_SECRET=your-super-secret-jwt-key-change-in-production  # JWT 서명 키 (반드시 변경 필요)
+JWT_EXPIRY=24h                    # 토큰 만료 시간 (24시간)
 
-# 프록시 설정 (필요한 경우)
-HTTP_PROXY=http://70.10.15.10:8080
-HTTPS_PROXY=http://70.10.15.10:8080
-NO_PROXY=localhost,127.0.0.1,::1
+# 네트워크 보안 설정
+ALLOW_EXTERNAL_ACCESS=false       # 외부 접근 허용 여부 (nginx를 통해서만 접근)
+
+# 프록시 설정 (회사 네트워크 등에서 필요한 경우)
+HTTP_PROXY=http://70.10.15.10:8080   # HTTP 프록시 서버 주소
+HTTPS_PROXY=http://70.10.15.10:8080  # HTTPS 프록시 서버 주소
+NO_PROXY=localhost,127.0.0.1,::1     # 프록시를 사용하지 않을 주소 목록
 ```
 
 **Game Service 환경 변수** (`services/game-service/.env`):
 ```env
 # 서버 설정
-NODE_ENV=development
-PORT=3001
+NODE_ENV=development              # 실행 환경 (development/production)
+HOST=127.0.0.1                   # 서버 바인딩 주소 (보안상 localhost만 허용)
+PORT=3001                         # Game Service 포트 번호
 
-# JWT 설정 (User Service와 동일해야 함)
-JWT_SECRET="your-super-secret-jwt-key-change-in-production"
+# JWT 인증 설정 (User Service와 동일해야 함)
+JWT_SECRET=your-super-secret-jwt-key-change-in-production  # JWT 서명 키 (User Service와 동일)
+
+# 네트워크 보안 설정
+ALLOW_EXTERNAL_ACCESS=false       # 외부 접근 허용 여부 (nginx를 통해서만 접근)
 ```
+
+> **⚠️ 중요 보안 사항:**
+> - `JWT_SECRET`은 반드시 복잡한 문자열로 변경하세요
+> - User Service와 Game Service의 `JWT_SECRET`은 동일해야 합니다
+> - `HOST=127.0.0.1`로 설정하여 외부 직접 접근을 차단합니다
+> - 프로덕션 환경에서는 `NODE_ENV=production`으로 설정하세요
+
+> **📝 환경 변수 파일 생성 방법:**
+> ```bash
+> # User Service
+> cp services/user-service/sample.env services/user-service/.env
+> 
+> # Game Service  
+> cp services/game-service/sample.env services/game-service/.env
+> ```
 
 #### 4. 서비스 시작
 
@@ -430,3 +456,9 @@ MIT License
 **🎮 마이크로서비스 기반 멀티플레이어 게임을 즐겨보세요!**
 
 **⚠️ 주의**: 프로덕션 환경에서는 반드시 JWT_SECRET, 데이터베이스 비밀번호 등을 변경하세요!
+
+**🔒 보안 아키텍처:**
+- **Nginx (Port 80)**: 외부 접근 허용 - API Gateway 역할
+- **User Service (Port 3002)**: localhost만 허용 - nginx를 통해서만 접근
+- **Game Service (Port 3001)**: localhost만 허용 - nginx를 통해서만 접근
+- **PostgreSQL**: localhost만 허용 - User Service를 통해서만 접근

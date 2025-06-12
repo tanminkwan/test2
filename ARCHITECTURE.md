@@ -150,7 +150,7 @@ JWT_SECRET="your-super-secret-jwt-key-change-in-production"
     "helmet": "^7.1.0",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1"
-  }
+    }
 }
 ```
 

@@ -12,7 +12,6 @@ game:
   
 server:
   port: 3001                         # 서버 포트 번호
-  host: "0.0.0.0"                    # 서버 호스트 (0.0.0.0 = 모든 인터페이스)
   tickRate: 60                       # 서버 업데이트 주기 (Hz, 초당 프레임)
   
 # 점수 시스템 설정
@@ -34,7 +33,7 @@ collision:
 
 # 네트워크 설정
 network:
-  allowExternalAccess: true          # 외부 네트워크에서 접근 허용 여부
+  allowExternalAccess: false         # 외부 네트워크에서 접근 허용 여부 (보안상 nginx를 통해서만 접근)
   cors:
     enabled: true                    # CORS (Cross-Origin Resource Sharing) 활성화
     origins: "*"                     # 허용할 도메인 (* = 모든 도메인)

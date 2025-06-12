@@ -1,8 +1,8 @@
 # 🌐 API 문서
 
-**Version:** v3.0  
+**Version:** v4.0  
 **Last Updated:** 2025-01-25  
-**Base URL:** http://localhost (nginx API Gateway)
+**Architecture:** Independent Microservices with JWT Authentication
 
 ## 📋 목차
 
@@ -10,48 +10,87 @@
 2. [인증 시스템](#인증-시스템)
 3. [User Service API](#user-service-api)
 4. [Game Service API](#game-service-api)
-5. [WebSocket Events](#websocket-events)
-6. [에러 코드](#에러-코드)
+5. [WebSocket 이벤트](#websocket-이벤트)
+6. [에러 처리](#에러-처리)
 7. [Rate Limiting](#rate-limiting)
-8. [예제 코드](#예제-코드)
+8. [API 테스트](#api-테스트)
 
-## API 개요
+## 🎯 API 개요
 
-### 🏗️ 아키텍처
-- **API Gateway**: nginx (Port 80)
-- **User Service**: Express.js (Port 3002)
-- **Game Service**: Express.js + Socket.IO (Port 3001)
-- **Database**: PostgreSQL
+### 마이크로서비스 구조
 
-### 🔐 인증 방식
-- **JWT (JSON Web Token)** 기반 인증
-- **Bearer Token** 방식으로 Authorization 헤더에 포함
-- **토큰 만료 시간**: 24시간
+```mermaid
+graph TB
+    subgraph "Client"
+        A[Web Browser]
+    end
+    
+    subgraph "API Gateway (nginx:80)"
+        B[nginx Proxy]
+    end
+    
+    subgraph "User Service (3002)"
+        C[Authentication API]
+        D[User Management API]
+    end
+    
+    subgraph "Game Service (3001)"
+        E[Game Status API]
+        F[WebSocket API]
+    end
+    
+    A --> B
+    B --> C
+    B --> D
+    B --> E
+    B --> F
+    
+    style B fill:#ff9999
+    style C fill:#99ccff
+    style D fill:#99ccff
+    style E fill:#99ff99
+    style F fill:#99ff99
+```
 
-### 📊 응답 형식
-모든 API 응답은 JSON 형식을 사용합니다.
+### API 라우팅 규칙
 
-**성공 응답:**
+| 경로 | 대상 서비스 | 인증 필요 | 설명 |
+|------|-------------|-----------|------|
+| `/api/auth/*` | User Service | ❌ | 인증 관련 API |
+| `/api/user/*` | User Service | ✅ | 사용자 관리 API |
+| `/socket.io/*` | Game Service | ✅ | WebSocket 연결 |
+| `/api/status` | Game Service | ❌ | 게임 서버 상태 |
+
+### 공통 응답 형식
+
+#### 성공 응답
 ```json
 {
   "success": true,
-  "data": { ... },
-  "message": "Success message"
+  "message": "Operation completed successfully",
+  "data": {
+    // 응답 데이터
+  },
+  "timestamp": "2025-01-25T10:00:00Z"
 }
 ```
 
-**에러 응답:**
+#### 에러 응답
 ```json
 {
   "success": false,
-  "error": "Error message",
-  "code": "ERROR_CODE"
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "Human readable error message",
+    "details": "Additional error details"
+  },
+  "timestamp": "2025-01-25T10:00:00Z"
 }
 ```
 
-## 인증 시스템
+## 🔐 인증 시스템
 
-### 🔑 JWT 토큰 구조
+### JWT 토큰 구조
 
 ```json
 {
@@ -60,225 +99,209 @@
     "typ": "JWT"
   },
   "payload": {
-    "userId": "550e8400-e29b-41d4-a716-446655440000",
-    "username": "player123",
-    "isGuest": false,
-    "iat": 1706140800,
-    "exp": 1706227200
+    "userId": "uuid",
+    "username": "string",
+    "isGuest": "boolean",
+    "iat": "timestamp",
+    "exp": "timestamp"
   }
 }
 ```
 
-### 🛡️ 인증 헤더
+### 인증 헤더 형식
+
 ```http
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+Authorization: Bearer <jwt_token>
 ```
 
-## User Service API
+### 토큰 만료 시간
 
-### 🔓 인증 API (Public Endpoints)
+- **기본**: 24시간
+- **게스트**: 24시간 (세션 종료 시 삭제)
+- **등록 사용자**: 24시간 (갱신 가능)
+
+## 👤 User Service API
+
+**Base URL**: `http://localhost/api/`  
+**Port**: 3002 (nginx를 통해 라우팅)
+
+### 🔓 인증 API (인증 불필요)
 
 #### POST /api/auth/users/register
 사용자 회원가입
 
-**Request Body:**
-```json
+**Request:**
+```http
+POST /api/auth/users/register
+Content-Type: application/json
+
 {
-  "username": "player123",
-  "email": "player@example.com",
-  "password": "securePassword123"
+  "username": "testuser",
+  "email": "test@example.com",
+  "password": "password123"
 }
 ```
 
-**Response:**
+**Response (201):**
 ```json
 {
   "success": true,
+  "message": "User registered successfully",
   "data": {
     "user": {
       "id": "550e8400-e29b-41d4-a716-446655440000",
-      "username": "player123",
-      "email": "player@example.com",
+      "username": "testuser",
+      "email": "test@example.com",
       "isGuest": false,
       "preferredVehicleType": "fighter",
-      "gameStats": {
-        "totalKills": 0,
-        "totalDeaths": 0,
-        "totalGames": 0,
-        "totalScore": 0,
-        "bestScore": 0,
-        "playTime": 0
-      },
-      "gamePoints": 0,
-      "createdAt": "2025-01-25T10:00:00.000Z"
+      "createdAt": "2025-01-25T10:00:00Z"
     },
     "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-  },
-  "message": "User registered successfully"
+  }
 }
 ```
 
-**Error Responses:**
-- `400`: 잘못된 입력 데이터
-- `409`: 이미 존재하는 사용자명 또는 이메일
+**Validation Rules:**
+- `username`: 3-50자, 영문/숫자/언더스코어만 허용
+- `email`: 유효한 이메일 형식
+- `password`: 최소 6자 이상
 
 ---
 
 #### POST /api/auth/users/login
 사용자 로그인
 
-**Request Body:**
-```json
+**Request:**
+```http
+POST /api/auth/users/login
+Content-Type: application/json
+
 {
-  "username": "player123",
-  "password": "securePassword123"
+  "username": "testuser",
+  "password": "password123"
 }
 ```
 
-**Response:**
+**Response (200):**
 ```json
 {
   "success": true,
+  "message": "Login successful",
   "data": {
     "user": {
       "id": "550e8400-e29b-41d4-a716-446655440000",
-      "username": "player123",
-      "email": "player@example.com",
+      "username": "testuser",
+      "email": "test@example.com",
       "isGuest": false,
       "preferredVehicleType": "fighter",
       "gameStats": {
         "totalKills": 15,
         "totalDeaths": 8,
-        "totalGames": 23,
-        "totalScore": 1250,
-        "bestScore": 180,
-        "playTime": 3600
+        "totalGames": 5,
+        "totalScore": 2500,
+        "bestScore": 800,
+        "playTime": 7200
       },
-      "gamePoints": 1250,
-      "lastLoginAt": "2025-01-25T10:00:00.000Z"
+      "lastLoginAt": "2025-01-25T10:00:00Z"
     },
     "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-  },
-  "message": "Login successful"
+  }
 }
 ```
-
-**Error Responses:**
-- `400`: 잘못된 입력 데이터
-- `401`: 잘못된 사용자명 또는 비밀번호
-- `404`: 사용자를 찾을 수 없음
 
 ---
 
 #### POST /api/auth/users/guest
 게스트 계정 생성
 
-**Request Body:**
-```json
-{
-  "username": "Guest_12345"
-}
+**Request:**
+```http
+POST /api/auth/users/guest
+Content-Type: application/json
+
+{}
 ```
 
-**Response:**
+**Response (201):**
 ```json
 {
   "success": true,
+  "message": "Guest user created successfully",
   "data": {
     "user": {
       "id": "550e8400-e29b-41d4-a716-446655440001",
       "username": "Guest_12345",
-      "email": null,
       "isGuest": true,
       "preferredVehicleType": "fighter",
-      "gameStats": {
-        "totalKills": 0,
-        "totalDeaths": 0,
-        "totalGames": 0,
-        "totalScore": 0,
-        "bestScore": 0,
-        "playTime": 0
-      },
-      "gamePoints": 0,
-      "createdAt": "2025-01-25T10:00:00.000Z"
+      "createdAt": "2025-01-25T10:00:00Z"
     },
     "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-  },
-  "message": "Guest account created successfully"
+  }
 }
 ```
-
-**Error Responses:**
-- `400`: 잘못된 입력 데이터
-- `409`: 이미 존재하는 사용자명
 
 ---
 
 #### GET /api/auth/users/verify-token
 JWT 토큰 검증 (nginx 내부 사용)
 
-**Headers:**
+**Request:**
 ```http
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+GET /api/auth/users/verify-token
+Authorization: Bearer <jwt_token>
 ```
 
-**Response:**
+**Response (200):**
 ```json
 {
   "success": true,
   "data": {
     "userId": "550e8400-e29b-41d4-a716-446655440000",
-    "username": "player123",
+    "username": "testuser",
     "isGuest": false
-  },
-  "message": "Token is valid"
+  }
 }
 ```
 
-**Error Responses:**
-- `401`: 토큰이 없거나 잘못됨
-- `403`: 토큰이 만료됨
-
-### 🔒 사용자 API (Protected Endpoints)
+### 🔒 사용자 관리 API (인증 필요)
 
 #### GET /api/user/users/profile
 사용자 프로필 조회
 
-**Headers:**
+**Request:**
 ```http
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+GET /api/user/users/profile
+Authorization: Bearer <jwt_token>
 ```
 
-**Response:**
+**Response (200):**
 ```json
 {
   "success": true,
   "data": {
-    "user": {
-      "id": "550e8400-e29b-41d4-a716-446655440000",
-      "username": "player123",
-      "email": "player@example.com",
-      "isGuest": false,
-      "preferredVehicleType": "heavy",
-      "gameStats": {
-        "totalKills": 25,
-        "totalDeaths": 12,
-        "totalGames": 37,
-        "totalScore": 2100,
-        "bestScore": 280,
-        "playTime": 7200
-      },
-      "customization": {
-        "vehicleColor": "#ff0000",
-        "unlockedItems": ["redPaint", "blueEngine"],
-        "equippedItems": ["redPaint"]
-      },
-      "gamePoints": 2100,
-      "lastLoginAt": "2025-01-25T10:00:00.000Z",
-      "createdAt": "2025-01-20T08:30:00.000Z"
-    }
-  },
-  "message": "Profile retrieved successfully"
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "username": "testuser",
+    "email": "test@example.com",
+    "isGuest": false,
+    "preferredVehicleType": "fighter",
+    "gameStats": {
+      "totalKills": 15,
+      "totalDeaths": 8,
+      "totalGames": 5,
+      "totalScore": 2500,
+      "bestScore": 800,
+      "playTime": 7200
+    },
+    "customization": {
+      "vehicleColor": "#ff0000",
+      "unlockedItems": ["skin1", "weapon1"],
+      "equippedItems": ["skin1"]
+    },
+    "gamePoints": 150,
+    "lastLoginAt": "2025-01-25T10:00:00Z",
+    "createdAt": "2025-01-20T10:00:00Z",
+    "updatedAt": "2025-01-25T10:00:00Z"
+  }
 }
 ```
 
@@ -287,85 +310,77 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 #### PUT /api/user/users/vehicle-settings
 차량 설정 업데이트
 
-**Headers:**
+**Request:**
 ```http
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+PUT /api/user/users/vehicle-settings
+Authorization: Bearer <jwt_token>
 Content-Type: application/json
-```
 
-**Request Body:**
-```json
 {
   "preferredVehicleType": "heavy",
   "customization": {
     "vehicleColor": "#00ff00",
-    "equippedItems": ["greenPaint", "turboEngine"]
+    "equippedItems": ["skin2", "weapon2"]
   }
 }
 ```
 
-**Response:**
+**Response (200):**
 ```json
 {
   "success": true,
+  "message": "Vehicle settings updated successfully",
   "data": {
-    "user": {
-      "id": "550e8400-e29b-41d4-a716-446655440000",
-      "preferredVehicleType": "heavy",
-      "customization": {
-        "vehicleColor": "#00ff00",
-        "unlockedItems": ["redPaint", "blueEngine", "greenPaint", "turboEngine"],
-        "equippedItems": ["greenPaint", "turboEngine"]
-      }
+    "preferredVehicleType": "heavy",
+    "customization": {
+      "vehicleColor": "#00ff00",
+      "unlockedItems": ["skin1", "weapon1", "skin2", "weapon2"],
+      "equippedItems": ["skin2", "weapon2"]
     }
-  },
-  "message": "Vehicle settings updated successfully"
+  }
 }
 ```
 
-**Error Responses:**
-- `400`: 잘못된 차량 타입 또는 설정
-- `401`: 인증 토큰 없음
-- `403`: 권한 없음
+**Valid Vehicle Types:**
+- `fighter`: 균형잡힌 전투기
+- `heavy`: 중형 전투기
+- `test`: 테스트용 전투기
 
 ---
 
 #### POST /api/user/users/game-stats
 게임 통계 업데이트
 
-**Headers:**
+**Request:**
 ```http
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+POST /api/user/users/game-stats
+Authorization: Bearer <jwt_token>
 Content-Type: application/json
-```
 
-**Request Body:**
-```json
 {
   "kills": 3,
   "deaths": 1,
-  "score": 150,
-  "playTime": 300,
-  "vehicleType": "fighter"
+  "score": 500,
+  "playTime": 600
 }
 ```
 
-**Response:**
+**Response (200):**
 ```json
 {
   "success": true,
+  "message": "Game statistics updated successfully",
   "data": {
     "gameStats": {
-      "totalKills": 28,
-      "totalDeaths": 13,
-      "totalGames": 38,
-      "totalScore": 2250,
-      "bestScore": 280,
-      "playTime": 7500
+      "totalKills": 18,
+      "totalDeaths": 9,
+      "totalGames": 6,
+      "totalScore": 3000,
+      "bestScore": 800,
+      "playTime": 7800
     },
-    "gamePoints": 2250
-  },
-  "message": "Game statistics updated successfully"
+    "gamePoints": 165
+  }
 }
 ```
 
@@ -374,17 +389,20 @@ Content-Type: application/json
 #### GET /api/user/users/list
 사용자 목록 조회 (관리자용)
 
-**Headers:**
+**Request:**
 ```http
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+GET /api/user/users/list?page=1&limit=10&search=test
+Authorization: Bearer <jwt_token>
 ```
 
 **Query Parameters:**
 - `page`: 페이지 번호 (기본값: 1)
-- `limit`: 페이지당 항목 수 (기본값: 10)
-- `search`: 검색어 (사용자명 검색)
+- `limit`: 페이지당 항목 수 (기본값: 10, 최대: 100)
+- `search`: 검색어 (사용자명 또는 이메일)
+- `isGuest`: 게스트 필터 (true/false)
+- `isActive`: 활성 상태 필터 (true/false)
 
-**Response:**
+**Response (200):**
 ```json
 {
   "success": true,
@@ -392,28 +410,28 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
     "users": [
       {
         "id": "550e8400-e29b-41d4-a716-446655440000",
-        "username": "player123",
+        "username": "testuser",
+        "email": "test@example.com",
         "isGuest": false,
+        "isActive": true,
         "gameStats": {
-          "totalKills": 28,
-          "totalDeaths": 13,
-          "totalGames": 38,
-          "totalScore": 2250
+          "totalKills": 15,
+          "totalDeaths": 8,
+          "totalGames": 5
         },
-        "gamePoints": 2250,
-        "lastLoginAt": "2025-01-25T10:00:00.000Z",
-        "createdAt": "2025-01-20T08:30:00.000Z"
+        "lastLoginAt": "2025-01-25T10:00:00Z",
+        "createdAt": "2025-01-20T10:00:00Z"
       }
     ],
     "pagination": {
-      "currentPage": 1,
-      "totalPages": 5,
-      "totalUsers": 47,
+      "page": 1,
+      "limit": 10,
+      "total": 150,
+      "totalPages": 15,
       "hasNext": true,
       "hasPrev": false
     }
-  },
-  "message": "User list retrieved successfully"
+  }
 }
 ```
 
@@ -422,379 +440,325 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 #### GET /api/user/database/info
 데이터베이스 정보 조회
 
-**Headers:**
+**Request:**
 ```http
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+GET /api/user/database/info
+Authorization: Bearer <jwt_token>
 ```
 
-**Response:**
+**Response (200):**
 ```json
 {
   "success": true,
   "data": {
-    "database": {
-      "type": "postgres",
-      "host": "localhost",
-      "port": 5432,
-      "database": "user_service",
-      "tablesCount": 3,
-      "totalUsers": 47,
-      "activeUsers": 42,
-      "guestUsers": 15
-    },
+    "totalUsers": 150,
+    "activeUsers": 120,
+    "guestUsers": 30,
+    "registeredUsers": 120,
+    "databaseStatus": "connected",
+    "lastBackup": "2025-01-25T06:00:00Z",
     "statistics": {
-      "totalGames": 1250,
-      "totalKills": 8750,
-      "totalDeaths": 6200,
-      "averageScore": 145.5
+      "newUsersToday": 5,
+      "activeUsersToday": 45,
+      "totalGamesPlayed": 1250,
+      "averageSessionTime": 1800
     }
-  },
-  "message": "Database information retrieved successfully"
+  }
 }
 ```
 
-## Game Service API
+## 🎮 Game Service API
 
-### 🎮 게임 상태 API
+**Base URL**: `http://localhost:3001/api/`  
+**Direct Port**: 3001
+
+### 📊 게임 상태 API (인증 불필요)
 
 #### GET /api/status
 게임 서버 상태 조회
 
-**Response:**
+**Request:**
+```http
+GET /api/status
+```
+
+**Response (200):**
 ```json
 {
   "success": true,
   "data": {
-    "server": {
-      "status": "running",
-      "uptime": 3600,
-      "version": "3.0.0",
-      "environment": "development"
+    "status": "running",
+    "uptime": 3600,
+    "version": "4.0.0",
+    "players": {
+      "online": 15,
+      "inGame": 12,
+      "waiting": 3
     },
-    "game": {
-      "activePlayers": 8,
-      "activeVehicles": 8,
-      "activeBullets": 15,
-      "activeExplosions": 3,
-      "gameLoopRunning": true,
-      "averageFPS": 60
+    "gameState": {
+      "vehicles": 12,
+      "projectiles": 45,
+      "explosions": 3
     },
     "performance": {
-      "memoryUsage": {
-        "rss": 125829120,
-        "heapTotal": 89653248,
-        "heapUsed": 65432108,
-        "external": 1234567
-      },
-      "cpuUsage": {
-        "user": 123456,
-        "system": 78901
-      }
-    }
-  },
-  "message": "Server status retrieved successfully"
+      "fps": 60,
+      "memoryUsage": "45.2 MB",
+      "cpuUsage": "25%"
+    },
+    "lastRestart": "2025-01-25T08:00:00Z"
+  }
 }
 ```
 
-## WebSocket Events
+## 🔄 WebSocket 이벤트
 
-### 🔌 연결 관리
+**Connection URL**: `ws://localhost/socket.io/`  
+**Authentication**: JWT Token required
 
-#### Connection
-클라이언트가 게임 서버에 연결
+### 연결 설정
 
-**Client → Server:**
 ```javascript
-// JWT 토큰을 헤더에 포함하여 연결
 const socket = io('http://localhost', {
-  extraHeaders: {
-    Authorization: `Bearer ${jwtToken}`
-  }
+  auth: { token: 'your_jwt_token_here' }
 });
 ```
 
-**Server → Client:**
-```javascript
-// 연결 성공
-socket.emit('connected', {
-  playerId: 'player-uuid',
-  message: 'Connected to game server'
-});
+### 클라이언트 → 서버 이벤트
 
-// 연결 실패
-socket.emit('error', {
-  message: 'Authentication failed',
-  code: 'AUTH_FAILED'
-});
+#### `join-game`
+게임 참여 요청
+
+**Payload:**
+```json
+{
+  "vehicleType": "fighter",
+  "username": "player123"
+}
 ```
+
+**Response Events:**
+- `game-joined`: 게임 참여 성공
+- `error`: 참여 실패
 
 ---
 
-#### Disconnect
-클라이언트 연결 해제
+#### `player-input`
+플레이어 입력 전송 (60fps)
 
-**Server → All Clients:**
-```javascript
-socket.broadcast.emit('playerLeft', {
-  playerId: 'player-uuid',
-  username: 'player123'
-});
-```
-
-### 🎮 게임 이벤트
-
-#### joinGame
-게임 참가 요청
-
-**Client → Server:**
-```javascript
-socket.emit('joinGame', {
-  username: 'player123',
-  vehicleType: 'fighter' // 'fighter', 'heavy', 'test'
-});
-```
-
-**Server → Client:**
-```javascript
-// 참가 성공
-socket.emit('gameJoined', {
-  playerId: 'player-uuid',
-  vehicleId: 'vehicle-uuid',
-  position: { x: 0, y: 50, z: 0 },
-  vehicleType: 'fighter'
-});
-
-// 다른 플레이어들에게 알림
-socket.broadcast.emit('playerJoined', {
-  playerId: 'player-uuid',
-  username: 'player123',
-  vehicleType: 'fighter',
-  position: { x: 0, y: 50, z: 0 }
-});
-```
-
----
-
-#### playerInput
-플레이어 입력 전송
-
-**Client → Server:**
-```javascript
-socket.emit('playerInput', {
-  keys: {
-    w: true,
-    s: false,
-    a: false,
-    d: true,
-    q: false,
-    e: false,
-    shift: true,
-    ctrl: false,
-    space: false,
-    x: false,
-    p: false
+**Payload:**
+```json
+{
+  "keys": {
+    "w": true,
+    "a": false,
+    "s": false,
+    "d": true,
+    "shift": false,
+    "ctrl": false,
+    "space": false,
+    "x": false
   },
-  mouse: {
-    leftClick: false,
-    rightClick: false,
-    x: 0.5,
-    y: 0.3
-  }
-});
+  "mouseX": 0.5,
+  "mouseY": 0.3,
+  "timestamp": 1706176800000
+}
 ```
 
 ---
 
-#### gameStateUpdate
-게임 상태 업데이트
+#### `fire-weapon`
+무기 발사
 
-**Server → All Clients:**
-```javascript
-socket.emit('gameStateUpdate', {
-  vehicles: {
-    'vehicle-uuid-1': {
-      id: 'vehicle-uuid-1',
-      playerId: 'player-uuid-1',
-      position: { x: 10.5, y: 52.3, z: -15.7 },
-      rotation: { x: 0.1, y: 1.57, z: 0.05 },
-      velocity: { x: 2.3, y: 0.1, z: -1.8 },
-      health: 35,
-      maxHealth: 40,
-      vehicleType: 'fighter',
-      visible: true,
-      boosterActive: true
-    }
+**Payload:**
+```json
+{
+  "position": {
+    "x": 10.5,
+    "y": 5.2,
+    "z": 20.8
   },
-  bullets: {
-    'bullet-uuid-1': {
-      id: 'bullet-uuid-1',
-      position: { x: 15.2, y: 53.1, z: -20.4 },
-      velocity: { x: 50.0, y: 2.0, z: -30.0 },
-      ownerId: 'player-uuid-1'
-    }
+  "direction": {
+    "x": 0.0,
+    "y": 0.1,
+    "z": 1.0
   },
-  explosions: {
-    'explosion-uuid-1': {
-      id: 'explosion-uuid-1',
-      position: { x: 20.1, y: 51.8, z: -25.3 },
-      radius: 15,
-      intensity: 0.8,
-      duration: 2000,
-      startTime: 1706140800000
-    }
-  },
-  effects: {
-    muzzleFlashes: {
-      'player-uuid-1': {
-        position: { x: 10.5, y: 52.3, z: -15.7 },
-        rotation: { x: 0.1, y: 1.57, z: 0.05 },
-        timestamp: 1706140800000
-      }
-    }
-  }
-});
+  "timestamp": 1706176800000
+}
 ```
 
 ---
 
-#### bulletCreated
-총알 생성 이벤트
+#### `leave-game`
+게임 퇴장
 
-**Server → All Clients:**
-```javascript
-socket.emit('bulletCreated', {
-  bullet: {
-    id: 'bullet-uuid-1',
-    position: { x: 10.5, y: 52.3, z: -15.7 },
-    velocity: { x: 50.0, y: 2.0, z: -30.0 },
-    ownerId: 'player-uuid-1',
-    damage: 10
-  }
-});
+**Payload:**
+```json
+{}
 ```
 
----
+### 서버 → 클라이언트 이벤트
 
-#### bulletDestroyed
-총알 파괴 이벤트
+#### `game-state`
+게임 상태 동기화 (60fps)
 
-**Server → All Clients:**
-```javascript
-socket.emit('bulletDestroyed', {
-  bulletId: 'bullet-uuid-1',
-  reason: 'collision', // 'collision', 'timeout', 'outOfBounds'
-  position: { x: 25.3, y: 51.2, z: -30.8 }
-});
-```
-
----
-
-#### explosionCreated
-폭발 생성 이벤트
-
-**Server → All Clients:**
-```javascript
-socket.emit('explosionCreated', {
-  explosion: {
-    id: 'explosion-uuid-1',
-    position: { x: 20.1, y: 51.8, z: -25.3 },
-    radius: 15,
-    intensity: 0.8,
-    duration: 2000,
-    type: 'vehicleDestroyed' // 'hit', 'vehicleDestroyed'
-  }
-});
-```
-
----
-
-#### vehicleHit
-차량 피격 이벤트
-
-**Server → All Clients:**
-```javascript
-socket.emit('vehicleHit', {
-  vehicleId: 'vehicle-uuid-1',
-  attackerId: 'player-uuid-2',
-  damage: 10,
-  newHealth: 25,
-  hitPosition: { x: 10.5, y: 52.3, z: -15.7 }
-});
-```
-
----
-
-#### vehicleDestroyed
-차량 파괴 이벤트
-
-**Server → All Clients:**
-```javascript
-socket.emit('vehicleDestroyed', {
-  vehicleId: 'vehicle-uuid-1',
-  playerId: 'player-uuid-1',
-  killerId: 'player-uuid-2',
-  position: { x: 10.5, y: 52.3, z: -15.7 },
-  score: {
-    killer: {
-      playerId: 'player-uuid-2',
-      newScore: 150,
-      kills: 3
-    },
-    victim: {
-      playerId: 'player-uuid-1',
-      newScore: 80,
-      deaths: 2
-    }
-  }
-});
-```
-
----
-
-#### vehicleRespawned
-차량 리스폰 이벤트
-
-**Server → All Clients:**
-```javascript
-socket.emit('vehicleRespawned', {
-  vehicleId: 'vehicle-uuid-1',
-  playerId: 'player-uuid-1',
-  position: { x: 0, y: 50, z: 0 },
-  health: 40,
-  vehicleType: 'fighter'
-});
-```
-
----
-
-#### scoreUpdate
-점수 업데이트 이벤트
-
-**Server → All Clients:**
-```javascript
-socket.emit('scoreUpdate', {
-  leaderboard: [
+**Payload:**
+```json
+{
+  "vehicles": [
     {
-      playerId: 'player-uuid-1',
-      username: 'player123',
-      score: 180,
-      kills: 4,
-      deaths: 1
-    },
-    {
-      playerId: 'player-uuid-2',
-      username: 'player456',
-      score: 150,
-      kills: 3,
-      deaths: 2
+      "id": "vehicle_123",
+      "playerId": "player_456",
+      "username": "testuser",
+      "vehicleType": "fighter",
+      "position": {
+        "x": 10.5,
+        "y": 5.2,
+        "z": 20.8
+      },
+      "rotation": {
+        "x": 0.1,
+        "y": 0.5,
+        "z": 0.0
+      },
+      "velocity": {
+        "x": 2.5,
+        "y": 0.0,
+        "z": 5.0
+      },
+      "health": 35,
+      "maxHealth": 40,
+      "isDestroyed": false,
+      "lastFireTime": 1706176800000
     }
-  ]
-});
+  ],
+  "projectiles": [
+    {
+      "id": "bullet_789",
+      "position": {
+        "x": 15.2,
+        "y": 5.5,
+        "z": 25.3
+      },
+      "direction": {
+        "x": 0.0,
+        "y": 0.1,
+        "z": 1.0
+      },
+      "playerId": "player_456",
+      "speed": 200,
+      "damage": 10
+    }
+  ],
+  "timestamp": 1706176800000
+}
 ```
 
-## 에러 코드
+---
 
-### 🚨 HTTP 상태 코드
+#### `player-joined`
+플레이어 참여 알림
+
+**Payload:**
+```json
+{
+  "playerId": "player_789",
+  "username": "newPlayer",
+  "vehicleType": "heavy",
+  "position": {
+    "x": 0,
+    "y": 0,
+    "z": 0
+  }
+}
+```
+
+---
+
+#### `player-left`
+플레이어 퇴장 알림
+
+**Payload:**
+```json
+{
+  "playerId": "player_456",
+  "username": "leftPlayer",
+  "reason": "disconnect"
+}
+```
+
+---
+
+#### `vehicle-destroyed`
+차량 파괴 알림
+
+**Payload:**
+```json
+{
+  "vehicleId": "vehicle_123",
+  "playerId": "player_456",
+  "killerPlayerId": "player_789",
+  "position": {
+    "x": 10.5,
+    "y": 5.2,
+    "z": 20.8
+  },
+  "respawnTime": 5000
+}
+```
+
+---
+
+#### `explosion-created`
+폭발 효과 생성
+
+**Payload:**
+```json
+{
+  "id": "explosion_456",
+  "position": {
+    "x": 10.5,
+    "y": 5.2,
+    "z": 20.8
+  },
+  "size": "large",
+  "type": "vehicle-destruction",
+  "duration": 2000
+}
+```
+
+---
+
+#### `game-joined`
+게임 참여 성공
+
+**Payload:**
+```json
+{
+  "playerId": "player_456",
+  "vehicleId": "vehicle_123",
+  "gameState": {
+    // 현재 게임 상태
+  }
+}
+```
+
+---
+
+#### `error`
+에러 발생
+
+**Payload:**
+```json
+{
+  "code": "INVALID_VEHICLE_TYPE",
+  "message": "Invalid vehicle type specified",
+  "details": "Available types: fighter, heavy, test"
+}
+```
+
+## ❌ 에러 처리
+
+### HTTP 상태 코드
 
 | 코드 | 의미 | 설명 |
 |------|------|------|
@@ -803,196 +767,329 @@ socket.emit('scoreUpdate', {
 | 400 | Bad Request | 잘못된 요청 |
 | 401 | Unauthorized | 인증 실패 |
 | 403 | Forbidden | 권한 없음 |
-| 404 | Not Found | 리소스를 찾을 수 없음 |
+| 404 | Not Found | 리소스 없음 |
 | 409 | Conflict | 리소스 충돌 |
-| 429 | Too Many Requests | 요청 제한 초과 |
-| 500 | Internal Server Error | 서버 내부 오류 |
+| 429 | Too Many Requests | Rate limit 초과 |
+| 500 | Internal Server Error | 서버 오류 |
 
-### 🔍 커스텀 에러 코드
+### 에러 코드
+
+#### User Service 에러
 
 | 코드 | 설명 |
 |------|------|
-| `AUTH_FAILED` | 인증 실패 |
-| `TOKEN_EXPIRED` | 토큰 만료 |
-| `TOKEN_INVALID` | 잘못된 토큰 |
 | `USER_NOT_FOUND` | 사용자를 찾을 수 없음 |
-| `USER_EXISTS` | 이미 존재하는 사용자 |
 | `INVALID_CREDENTIALS` | 잘못된 인증 정보 |
-| `INVALID_VEHICLE_TYPE` | 잘못된 차량 타입 |
-| `GAME_FULL` | 게임 세션이 가득 찼음 |
-| `RATE_LIMIT_EXCEEDED` | 요청 제한 초과 |
+| `USERNAME_TAKEN` | 사용자명 이미 사용 중 |
+| `EMAIL_TAKEN` | 이메일 이미 사용 중 |
+| `INVALID_TOKEN` | 유효하지 않은 JWT 토큰 |
+| `TOKEN_EXPIRED` | 만료된 JWT 토큰 |
+| `VALIDATION_ERROR` | 입력 데이터 검증 실패 |
 | `DATABASE_ERROR` | 데이터베이스 오류 |
 
-## Rate Limiting
+#### Game Service 에러
 
-### 📊 제한 정책
+| 코드 | 설명 |
+|------|------|
+| `AUTHENTICATION_ERROR` | WebSocket 인증 실패 |
+| `INVALID_VEHICLE_TYPE` | 유효하지 않은 차량 타입 |
+| `GAME_FULL` | 게임 서버 만원 |
+| `PLAYER_NOT_FOUND` | 플레이어를 찾을 수 없음 |
+| `INVALID_INPUT` | 유효하지 않은 입력 |
+| `FIRE_RATE_EXCEEDED` | 발사 속도 제한 초과 |
+| `SERVER_ERROR` | 게임 서버 오류 |
 
-| 엔드포인트 | 제한 | 설명 |
-|------------|------|------|
-| `/api/auth/*` | 5 req/sec | 인증 관련 API |
-| `/api/user/*` | 10 req/sec | 사용자 API |
-| `/socket.io/*` | 무제한 | WebSocket 연결 |
-| 전체 | 1000 req/15min | 전체 API 호출 |
+### 에러 응답 예시
 
-### 🚫 Rate Limit 초과 시 응답
-
+#### 400 Bad Request
 ```json
 {
   "success": false,
-  "error": "Too many requests",
-  "code": "RATE_LIMIT_EXCEEDED",
-  "retryAfter": 60
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Validation failed",
+    "details": {
+      "username": "Username must be at least 3 characters long",
+      "email": "Invalid email format"
+    }
+  },
+  "timestamp": "2025-01-25T10:00:00Z"
 }
 ```
 
-## 예제 코드
+#### 401 Unauthorized
+```json
+{
+  "success": false,
+  "error": {
+    "code": "INVALID_TOKEN",
+    "message": "Invalid or expired JWT token",
+    "details": "Token signature verification failed"
+  },
+  "timestamp": "2025-01-25T10:00:00Z"
+}
+```
 
-### 🔐 인증 예제
+#### 429 Too Many Requests
+```json
+{
+  "success": false,
+  "error": {
+    "code": "RATE_LIMIT_EXCEEDED",
+    "message": "Too many requests",
+    "details": "Rate limit: 1000 requests per 15 minutes",
+    "retryAfter": 300
+  },
+  "timestamp": "2025-01-25T10:00:00Z"
+}
+```
 
+## 🚦 Rate Limiting
+
+### User Service Rate Limits
+
+| 엔드포인트 | 제한 | 윈도우 |
+|------------|------|--------|
+| `/api/auth/*` | 100 requests | 15분 |
+| `/api/user/*` | 1000 requests | 15분 |
+| 전체 | 1000 requests | 15분 |
+
+### Game Service Rate Limits
+
+| 이벤트 | 제한 | 설명 |
+|--------|------|------|
+| `player-input` | 60 events/sec | 게임 입력 |
+| `fire-weapon` | 차량별 제한 | 무기 발사 속도 |
+| WebSocket 연결 | 10 connections/min | 연결 시도 |
+
+### Rate Limit 헤더
+
+```http
+X-RateLimit-Limit: 1000
+X-RateLimit-Remaining: 999
+X-RateLimit-Reset: 1706177700
+```
+
+## 🧪 API 테스트
+
+### cURL 예시
+
+#### 회원가입
+```bash
+curl -X POST http://localhost/api/auth/users/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "testuser",
+    "email": "test@example.com",
+    "password": "password123"
+  }'
+```
+
+#### 로그인
+```bash
+curl -X POST http://localhost/api/auth/users/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "testuser",
+    "password": "password123"
+  }'
+```
+
+#### 프로필 조회
+```bash
+curl -X GET http://localhost/api/user/users/profile \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+#### 게임 서버 상태
+```bash
+curl -X GET http://localhost:3001/api/status
+```
+
+### JavaScript 예시
+
+#### API 클라이언트
 ```javascript
-// 로그인
-async function login(username, password) {
-  try {
-    const response = await fetch('/api/auth/users/login', {
-      method: 'POST',
+class GameAPI {
+  constructor(baseURL = 'http://localhost') {
+    this.baseURL = baseURL;
+    this.token = localStorage.getItem('jwt_token');
+  }
+
+  async request(endpoint, options = {}) {
+    const url = `${this.baseURL}${endpoint}`;
+    const config = {
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        ...(this.token && { Authorization: `Bearer ${this.token}` })
       },
+      ...options
+    };
+
+    const response = await fetch(url, config);
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error?.message || 'API request failed');
+    }
+
+    return data;
+  }
+
+  // 인증 API
+  async register(username, email, password) {
+    const data = await this.request('/api/auth/users/register', {
+      method: 'POST',
+      body: JSON.stringify({ username, email, password })
+    });
+    
+    this.token = data.data.token;
+    localStorage.setItem('jwt_token', this.token);
+    return data;
+  }
+
+  async login(username, password) {
+    const data = await this.request('/api/auth/users/login', {
+      method: 'POST',
       body: JSON.stringify({ username, password })
     });
     
-    const data = await response.json();
-    
-    if (data.success) {
-      // JWT 토큰 저장
-      localStorage.setItem('authToken', data.data.token);
-      localStorage.setItem('userData', JSON.stringify(data.data.user));
-      return data.data;
-    } else {
-      throw new Error(data.error);
-    }
-  } catch (error) {
-    console.error('Login failed:', error);
-    throw error;
+    this.token = data.data.token;
+    localStorage.setItem('jwt_token', this.token);
+    return data;
   }
-}
 
-// 인증된 API 호출
-async function getProfile() {
-  const token = localStorage.getItem('authToken');
-  
-  try {
-    const response = await fetch('/api/user/users/profile', {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
+  async createGuest() {
+    const data = await this.request('/api/auth/users/guest', {
+      method: 'POST'
     });
     
-    const data = await response.json();
-    
-    if (data.success) {
-      return data.data.user;
-    } else {
-      throw new Error(data.error);
-    }
-  } catch (error) {
-    console.error('Failed to get profile:', error);
-    throw error;
+    this.token = data.data.token;
+    localStorage.setItem('jwt_token', this.token);
+    return data;
   }
-}
-```
 
-### 🎮 게임 연결 예제
+  // 사용자 API
+  async getProfile() {
+    return this.request('/api/user/users/profile');
+  }
 
-```javascript
-// Socket.IO 연결
-function connectToGame() {
-  const token = localStorage.getItem('authToken');
-  
-  const socket = io('http://localhost', {
-    extraHeaders: {
-      Authorization: `Bearer ${token}`
-    }
-  });
-  
-  // 연결 성공
-  socket.on('connected', (data) => {
-    console.log('Connected to game server:', data);
-  });
-  
-  // 게임 참가
-  socket.on('connect', () => {
-    const userData = JSON.parse(localStorage.getItem('userData'));
-    socket.emit('joinGame', {
-      username: userData.username,
-      vehicleType: userData.preferredVehicleType || 'fighter'
+  async updateVehicleSettings(settings) {
+    return this.request('/api/user/users/vehicle-settings', {
+      method: 'PUT',
+      body: JSON.stringify(settings)
     });
-  });
-  
-  // 게임 상태 업데이트
-  socket.on('gameStateUpdate', (gameState) => {
-    updateGameDisplay(gameState);
-  });
-  
-  // 에러 처리
-  socket.on('error', (error) => {
-    console.error('Socket error:', error);
-    if (error.code === 'AUTH_FAILED') {
-      // 토큰 만료 시 로그인 페이지로 리다이렉트
-      window.location.href = '/login';
-    }
-  });
-  
-  return socket;
-}
+  }
 
-// 플레이어 입력 전송
-function sendPlayerInput(socket, inputState) {
-  socket.emit('playerInput', {
-    keys: inputState.keys,
-    mouse: inputState.mouse
-  });
-}
-```
-
-### 📊 통계 업데이트 예제
-
-```javascript
-// 게임 종료 시 통계 업데이트
-async function updateGameStats(gameResult) {
-  const token = localStorage.getItem('authToken');
-  
-  try {
-    const response = await fetch('/api/user/users/game-stats', {
+  async updateGameStats(stats) {
+    return this.request('/api/user/users/game-stats', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({
-        kills: gameResult.kills,
-        deaths: gameResult.deaths,
-        score: gameResult.score,
-        playTime: gameResult.playTime,
-        vehicleType: gameResult.vehicleType
-      })
+      body: JSON.stringify(stats)
     });
-    
-    const data = await response.json();
-    
-    if (data.success) {
-      console.log('Stats updated:', data.data.gameStats);
-      return data.data;
-    } else {
-      throw new Error(data.error);
-    }
-  } catch (error) {
-    console.error('Failed to update stats:', error);
-    throw error;
+  }
+
+  // 게임 API
+  async getGameStatus() {
+    return this.request(':3001/api/status');
   }
 }
 ```
 
+#### WebSocket 클라이언트
+```javascript
+class GameSocket {
+  constructor(token) {
+    this.socket = io('http://localhost', {
+      auth: { token }
+    });
+    
+    this.setupEventHandlers();
+  }
+
+  setupEventHandlers() {
+    this.socket.on('connect', () => {
+      console.log('Connected to game server');
+    });
+
+    this.socket.on('disconnect', (reason) => {
+      console.log('Disconnected:', reason);
+    });
+
+    this.socket.on('error', (error) => {
+      console.error('Socket error:', error);
+    });
+
+    this.socket.on('game-state', (gameState) => {
+      this.updateGameState(gameState);
+    });
+
+    this.socket.on('player-joined', (player) => {
+      console.log('Player joined:', player.username);
+    });
+
+    this.socket.on('player-left', (player) => {
+      console.log('Player left:', player.username);
+    });
+
+    this.socket.on('vehicle-destroyed', (event) => {
+      this.handleVehicleDestroyed(event);
+    });
+
+    this.socket.on('explosion-created', (explosion) => {
+      this.createExplosion(explosion);
+    });
+  }
+
+  joinGame(vehicleType, username) {
+    this.socket.emit('join-game', {
+      vehicleType,
+      username
+    });
+  }
+
+  sendInput(keys, mouseX, mouseY) {
+    this.socket.emit('player-input', {
+      keys,
+      mouseX,
+      mouseY,
+      timestamp: Date.now()
+    });
+  }
+
+  fireWeapon(position, direction) {
+    this.socket.emit('fire-weapon', {
+      position,
+      direction,
+      timestamp: Date.now()
+    });
+  }
+
+  leaveGame() {
+    this.socket.emit('leave-game');
+  }
+
+  disconnect() {
+    this.socket.disconnect();
+  }
+}
+```
+
+### 테스트 시나리오
+
+#### 1. 사용자 등록 및 로그인 플로우
+```javascript
+async function testUserFlow() {
+  const api = new GameAPI();
+  
+  try {
+    // 1. 회원가입
+    const registerResult = await api.register(
+      'testuser',
+      'test@example.com',
+      'password123'
+    );
+    console.log('Registration successful:', registerResult);
+    
 ---
 
 **📋 문서 버전 관리**

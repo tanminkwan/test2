@@ -77,7 +77,7 @@ if (config.network?.cors?.enabled) {
 }
 
 // 정적 파일 서빙 (클라이언트)
-app.use(express.static(path.join(__dirname, '../client')));
+app.use(express.static(path.join(__dirname, '../../../client')));
 app.use(express.json());
 
 // 이벤트 에미터 생성

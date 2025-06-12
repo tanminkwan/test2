@@ -1,362 +1,652 @@
-# Windows 개발 환경 설정 가이드
+# 🖥️ Windows 개발 환경 설정 가이드
 
-**Version:** v3.0  
+**Version:** v4.0  
 **Last Updated:** 2025-01-25  
-**Architecture:** Microservices with JWT Authentication
+**Architecture:** Independent Microservices
 
-## ⚠️ 중요 주의사항
-**반드시 올바른 디렉토리에서 명령어를 실행하세요!**
+## 📋 목차
 
-- **Nginx**: 반드시 `C:\nginx` 디렉토리에서 실행
-- **User Service**: 반드시 `C:\pypjt\test2\services\user-service` 디렉토리에서 실행
-- **Game Service**: 반드시 `C:\pypjt\test2\server` 디렉토리에서 실행
+1. [시스템 요구사항](#시스템-요구사항)
+2. [필수 소프트웨어 설치](#필수-소프트웨어-설치)
+3. [PostgreSQL 설정](#postgresql-설정)
+4. [프로젝트 설정](#프로젝트-설정)
+5. [마이크로서비스 실행](#마이크로서비스-실행)
+6. [nginx 설정](#nginx-설정)
+7. [개발 도구 설정](#개발-도구-설정)
+8. [문제 해결](#문제-해결)
 
-**잘못된 예시:**
-```cmd
-PS C:\pypjt\test2> .\nginx.exe  # ❌ 틀림! nginx.exe가 이 디렉토리에 없음
-```
+## 💻 시스템 요구사항
 
-**올바른 예시:**
-```cmd
-PS C:\pypjt\test2> cd C:\nginx; .\nginx.exe  # ✅ 맞음! 디렉토리 이동 후 실행
-```
+### 최소 요구사항
+- **OS**: Windows 10 (1903 이상) 또는 Windows 11
+- **RAM**: 8GB 이상 (16GB 권장)
+- **Storage**: 10GB 이상 여유 공간
+- **CPU**: Intel i5 또는 AMD Ryzen 5 이상
 
-## 🚨 자주 발생하는 문제 및 해결법
+### 권장 사양
+- **RAM**: 16GB 이상
+- **Storage**: SSD 20GB 이상
+- **CPU**: Intel i7 또는 AMD Ryzen 7 이상
+- **GPU**: DirectX 11 지원 (WebGL 가속용)
 
-### 1. PowerShell에서 `&&` 연산자 오류
-**문제**: `cd C:\nginx && .\nginx.exe` 명령어가 작동하지 않음
-**해결**: PowerShell에서는 `;` 사용
-```powershell
-# ❌ 틀림 (Bash 문법)
-cd C:\nginx && .\nginx.exe
+## 🛠️ 필수 소프트웨어 설치
 
-# ✅ 맞음 (PowerShell 문법)
-cd C:\nginx; .\nginx.exe
-```
+### 1. Node.js 설치
 
-### 2. User Service 데이터베이스 설정 오류 ⭐ 가장 중요!
-**문제**: `Error: Unsupported database configuration: memory/development`
-**원인**: `.env` 파일이 없거나 `DB_TYPE=memory`로 설정됨
-**해결**: 환경 변수를 직접 설정하여 실행
-
-#### ✅ 올바른 데이터베이스 설정:
-- **데이터베이스 이름**: `user_service`
-- **사용자 이름**: `app_user` (postgres 아님!)
-- **비밀번호**: `app123!@#`
-- **호스트**: `localhost`
-- **포트**: `5432`
+**다운로드**: https://nodejs.org/
 
 ```powershell
-# ✅ 올바른 환경 변수 설정
-cd services\user-service
-$env:DB_TYPE="postgres"; $env:DB_USER="app_user"; $env:DB_PASS="app123!@#"; $env:DB_NAME="user_service"; npm start
+# 설치 확인
+node --version
+npm --version
+
+# 예상 출력
+# v18.19.0
+# 10.2.3
 ```
 
-#### ❌ 잘못된 설정 (사용하지 말 것):
+**권장 버전**: Node.js 18.x LTS
+
+### 2. Git 설치
+
+**다운로드**: https://git-scm.com/download/win
+
 ```powershell
-# ❌ 틀림 - postgres 사용자 사용
-$env:DB_USER="postgres"; $env:DB_PASS="375aa60b11d449cab107f6dd168a6bee"
+# 설치 확인
+git --version
+
+# 예상 출력
+# git version 2.43.0.windows.1
 ```
 
-### 3. JWT 토큰 불일치 오류 ⭐ 중요!
-**문제**: `invalid signature` 오류로 게임 접속 불가
-**원인**: User Service와 Game Service의 JWT_SECRET이 다름
-**해결**: 두 서비스 모두 동일한 JWT_SECRET 사용
+### 3. PostgreSQL 설치
+
+**다운로드**: https://www.postgresql.org/download/windows/
+
+**설치 옵션**:
+- PostgreSQL Server
+- pgAdmin 4 (관리 도구)
+- Command Line Tools
+
+**설치 시 설정**:
+- **Port**: 5432 (기본값)
+- **Superuser Password**: 기억하기 쉬운 비밀번호 설정
+- **Locale**: Korean, Korea
 
 ```powershell
-# User Service 시작 시
-cd services\user-service
-$env:JWT_SECRET="your-super-secret-jwt-key-change-in-production"; $env:DB_TYPE="postgres"; $env:DB_USER="app_user"; $env:DB_PASS="app123!@#"; $env:DB_NAME="user_service"; npm start
+# 설치 확인
+psql --version
 
-# Game Service 시작 시
-cd server
-$env:JWT_SECRET="your-super-secret-jwt-key-change-in-production"; npm start
+# 예상 출력
+# psql (PostgreSQL) 15.5
 ```
 
-### 4. Nginx 설정 파일 위치 문제
-**문제**: 프로젝트 폴더의 `nginx.conf`가 적용되지 않음
-**해결**: 설정 파일을 nginx 설치 폴더로 복사
+### 4. nginx 설치
+
+**다운로드**: http://nginx.org/en/download.html
+
 ```powershell
-# 프로젝트의 nginx.conf를 nginx 설치 폴더로 복사
-copy nginx.conf C:\nginx\conf\nginx.conf
+# nginx 폴더 생성 및 압축 해제
+mkdir C:\nginx
+# 다운로드한 nginx 파일을 C:\nginx에 압축 해제
 
-# 설정 파일 검증
-cd C:\nginx; .\nginx.exe -t
+# 설치 확인
+cd C:\nginx
+.\nginx.exe -v
+
+# 예상 출력
+# nginx version: nginx/1.24.0
 ```
 
-### 5. Nginx 설정 파일 복사 + 실행 (한 번에) ⭐ 추천!
-**방법**: 디렉토리 이동, 설정 파일 복사, nginx 실행을 한 번에 처리
+## 🗄️ PostgreSQL 설정
+
+### 1. 데이터베이스 및 사용자 생성
+
+#### PowerShell에서 PostgreSQL 접속
 ```powershell
-# 한 번에 처리: 디렉토리 이동 → 설정 복사 → nginx 실행
-cd C:\nginx; copy C:\pypjt\test2\nginx.conf C:\nginx\conf\nginx.conf; .\nginx.exe
+# PostgreSQL 서비스 시작 (필요한 경우)
+net start postgresql-x64-15
 
-# 또는 nginx 중지 후 재시작
-cd C:\nginx; .\nginx.exe -s quit; copy C:\pypjt\test2\nginx.conf C:\nginx\conf\nginx.conf; .\nginx.exe
-```
-
-### 6. Rate Limiting 오류
-**문제**: `429 Too Many Requests` 오류
-**원인**: API 호출 제한 초과
-**해결**: 잠시 기다리거나 Rate Limit 설정 조정
-
-### 7. WebSocket 연결 실패
-**문제**: Socket.IO 연결이 안됨
-**원인**: nginx WebSocket 프록시 설정 문제
-**해결**: nginx.conf에서 WebSocket 설정 확인
-
-## 1. 필수 소프트웨어 설치
-
-### PostgreSQL 설치
-1. **다운로드**: https://www.postgresql.org/download/windows/
-2. **설치 과정**:
-   - PostgreSQL 15.x 버전 선택
-   - 설치 경로: `C:\Program Files\PostgreSQL\15`
-   - 포트: `5432` (기본값)
-   - 슈퍼유저 비밀번호 설정 (예: `postgres123`)
-   - Locale: `Korean, Korea`
-
-3. **환경 변수 설정**:
-   ```
-   PATH에 추가: C:\Program Files\PostgreSQL\15\bin
-   ```
-
-### Nginx 설치
-1. **다운로드**: http://nginx.org/en/download.html
-   - Stable version 선택 (nginx/Windows-x.x.x)
-2. **설치**:
-   - 압축 해제: `C:\nginx`
-   - 폴더 구조 확인:
-     ```
-     C:\nginx\
-     ├── conf\
-     ├── html\
-     ├── logs\
-     └── nginx.exe
-     ```
-
-## 2. 데이터베이스 설정
-
-### PostgreSQL 데이터베이스 생성
-```sql
--- psql 접속 (관리자 권한으로 cmd 실행)
+# psql 접속
 psql -U postgres -h localhost
+```
 
--- User Service용 데이터베이스 및 사용자 생성
+#### SQL 명령어 실행
+```sql
+-- User Service용 데이터베이스 생성
 CREATE DATABASE user_service;
+
+-- 애플리케이션 사용자 생성
 CREATE USER app_user WITH PASSWORD 'app123!@#';
+
+-- 권한 부여
 GRANT ALL PRIVILEGES ON DATABASE user_service TO app_user;
 
 -- 연결 테스트
-\l  -- 데이터베이스 목록 확인
-\q  -- 종료
+\c user_service app_user
+
+-- 데이터베이스 목록 확인
+\l
+
+-- 종료
+\q
 ```
 
-### 데이터베이스 연결 테스트
+### 2. 연결 테스트
+
 ```powershell
-# 올바른 사용자로 연결 테스트
-psql -U app_user -h localhost -d user_service
-# 비밀번호 입력: app123!@#
+# app_user로 직접 연결 테스트
+psql -U app_user -d user_service -h localhost
+
+# 성공 시 다음과 같은 프롬프트가 나타남
+# user_service=>
 ```
 
-## 3. 시스템 아키텍처 이해
+### 3. pgAdmin 4 설정 (선택사항)
 
-### 서비스 구성
-```
-Client (Browser) 
-    ↓ HTTP/WebSocket
-Nginx (Port 80) - API Gateway
-    ↓ Proxy
-├── User Service (Port 3002) - 인증 및 사용자 관리
-│   └── PostgreSQL (user_service DB)
-└── Game Service (Port 3001) - 게임 로직
-```
+1. **pgAdmin 4 실행**
+2. **서버 추가**:
+   - Name: `Local PostgreSQL`
+   - Host: `localhost`
+   - Port: `5432`
+   - Username: `postgres`
+   - Password: 설치 시 설정한 비밀번호
 
-### 인증 플로우
-1. **로그인**: Client → Nginx → User Service → PostgreSQL
-2. **JWT 토큰 발급**: User Service → Client
-3. **게임 접속**: Client → Nginx (JWT 검증) → Game Service
+## 📁 프로젝트 설정
 
-## 4. 서비스 시작 순서 ⭐ 중요!
+### 1. 저장소 클론
 
-### 1단계: PostgreSQL 서비스 시작
-```cmd
-# 서비스 상태 확인
-sc query postgresql-x64-15
-
-# 서비스 시작 (관리자 권한)
-net start postgresql-x64-15
-
-# 연결 테스트
-psql -U app_user -h localhost -d user_service
-```
-
-### 2단계: User Service 시작
 ```powershell
-# User Service 디렉토리로 이동
-cd services\user-service
+# 프로젝트 클론
+git clone <repository-url>
+cd multiplayer-vehicle-game
 
-# 환경변수 설정 및 서비스 시작
-$env:DB_TYPE="postgres"; $env:DB_USER="app_user"; $env:DB_PASS="app123!@#"; $env:DB_NAME="user_service"; $env:JWT_SECRET="your-super-secret-jwt-key-change-in-production"; npm start
+# 프로젝트 구조 확인
+dir
 ```
 
-**성공 시 출력:**
-```
-✅ Database tables synchronized.
-🚀 User Service running on port 3002
-📊 Health check: http://localhost:3002/health
-```
+### 2. 루트 의존성 설치
 
-### 3단계: Game Service 시작
 ```powershell
-# 새 PowerShell 창에서 실행
-cd server
+# 루트 레벨 의존성 설치 (개발 도구)
+npm install
 
-# 환경변수 설정 및 서비스 시작
-$env:JWT_SECRET="your-super-secret-jwt-key-change-in-production"; npm start
+# 설치 확인
+npm list --depth=0
 ```
 
-**성공 시 출력:**
-```
-🚀 Game Server running on 0.0.0.0:3001
-📊 Server Status: http://localhost:3001/api/status
-```
+### 3. 각 서비스별 의존성 설치
 
-### 4단계: Nginx 시작
 ```powershell
-# 새 PowerShell 창에서 실행
-cd C:\nginx; copy C:\pypjt\test2\nginx.conf C:\nginx\conf\nginx.conf; .\nginx.exe
+# 모든 서비스 의존성 한번에 설치
+npm run install:all
+
+# 또는 개별 설치
+npm run install:user
+npm run install:game
 ```
 
-## 5. 서비스 테스트
+### 4. 환경 변수 설정
 
-### 서비스 상태 확인
+#### User Service 환경 변수
 ```powershell
-# User Service 상태
-curl http://localhost:3002/health
+# services/user-service/.env 파일 생성
+New-Item -Path "services\user-service\.env" -ItemType File
 
-# Game Service 상태
+# 파일 내용 (메모장으로 편집)
+notepad services\user-service\.env
+```
+
+**services/user-service/.env 내용**:
+```env
+# 서버 설정
+NODE_ENV=development
+PORT=3002
+
+# 데이터베이스 설정
+DB_TYPE=postgres
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=user_service
+DB_USER=app_user
+DB_PASS="app123!@#"
+
+# JWT 설정
+JWT_SECRET="your-super-secret-jwt-key-change-in-production"
+JWT_EXPIRY=24h
+
+# 프록시 설정 (필요한 경우)
+HTTP_PROXY=http://70.10.15.10:8080
+HTTPS_PROXY=http://70.10.15.10:8080
+NO_PROXY=localhost,127.0.0.1,::1
+```
+
+#### Game Service 환경 변수
+```powershell
+# services/game-service/.env 파일 생성
+New-Item -Path "services\game-service\.env" -ItemType File
+notepad services\game-service\.env
+```
+
+**services/game-service/.env 내용**:
+```env
+# 서버 설정
+NODE_ENV=development
+PORT=3001
+
+# JWT 설정 (User Service와 동일해야 함)
+JWT_SECRET="your-super-secret-jwt-key-change-in-production"
+```
+
+## 🚀 마이크로서비스 실행
+
+### 1. 개별 서비스 실행
+
+#### User Service 실행
+```powershell
+# 새 PowerShell 창에서
+cd C:\pypjt\test2
+npm run start:user
+
+# 성공 시 출력
+# User Service running on port 3002
+# Database connected successfully
+```
+
+#### Game Service 실행
+```powershell
+# 새 PowerShell 창에서
+cd C:\pypjt\test2
+npm run start:game
+
+# 성공 시 출력
+# Game Service running on port 3001
+# WebSocket server ready
+```
+
+### 2. 모든 서비스 동시 실행 (개발용)
+
+```powershell
+# 개발 모드로 모든 서비스 실행
+npm run dev:all
+
+# 성공 시 출력
+# [user] User Service running on port 3002
+# [game] Game Service running on port 3001
+# [user] Database connected successfully
+# [game] WebSocket server ready
+```
+
+### 3. 서비스 상태 확인
+
+```powershell
+# User Service 상태 확인
+curl http://localhost:3002/api/user/database/info
+
+# Game Service 상태 확인
 curl http://localhost:3001/api/status
-
-# Nginx를 통한 접근 테스트
-curl http://localhost/api/auth/users/verify-token
 ```
 
-### 게임 접속 테스트
-1. **브라우저에서 접속**: http://localhost
-2. **회원가입 또는 로그인**
-3. **차량 선택**
-4. **게임 입장**
+## 🌐 nginx 설정
 
-### API 테스트 페이지
-- **User Service API 테스트**: http://localhost/api-test.html
+### 1. nginx 설정 파일 복사
 
-## 6. 문제 해결 체크리스트
-
-### 인증 관련 문제
-- [ ] User Service와 Game Service의 JWT_SECRET이 동일한가?
-- [ ] 데이터베이스 사용자가 `app_user`인가? (`postgres` 아님)
-- [ ] 데이터베이스 비밀번호가 `app123!@#`인가?
-
-### 네트워크 관련 문제
-- [ ] 모든 서비스가 올바른 포트에서 실행 중인가?
-- [ ] nginx.conf 파일이 올바른 위치에 복사되었는가?
-- [ ] 방화벽이 포트를 차단하고 있지 않은가?
-
-### 성능 관련 문제
-- [ ] GPU 드라이버가 최신인가?
-- [ ] Chrome에서 하드웨어 가속이 활성화되어 있는가?
-- [ ] 메모리 사용량이 과도하지 않은가?
-
-## 7. 로그 파일 위치
-
-### 서비스별 로그
-- **User Service**: `services/user-service/logs/`
-- **Game Service**: `server/logs/`
-- **Nginx**: `C:\nginx\logs\access.log`, `C:\nginx\logs\error.log`
-
-### 로그 확인 방법
 ```powershell
-# Nginx 에러 로그 확인
-Get-Content C:\nginx\logs\error.log -Tail 10
-
-# User Service 로그 확인 (콘솔 출력)
-# Game Service 로그 확인 (콘솔 출력)
+# 프로젝트의 nginx.conf를 nginx 폴더로 복사
+copy nginx.conf C:\nginx\conf\nginx.conf
 ```
 
-## 8. 개발 환경 최적화
+### 2. nginx 실행
 
-### Chrome 브라우저 설정
-1. **주소창에 입력**: `chrome://flags/`
-2. **다음 플래그 활성화**:
-   - `#enable-gpu-rasterization` → **Enabled**
-   - `#enable-zero-copy` → **Enabled**
-   - `#ignore-gpu-blacklist` → **Enabled**
-   - `#enable-webgl2-compute-context` → **Enabled**
+```powershell
+# nginx 시작
+cd C:\nginx
+.\nginx.exe
 
-### PowerShell 프로필 설정 (선택사항)
+# 실행 확인
+curl http://localhost
+
+# nginx 중지 (필요시)
+.\nginx.exe -s quit
+
+# nginx 재시작 (설정 변경 후)
+.\nginx.exe -s reload
+```
+
+### 3. nginx 서비스 등록 (선택사항)
+
+```powershell
+# 관리자 권한으로 PowerShell 실행 후
+# NSSM (Non-Sucking Service Manager) 다운로드 및 설치
+# https://nssm.cc/download
+
+# nginx를 Windows 서비스로 등록
+nssm install nginx C:\nginx\nginx.exe
+nssm start nginx
+```
+
+## 🛠️ 개발 도구 설정
+
+### 1. Visual Studio Code 설정
+
+**확장 프로그램 설치**:
+- **Node.js Extension Pack**
+- **PostgreSQL** (by Chris Kolkman)
+- **REST Client** (API 테스트용)
+- **GitLens** (Git 관리)
+
+**settings.json 설정**:
+```json
+{
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": true
+  },
+  "files.associations": {
+    "*.env": "dotenv"
+  }
+}
+```
+
+### 2. PowerShell 프로필 설정
+
 ```powershell
 # PowerShell 프로필 생성
-New-Item -Type File -Path $PROFILE -Force
-
-# 자주 사용하는 명령어 별칭 추가
-Add-Content $PROFILE @"
-# 게임 개발 환경 별칭
-function Start-UserService { 
-    cd C:\pypjt\test2\services\user-service
-    `$env:DB_TYPE="postgres"; `$env:DB_USER="app_user"; `$env:DB_PASS="app123!@#"; `$env:DB_NAME="user_service"; `$env:JWT_SECRET="your-super-secret-jwt-key-change-in-production"; npm start
+if (!(Test-Path -Path $PROFILE)) {
+  New-Item -ItemType File -Path $PROFILE -Force
 }
 
-function Start-GameService { 
-    cd C:\pypjt\test2\server
-    `$env:JWT_SECRET="your-super-secret-jwt-key-change-in-production"; npm start
+# 프로필 편집
+notepad $PROFILE
+```
+
+**프로필 내용 추가**:
+```powershell
+# 프로젝트 디렉토리로 빠른 이동
+function goto-project { cd C:\pypjt\test2 }
+Set-Alias -Name gp -Value goto-project
+
+# 서비스 시작 함수들
+function start-user { npm run start:user }
+function start-game { npm run start:game }
+function start-all { npm run dev:all }
+
+Set-Alias -Name su -Value start-user
+Set-Alias -Name sg -Value start-game
+Set-Alias -Name sa -Value start-all
+
+# nginx 관리 함수들
+function start-nginx { 
+  cd C:\nginx
+  .\nginx.exe
+  cd C:\pypjt\test2
 }
 
-function Start-Nginx { 
-    cd C:\nginx; copy C:\pypjt\test2\nginx.conf C:\nginx\conf\nginx.conf; .\nginx.exe
+function stop-nginx {
+  cd C:\nginx
+  .\nginx.exe -s quit
+  cd C:\pypjt\test2
 }
-"@
+
+function reload-nginx {
+  copy nginx.conf C:\nginx\conf\nginx.conf
+  cd C:\nginx
+  .\nginx.exe -s reload
+  cd C:\pypjt\test2
+}
+
+Set-Alias -Name sn -Value start-nginx
+Set-Alias -Name qn -Value stop-nginx
+Set-Alias -Name rn -Value reload-nginx
 ```
 
-## 9. 보안 고려사항
+### 3. 개발 스크립트 생성
 
-### 프로덕션 환경 설정
+#### start-dev.bat
+```batch
+@echo off
+echo Starting development environment...
+
+echo Starting PostgreSQL...
+net start postgresql-x64-15
+
+echo Starting nginx...
+cd /d C:\nginx
+start /b nginx.exe
+
+echo Starting services...
+cd /d C:\pypjt\test2
+start "User Service" cmd /k "npm run start:user"
+start "Game Service" cmd /k "npm run start:game"
+
+echo Development environment started!
+echo.
+echo Services:
+echo - User Service: http://localhost:3002
+echo - Game Service: http://localhost:3001
+echo - nginx Gateway: http://localhost
+echo.
+pause
+```
+
+#### stop-dev.bat
+```batch
+@echo off
+echo Stopping development environment...
+
+echo Stopping nginx...
+cd /d C:\nginx
+nginx.exe -s quit
+
+echo Stopping Node.js processes...
+taskkill /f /im node.exe
+
+echo Development environment stopped!
+pause
+```
+
+## 🔧 문제 해결
+
+### 일반적인 문제들
+
+#### 1. PostgreSQL 연결 실패
+
+**증상**: `password authentication failed for user "app_user"`
+
+**해결방법**:
 ```powershell
-# 프로덕션용 JWT 시크릿 생성 (예시)
-$env:JWT_SECRET="$(New-Guid)-$(Get-Date -Format 'yyyyMMddHHmmss')-production"
+# PostgreSQL 재시작
+net stop postgresql-x64-15
+net start postgresql-x64-15
 
-# 데이터베이스 비밀번호 변경
-# PostgreSQL에서 실행:
-# ALTER USER app_user WITH PASSWORD 'new-secure-password';
+# 사용자 재생성
+psql -U postgres -h localhost
 ```
 
-### 방화벽 설정
-```cmd
-# Windows 방화벽에서 포트 허용 (관리자 권한)
-netsh advfirewall firewall add rule name="Game Server" dir=in action=allow protocol=TCP localport=80
-netsh advfirewall firewall add rule name="User Service" dir=in action=allow protocol=TCP localport=3002
-netsh advfirewall firewall add rule name="Game Service" dir=in action=allow protocol=TCP localport=3001
+```sql
+DROP USER IF EXISTS app_user;
+CREATE USER app_user WITH PASSWORD 'app123!@#';
+GRANT ALL PRIVILEGES ON DATABASE user_service TO app_user;
 ```
 
-## 10. 백업 및 복구
+#### 2. 포트 충돌
 
-### 데이터베이스 백업
+**증상**: `EADDRINUSE: address already in use :::3001`
+
+**해결방법**:
 ```powershell
-# 데이터베이스 백업
-pg_dump -U app_user -h localhost user_service > backup_$(Get-Date -Format 'yyyyMMdd').sql
+# 포트 사용 프로세스 확인
+netstat -ano | findstr :3001
 
-# 데이터베이스 복구
-psql -U app_user -h localhost user_service < backup_20250125.sql
+# 프로세스 종료 (PID 확인 후)
+taskkill /PID <PID> /F
+
+# 또는 모든 Node.js 프로세스 종료
+taskkill /f /im node.exe
 ```
 
-### 설정 파일 백업
+#### 3. nginx 시작 실패
+
+**증상**: nginx가 시작되지 않음
+
+**해결방법**:
 ```powershell
-# 중요 설정 파일 백업
-copy C:\nginx\conf\nginx.conf nginx_backup_$(Get-Date -Format 'yyyyMMdd').conf
-copy services\user-service\.env user_service_env_backup_$(Get-Date -Format 'yyyyMMdd').txt
+# nginx 오류 로그 확인
+cd C:\nginx
+type logs\error.log
+
+# 설정 파일 문법 검사
+.\nginx.exe -t
+
+# 포트 80 사용 프로세스 확인
+netstat -ano | findstr :80
+```
+
+#### 4. 환경 변수 인식 실패
+
+**증상**: `.env` 파일의 변수가 인식되지 않음
+
+**해결방법**:
+```powershell
+# .env 파일 인코딩 확인 (UTF-8이어야 함)
+# 메모장에서 다른 이름으로 저장 → 인코딩: UTF-8
+
+# 특수문자 문제 해결
+# DB_PASS="app123!@#"  (따옴표 필수)
+```
+
+#### 5. npm 의존성 설치 실패
+
+**증상**: `npm install` 실패
+
+**해결방법**:
+```powershell
+# npm 캐시 정리
+npm cache clean --force
+
+# node_modules 삭제 후 재설치
+Remove-Item -Recurse -Force node_modules
+Remove-Item package-lock.json
+npm install
+
+# 권한 문제 시 관리자 권한으로 실행
+```
+
+### 네트워크 관련 문제
+
+#### 프록시 환경에서의 설정
+
+```powershell
+# npm 프록시 설정
+npm config set proxy http://70.10.15.10:8080
+npm config set https-proxy http://70.10.15.10:8080
+
+# 프록시 해제
+npm config delete proxy
+npm config delete https-proxy
+```
+
+#### 방화벽 설정
+
+```powershell
+# Windows 방화벽에서 포트 허용
+# 제어판 → 시스템 및 보안 → Windows Defender 방화벽
+# 고급 설정 → 인바운드 규칙 → 새 규칙
+# 포트: 3001, 3002, 80, 5432 허용
+```
+
+### 성능 최적화
+
+#### Node.js 메모리 설정
+
+```powershell
+# 메모리 제한 증가 (package.json scripts에 추가)
+"start": "node --max-old-space-size=4096 src/index.js"
+```
+
+#### PostgreSQL 성능 튜닝
+
+**postgresql.conf 설정** (C:\Program Files\PostgreSQL\15\data\postgresql.conf):
+```ini
+# 메모리 설정
+shared_buffers = 256MB
+effective_cache_size = 1GB
+work_mem = 4MB
+
+# 연결 설정
+max_connections = 100
+```
+
+## 📋 개발 워크플로우
+
+### 1. 일일 개발 시작
+
+```powershell
+# 1. 프로젝트 디렉토리로 이동
+gp  # 별칭 사용
+
+# 2. Git 상태 확인
+git status
+git pull origin main
+
+# 3. 개발 환경 시작
+start-dev.bat
+
+# 4. 브라우저에서 확인
+# http://localhost (게임 클라이언트)
+# http://localhost/api-test.html (API 테스트)
+```
+
+### 2. 코드 변경 후 테스트
+
+```powershell
+# 1. 서비스 재시작 (nodemon 사용 시 자동)
+# Ctrl+C로 서비스 중지 후 재시작
+
+# 2. nginx 설정 변경 시
+rn  # reload-nginx 별칭
+
+# 3. 데이터베이스 스키마 변경 시
+psql -U app_user -d user_service -h localhost
+```
+
+### 3. 개발 종료
+
+```powershell
+# 1. 모든 서비스 중지
+stop-dev.bat
+
+# 2. Git 커밋
+git add .
+git commit -m "feat: 새로운 기능 추가"
+git push origin feature-branch
+```
+
+## 🔍 모니터링 및 로깅
+
+### 로그 파일 위치
+
+```
+C:\pypjt\test2\
+├── services\user-service\logs\     # User Service 로그
+├── services\game-service\logs\     # Game Service 로그
+└── C:\nginx\logs\                  # nginx 로그
+    ├── access.log
+    └── error.log
+```
+
+### 실시간 로그 모니터링
+
+```powershell
+# PowerShell에서 실시간 로그 확인
+Get-Content -Path "C:\nginx\logs\access.log" -Wait -Tail 10
+
+# 또는 Windows Terminal 사용
+wt -p "PowerShell" --title "User Service" cmd /k "npm run start:user"; split-pane -p "PowerShell" --title "Game Service" cmd /k "npm run start:game"
 ```
 
 ---
 
-**🎮 개발 환경 설정 완료!**
+**🎯 이제 Windows에서 완전한 마이크로서비스 개발 환경이 구축되었습니다!**
 
-**⚠️ 주의**: 프로덕션 환경에서는 반드시 JWT_SECRET, 데이터베이스 비밀번호 등을 변경하세요! 
+**💡 팁**: 개발 효율성을 위해 Windows Terminal과 VS Code를 함께 사용하는 것을 권장합니다. 

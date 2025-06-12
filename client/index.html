@@ -55,7 +55,23 @@
             z-index: 1000;
         }
         
-        #loginForm {
+        /* 회원가입 화면 */
+        #registerScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            z-index: 1000;
+        }
+        
+        #loginForm, #registerForm {
             background: rgba(255,255,255,0.1);
             padding: 40px;
             border-radius: 15px;
@@ -63,33 +79,36 @@
             box-shadow: 0 8px 32px rgba(0,0,0,0.3);
             text-align: center;
             min-width: 400px;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
         }
         
-        #loginForm h1 {
+        #loginForm h1, #registerForm h1 {
             font-size: 2.5em;
             margin-bottom: 10px;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
         }
         
-        #loginForm .subtitle {
+        #loginForm .subtitle, #registerForm .subtitle {
             font-size: 1.1em;
             margin-bottom: 30px;
             opacity: 0.9;
         }
         
-        #loginForm .form-group {
+        #loginForm .form-group, #registerForm .form-group {
             margin-bottom: 20px;
             text-align: left;
         }
         
-        #loginForm label {
+        #loginForm label, #registerForm label {
             display: block;
             margin-bottom: 8px;
             font-weight: bold;
             font-size: 14px;
         }
         
-        #loginForm input {
+        #loginForm input, #registerForm input, #registerForm select {
             width: 100%;
             padding: 12px 15px;
             border: none;
@@ -100,13 +119,21 @@
             box-sizing: border-box;
         }
         
-        #loginForm input:focus {
+        #loginForm input:focus, #registerForm input:focus, #registerForm select:focus {
             outline: none;
             background: rgba(255,255,255,1);
             box-shadow: 0 0 10px rgba(255,255,255,0.3);
         }
         
-        #loginForm button {
+        #registerForm small {
+            display: block;
+            margin-top: 5px;
+            font-size: 12px;
+            opacity: 0.8;
+            color: #e8f4fd;
+        }
+        
+        #loginForm button, #registerForm button {
             width: 100%;
             padding: 12px;
             margin: 10px 0;
@@ -118,27 +145,27 @@
             transition: all 0.3s;
         }
         
-        #loginForm .btn-primary {
+        #loginForm .btn-primary, #registerForm .btn-primary {
             background: linear-gradient(135deg, #4CAF50, #45a049);
             color: white;
         }
         
-        #loginForm .btn-primary:hover {
+        #loginForm .btn-primary:hover, #registerForm .btn-primary:hover {
             transform: translateY(-2px);
             box-shadow: 0 4px 15px rgba(76, 175, 80, 0.4);
         }
         
-        #loginForm .btn-secondary {
+        #loginForm .btn-secondary, #registerForm .btn-secondary {
             background: rgba(255,255,255,0.2);
             color: white;
             border: 2px solid rgba(255,255,255,0.3);
         }
         
-        #loginForm .btn-secondary:hover {
+        #loginForm .btn-secondary:hover, #registerForm .btn-secondary:hover {
             background: rgba(255,255,255,0.3);
         }
         
-        #loginForm .error-message {
+        #loginForm .error-message, #registerForm .error-message {
             background: rgba(244, 67, 54, 0.9);
             color: white;
             padding: 10px;
@@ -147,7 +174,7 @@
             display: none;
         }
         
-        #loginForm .success-message {
+        #loginForm .success-message, #registerForm .success-message {
             background: rgba(76, 175, 80, 0.9);
             color: white;
             padding: 10px;
@@ -371,8 +398,8 @@
         <!-- 로그인 화면 -->
         <div id="loginScreen">
             <div id="loginForm">
-                <h1>🚁 Vehicle Combat Arena</h1>
-                <p class="subtitle">멀티플레이어 차량 전투 게임</p>
+                <h1>🚁 Vehicle Combat</h1>
+                <p class="subtitle">실시간 멀티플레이어 비행체 전투 게임</p>
                 
                 <div class="form-group">
                     <label for="loginUsername">사용자명</label>
@@ -388,10 +415,62 @@
                 <div id="loginSuccess" class="success-message"></div>
                 
                 <button type="button" class="btn-primary" onclick="performLogin()">🔑 로그인</button>
-                <button type="button" class="btn-secondary" onclick="showRegisterForm()">👤 회원가입</button>
+                <button type="button" class="btn-secondary" onclick="showRegisterScreen()">👤 회원가입</button>
                 
                 <div style="margin-top: 20px; font-size: 14px; opacity: 0.8;">
                     <p>테스트 계정: testuser / password123</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 회원가입 화면 -->
+        <div id="registerScreen" class="hidden">
+            <div id="registerForm">
+                <h1>👤 회원가입</h1>
+                <p class="subtitle">새 계정을 만들어 게임에 참여하세요</p>
+                
+                <div class="form-group">
+                    <label for="registerUsername">사용자명 *</label>
+                    <input type="text" id="registerUsername" placeholder="사용자명 (3-50자)" required maxlength="50">
+                    <small>영문, 숫자, 언더스코어(_)만 사용 가능</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="registerEmail">이메일</label>
+                    <input type="email" id="registerEmail" placeholder="이메일 주소 (선택사항)">
+                    <small>비밀번호 찾기 등에 사용됩니다</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="registerPassword">비밀번호 *</label>
+                    <input type="password" id="registerPassword" placeholder="비밀번호 (최소 6자)" required minlength="6">
+                    <small>최소 6자 이상 입력해주세요</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="registerPasswordConfirm">비밀번호 확인 *</label>
+                    <input type="password" id="registerPasswordConfirm" placeholder="비밀번호를 다시 입력하세요" required>
+                    <small>위에서 입력한 비밀번호와 동일하게 입력</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="registerVehicleType">선호 차량 타입</label>
+                    <select id="registerVehicleType">
+                        <option value="fighter">⚡ 전투기 - 균형잡힌 성능 (체력: 40)</option>
+                        <option value="heavy">🛡️ 중형기 - 높은 내구성 (체력: 60)</option>
+                        <option value="test">🧪 테스트기 - 빠른 기동성 (체력: 20)</option>
+                    </select>
+                    <small>게임에서 언제든지 변경할 수 있습니다</small>
+                </div>
+                
+                <div id="registerError" class="error-message"></div>
+                <div id="registerSuccess" class="success-message"></div>
+                
+                <button type="button" class="btn-primary" onclick="performRegister()">✅ 회원가입</button>
+                <button type="button" class="btn-secondary" onclick="showLoginScreen()">🔙 로그인으로 돌아가기</button>
+                
+                <div style="margin-top: 20px; font-size: 12px; opacity: 0.7; text-align: center;">
+                    <p>* 표시된 항목은 필수 입력 사항입니다</p>
                 </div>
             </div>
         </div>
@@ -542,6 +621,7 @@
         function showScreen(screenId) {
             // 모든 화면 숨기기
             document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('registerScreen').classList.add('hidden');
             document.getElementById('vehicleSelectionScreen').classList.add('hidden');
             document.getElementById('loadingScreen').classList.add('hidden');
             document.getElementById('gameCanvas').classList.add('hidden');
@@ -551,7 +631,32 @@
             document.getElementById(screenId).classList.remove('hidden');
         }
         
-        // 에러 메시지 표시
+        // 로그인 화면으로 이동
+        function showLoginScreen() {
+            // 회원가입 폼 초기화
+            document.getElementById('registerUsername').value = '';
+            document.getElementById('registerEmail').value = '';
+            document.getElementById('registerPassword').value = '';
+            document.getElementById('registerPasswordConfirm').value = '';
+            document.getElementById('registerVehicleType').value = 'fighter';
+            
+            // 에러/성공 메시지 숨기기
+            document.getElementById('registerError').style.display = 'none';
+            document.getElementById('registerSuccess').style.display = 'none';
+            
+            showScreen('loginScreen');
+        }
+        
+        // 회원가입 화면으로 이동
+        function showRegisterScreen() {
+            // 로그인 폼 에러/성공 메시지 숨기기
+            document.getElementById('loginError').style.display = 'none';
+            document.getElementById('loginSuccess').style.display = 'none';
+            
+            showScreen('registerScreen');
+        }
+        
+        // 에러 메시지 표시 (로그인)
         function showError(message) {
             const errorDiv = document.getElementById('loginError');
             errorDiv.textContent = message;
@@ -561,9 +666,29 @@
             }, 5000);
         }
         
-        // 성공 메시지 표시
+        // 성공 메시지 표시 (로그인)
         function showSuccess(message) {
             const successDiv = document.getElementById('loginSuccess');
+            successDiv.textContent = message;
+            successDiv.style.display = 'block';
+            setTimeout(() => {
+                successDiv.style.display = 'none';
+            }, 3000);
+        }
+        
+        // 에러 메시지 표시 (회원가입)
+        function showRegisterError(message) {
+            const errorDiv = document.getElementById('registerError');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 5000);
+        }
+        
+        // 성공 메시지 표시 (회원가입)
+        function showRegisterSuccess(message) {
+            const successDiv = document.getElementById('registerSuccess');
             successDiv.textContent = message;
             successDiv.style.display = 'block';
             setTimeout(() => {
@@ -647,20 +772,6 @@
             showMessage('로그아웃되었습니다.');
         }
         
-        // 회원가입 폼 표시 (간단한 구현)
-        function showRegisterForm() {
-            const username = prompt('사용자명을 입력하세요:');
-            const email = prompt('이메일을 입력하세요:');
-            const password = prompt('비밀번호를 입력하세요:');
-            
-            if (!username || !email || !password) {
-                showError('모든 정보를 입력해주세요.');
-                return;
-            }
-            
-            registerUser(username, email, password);
-        }
-        
         // 회원가입 수행
         async function registerUser(username, email, password) {
             try {
@@ -675,14 +786,98 @@
                 const data = await response.json();
                 
                 if (response.ok) {
-                    showSuccess('회원가입이 완료되었습니다! 로그인해주세요.');
+                    showRegisterSuccess('회원가입이 완료되었습니다! 로그인해주세요.');
                     document.getElementById('loginUsername').value = username;
                 } else {
-                    showError(data.message || '회원가입에 실패했습니다.');
+                    showRegisterError(data.message || '회원가입에 실패했습니다.');
                 }
             } catch (error) {
                 console.error('회원가입 오류:', error);
-                showError('회원가입 중 오류가 발생했습니다.');
+                showRegisterError('회원가입 중 오류가 발생했습니다.');
+            }
+        }
+        
+        // 새로운 회원가입 폼 처리
+        async function performRegister() {
+            const username = document.getElementById('registerUsername').value.trim();
+            const email = document.getElementById('registerEmail').value.trim();
+            const password = document.getElementById('registerPassword').value;
+            const passwordConfirm = document.getElementById('registerPasswordConfirm').value;
+            const vehicleType = document.getElementById('registerVehicleType').value;
+            
+            // 입력값 검증
+            if (!username) {
+                showRegisterError('사용자명을 입력해주세요.');
+                return;
+            }
+            
+            if (username.length < 3 || username.length > 50) {
+                showRegisterError('사용자명은 3-50자 사이여야 합니다.');
+                return;
+            }
+            
+            // 사용자명 형식 검증 (영문, 숫자, 언더스코어만 허용)
+            const usernameRegex = /^[a-zA-Z0-9_]+$/;
+            if (!usernameRegex.test(username)) {
+                showRegisterError('사용자명은 영문, 숫자, 언더스코어(_)만 사용할 수 있습니다.');
+                return;
+            }
+            
+            if (!password) {
+                showRegisterError('비밀번호를 입력해주세요.');
+                return;
+            }
+            
+            if (password.length < 6) {
+                showRegisterError('비밀번호는 최소 6자 이상이어야 합니다.');
+                return;
+            }
+            
+            if (password !== passwordConfirm) {
+                showRegisterError('비밀번호가 일치하지 않습니다.');
+                return;
+            }
+            
+            // 이메일 형식 검증 (입력된 경우에만)
+            if (email) {
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailRegex.test(email)) {
+                    showRegisterError('올바른 이메일 형식을 입력해주세요.');
+                    return;
+                }
+            }
+            
+            try {
+                const response = await fetch('/api/auth/users/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ 
+                        username, 
+                        email: email || undefined, // 빈 문자열이면 undefined로 전송
+                        password 
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showRegisterSuccess('회원가입이 완료되었습니다! 로그인 화면으로 이동합니다.');
+                    
+                    // 로그인 폼에 사용자명 자동 입력
+                    document.getElementById('loginUsername').value = username;
+                    
+                    // 3초 후 로그인 화면으로 이동
+                    setTimeout(() => {
+                        showLoginScreen();
+                    }, 3000);
+                } else {
+                    showRegisterError(data.message || '회원가입에 실패했습니다.');
+                }
+            } catch (error) {
+                console.error('회원가입 오류:', error);
+                showRegisterError('회원가입 중 오류가 발생했습니다.');
             }
         }
         
@@ -895,14 +1090,7 @@
         }
         
         // Enter 키 이벤트 처리
-        function handleEnterKey(event, action) {
-            if (event.key === 'Enter') {
-                action();
-            }
-        }
-        
-        // 페이지 로드 시 초기화
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', function() {
             // 저장된 JWT 토큰 확인
             const savedToken = localStorage.getItem('jwtToken');
             const savedUser = localStorage.getItem('currentUser');
@@ -916,17 +1104,34 @@
                 showScreen('loginScreen');
             }
             
-            // Enter 키 이벤트 리스너 추가
-            document.getElementById('loginUsername').addEventListener('keypress', (e) => {
-                handleEnterKey(e, () => document.getElementById('loginPassword').focus());
+            // 로그인 폼 Enter 키 지원
+            document.getElementById('loginUsername').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    document.getElementById('loginPassword').focus();
+                }
             });
             
-            document.getElementById('loginPassword').addEventListener('keypress', (e) => {
-                handleEnterKey(e, performLogin);
+            document.getElementById('loginPassword').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    performLogin();
+                }
             });
             
-            document.getElementById('playerName').addEventListener('keypress', (e) => {
-                handleEnterKey(e, joinGame);
+            // 차량 선택 화면 Enter 키 지원
+            document.getElementById('playerName').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    joinGame();
+                }
+            });
+            
+            // 회원가입 폼 Enter 키 지원
+            const registerInputs = ['registerUsername', 'registerEmail', 'registerPassword', 'registerPasswordConfirm'];
+            registerInputs.forEach(inputId => {
+                document.getElementById(inputId).addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        performRegister();
+                    }
+                });
             });
         });
     </script>

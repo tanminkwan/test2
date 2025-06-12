@@ -1,12 +1,12 @@
 # 🚁 Multiplayer 3D Vehicle Combat Game
 
-**Version:** v3.0  
+**Version:** v4.0  
 **Last Updated:** 2025-01-25  
-**Architecture:** Microservices with JWT Authentication
+**Architecture:** Independent Microservices with JWT Authentication
 
 ## 📖 게임 소개
 
-실시간 멀티플레이어 3D 비행체 전투 게임입니다. 마이크로서비스 아키텍처와 JWT 인증을 통한 보안 시스템을 갖춘 본격적인 웹 게임입니다. nginx API 게이트웨이를 통해 사용자 인증과 게임 서비스가 분리되어 있으며, PostgreSQL 데이터베이스를 사용한 사용자 관리 시스템을 제공합니다.
+실시간 멀티플레이어 3D 비행체 전투 게임입니다. 완전히 독립적인 마이크로서비스 아키텍처와 JWT 인증을 통한 보안 시스템을 갖춘 본격적인 웹 게임입니다. nginx API 게이트웨이를 통해 사용자 인증과 게임 서비스가 분리되어 있으며, PostgreSQL 데이터베이스를 사용한 사용자 관리 시스템을 제공합니다.
 
 ## 🏗️ 시스템 아키텍처
 
@@ -23,9 +23,9 @@ graph TB
         E[Nginx<br/>Port 80]
     end
     
-    subgraph "Microservices"
-        F[User Service<br/>Port 3002]
-        G[Game Service<br/>Port 3001]
+    subgraph "Independent Microservices"
+        F[User Service<br/>Port 3002<br/>독립 package.json]
+        G[Game Service<br/>Port 3001<br/>독립 package.json]
     end
     
     subgraph "Database"
@@ -94,8 +94,9 @@ sequenceDiagram
 - **Rate Limiting**: API 호출 제한으로 DDoS 방지
 - **CORS 설정**: 적절한 Cross-Origin 정책
 
-### 🏗️ 기술적 특징
-- **마이크로서비스 아키텍처**: 사용자 서비스와 게임 서비스 분리
+### 🏗️ 마이크로서비스 특징
+- **완전한 독립성**: 각 서비스별 독립적인 package.json과 의존성
+- **독립적 배포**: 서비스별로 따로 배포 가능
 - **SOLID 원칙 준수**: 확장 가능하고 유지보수가 용이한 설계
 - **Factory Pattern**: 새로운 비행체 타입 쉽게 추가 가능
 - **Observer Pattern**: 이벤트 기반 시스템 아키텍처
@@ -117,29 +118,79 @@ sequenceDiagram
 ```bash
 git clone <repository-url>
 cd multiplayer-vehicle-game
+
+# 루트 의존성 설치 (개발 도구)
 npm install
+
+# 각 서비스별 의존성 설치
+npm run install:all
 ```
 
 #### 2. PostgreSQL 데이터베이스 설정
 ```sql
 -- PostgreSQL에 접속하여 실행
+psql -U postgres -h localhost
+
+-- User Service용 데이터베이스 및 사용자 생성
 CREATE DATABASE user_service;
 CREATE USER app_user WITH PASSWORD 'app123!@#';
 GRANT ALL PRIVILEGES ON DATABASE user_service TO app_user;
+
+-- 연결 테스트
+\l  -- 데이터베이스 목록 확인
+\q  -- 종료
 ```
 
-#### 3. 서비스 시작 (Windows PowerShell)
+#### 3. 환경 변수 설정 (.env 파일 생성)
 
-**User Service 시작:**
-```powershell
-cd services\user-service
-$env:DB_TYPE="postgres"; $env:DB_USER="app_user"; $env:DB_PASS="app123!@#"; $env:DB_NAME="user_service"; npm start
+**User Service 환경 변수** (`services/user-service/.env`):
+```env
+# 서버 설정
+NODE_ENV=development
+PORT=3002
+
+# 데이터베이스 설정
+DB_TYPE=postgres
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=user_service
+DB_USER=app_user
+DB_PASS="app123!@#"
+
+# JWT 설정
+JWT_SECRET="your-super-secret-jwt-key-change-in-production"
+JWT_EXPIRY=24h
+
+# 프록시 설정 (필요한 경우)
+HTTP_PROXY=http://70.10.15.10:8080
+HTTPS_PROXY=http://70.10.15.10:8080
+NO_PROXY=localhost,127.0.0.1,::1
 ```
 
-**Game Service 시작:**
+**Game Service 환경 변수** (`services/game-service/.env`):
+```env
+# 서버 설정
+NODE_ENV=development
+PORT=3001
+
+# JWT 설정 (User Service와 동일해야 함)
+JWT_SECRET="your-super-secret-jwt-key-change-in-production"
+```
+
+#### 4. 서비스 시작
+
+**개별 서비스 실행:**
 ```powershell
-cd server
-npm start
+# User Service 시작
+npm run start:user
+
+# Game Service 시작 (새 터미널에서)
+npm run start:game
+```
+
+**모든 서비스 동시 실행 (개발용):**
+```powershell
+npm run dev:all
 ```
 
 **Nginx 시작:**
@@ -147,10 +198,33 @@ npm start
 cd C:\nginx; copy C:\pypjt\test2\nginx.conf C:\nginx\conf\nginx.conf; .\nginx.exe
 ```
 
-#### 4. 게임 접속
+#### 5. 게임 접속
 - 🎮 게임 클라이언트: http://localhost
 - 📊 User Service API 테스트: http://localhost/api-test.html
 - 🔧 Game Service 상태: http://localhost:3001/api/status
+
+## 📁 프로젝트 구조
+
+```
+multiplayer-vehicle-game/
+├── services/
+│   ├── user-service/              # 사용자 관리 마이크로서비스
+│   │   ├── src/
+│   │   ├── package.json           # 독립적 의존성
+│   │   ├── .env                   # 환경 변수
+│   │   └── README.md
+│   │
+│   └── game-service/              # 게임 로직 마이크로서비스
+│       ├── src/
+│       ├── package.json           # 독립적 의존성
+│       ├── .env                   # 환경 변수
+│       └── README.md
+│
+├── client/                        # 프론트엔드
+├── nginx.conf                     # API Gateway 설정
+├── package.json                   # 루트 스크립트 (개발 도구)
+└── README.md
+```
 
 ## 🎯 게임 조작법
 
@@ -230,95 +304,73 @@ GET  /api/status                 # 서버 상태
 WebSocket /socket.io/            # 실시간 게임 통신
 ```
 
-## ⚙️ 시스템 설정
+## ⚙️ 개발 스크립트
 
-### nginx 설정 (nginx.conf)
-```nginx
-upstream user_service {
-    server 127.0.0.1:3002;
-}
+### 루트 레벨 스크립트
+```bash
+# 서비스 실행
+npm run start:user              # User Service 실행
+npm run start:game              # Game Service 실행
+npm run dev:all                 # 모든 서비스 동시 개발 모드
 
-upstream game_service {
-    server 127.0.0.1:3001;
-}
+# 의존성 관리
+npm run install:user            # User Service 의존성 설치
+npm run install:game            # Game Service 의존성 설치
+npm run install:all             # 모든 서비스 의존성 설치
 
-server {
-    listen 80;
-    
-    # User Service 라우팅
-    location /api/auth/ {
-        proxy_pass http://user_service;
-    }
-    
-    location /api/user/ {
-        auth_request /auth;
-        proxy_pass http://user_service;
-    }
-    
-    # Game Service 라우팅 (WebSocket 포함)
-    location /socket.io/ {
-        auth_request /auth;
-        proxy_pass http://game_service;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-    }
-    
-    # JWT 토큰 검증
-    location = /auth {
-        internal;
-        proxy_pass http://user_service/api/auth/users/verify-token;
-        proxy_pass_request_body off;
-        proxy_set_header Content-Length "";
-        proxy_set_header X-Original-URI $request_uri;
-    }
-}
+# 정리
+npm run clean                   # 모든 node_modules 삭제
 ```
 
-### 환경 변수 설정
+## 🛠️ 문제 해결
 
-**User Service (.env):**
+### 환경 변수 관련 문제
+
+#### .env 파일 특수문자 문제
+**증상**: 비밀번호에 `#` 문자가 있을 때 주석으로 인식
+**해결**: 비밀번호를 따옴표로 감싸기
 ```env
-NODE_ENV=development
-PORT=3002
-DB_TYPE=postgres
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=user_service
-DB_USER=app_user
-DB_PASS=app123!@#
-JWT_SECRET=your-super-secret-jwt-key-change-in-production
+DB_PASS="app123!@#"  # ✅ 올바름
+DB_PASS=app123!@#    # ❌ 틀림 (# 이후 주석으로 인식)
 ```
 
-**Game Service:**
-```env
-NODE_ENV=development
-PORT=3001
-JWT_SECRET=your-super-secret-jwt-key-change-in-production
-```
+#### JWT 토큰 불일치
+**증상**: "invalid signature" 오류
+**원인**: User Service와 Game Service의 JWT_SECRET 불일치
+**해결**: 두 서비스의 .env 파일에서 동일한 JWT_SECRET 사용
 
-## 📊 데이터베이스 스키마
+### 데이터베이스 관련 문제
 
-### Users 테이블
+#### 사용자 인증 실패
+**증상**: `사용자 "app_user"의 password 인증에 실패했습니다`
+**해결**: PostgreSQL에서 사용자 및 데이터베이스 생성 확인
 ```sql
-CREATE TABLE users (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    username VARCHAR(50) UNIQUE NOT NULL,
-    email VARCHAR(255) UNIQUE,
-    password_hash VARCHAR(255),
-    is_guest BOOLEAN DEFAULT true,
-    preferred_vehicle_type VARCHAR(20) DEFAULT 'fighter',
-    game_stats JSON DEFAULT '{"totalKills":0,"totalDeaths":0,"totalGames":0,"totalScore":0,"bestScore":0,"playTime":0}',
-    customization JSON DEFAULT '{"vehicleColor":null,"unlockedItems":[],"equippedItems":[]}',
-    game_points INTEGER DEFAULT 0,
-    last_login_at TIMESTAMP WITH TIME ZONE,
-    is_active BOOLEAN DEFAULT true,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL
-);
+-- 사용자 존재 확인
+\du
+
+-- 데이터베이스 존재 확인
+\l
+
+-- 필요시 재생성
+DROP USER IF EXISTS app_user;
+CREATE USER app_user WITH PASSWORD 'app123!@#';
+GRANT ALL PRIVILEGES ON DATABASE user_service TO app_user;
 ```
 
-## 🔧 성능 최적화
+### 의존성 관련 문제
+
+#### 패키지 누락 오류
+**증상**: `Cannot find package 'uuid'` 등
+**해결**: 각 서비스에서 의존성 재설치
+```bash
+cd services/game-service
+npm install
+
+cd ../user-service
+npm install
+```
+
+## 📊 성능 최적화
 
 ### WebGL 최적화
 - **GPU 가속**: `powerPreference: "high-performance"`
@@ -331,136 +383,50 @@ CREATE TABLE users (
 - **WebSocket 압축**: 실시간 데이터 압축 전송
 - **JWT 캐싱**: 토큰 검증 결과 캐싱
 
-### 데이터베이스 최적화
-- **Connection Pooling**: 연결 풀 관리
-- **인덱스 최적화**: 사용자명, 이메일 인덱스
-- **쿼리 최적화**: Sequelize ORM 사용
+### 마이크로서비스 최적화
+- **독립적 스케일링**: 각 서비스별로 독립적으로 확장 가능
+- **의존성 격리**: 한 서비스의 장애가 다른 서비스에 영향 없음
+- **개발 효율성**: 팀별로 독립적인 개발 및 배포 가능
 
-## 🛠️ 문제 해결
+## 🔧 배포
 
-### 인증 관련 문제
-
-#### JWT 토큰 불일치
-**증상**: "invalid signature" 오류
-**원인**: User Service와 Game Service의 JWT_SECRET 불일치
-**해결**: 두 서비스의 JWT_SECRET을 동일하게 설정
-```powershell
-# 두 서비스 모두 동일한 시크릿 사용
-$env:JWT_SECRET="your-super-secret-jwt-key-change-in-production"
-```
-
-#### 데이터베이스 연결 실패
-**증상**: "password authentication failed" 오류
-**해결**: 올바른 데이터베이스 설정 사용
-```powershell
-$env:DB_USER="app_user"  # postgres 아님!
-$env:DB_PASS="app123!@#"
-$env:DB_NAME="user_service"
-```
-
-### 네트워크 관련 문제
-
-#### Rate Limiting 오류
-**증상**: 429 Too Many Requests
-**해결**: Rate limit 설정 조정 또는 IP 예외 처리
-
-#### WebSocket 연결 실패
-**증상**: Socket.IO 연결 불가
-**해결**: nginx WebSocket 프록시 설정 확인
-
-### 성능 관련 문제
-
-#### GPU Stall 경고
-**증상**: "GPU stall due to ReadPixels" 콘솔 경고
-**해결**: 이미 최적화 적용됨 (성능에 큰 영향 없음)
-
-#### 낮은 FPS
-**해결**: 
-1. Chrome 플래그 활성화: `chrome://flags/`
-2. GPU 가속 활성화
-3. 그래픽 드라이버 업데이트
-
-## 📋 개발 가이드
-
-### 새로운 비행체 타입 추가
-```javascript
-// VehicleFactory에 새 타입 등록
-vehicleFactory.registerVehicleType('bomber', (id, playerId, position) => {
-    return new Vehicle(id, playerId, position, {
-        health: 80,
-        maxSpeed: 60,
-        weaponType: 'heavyGun',
-        vehicleType: 'bomber'
-    });
-});
-```
-
-### 새로운 API 엔드포인트 추가
-```javascript
-// User Service에 새 라우트 추가
-router.get('/api/user/users/achievements', authenticateToken, async (req, res) => {
-    // 업적 시스템 구현
-});
-```
-
-### 새로운 게임 모드 추가
-```javascript
-// GameManager에 게임 모드 추가
-class GameModeManager {
-    constructor() {
-        this.modes = {
-            'deathmatch': new DeathMatchMode(),
-            'teamBattle': new TeamBattleMode(),
-            'captureFlag': new CaptureFlagMode()
-        };
-    }
-}
-```
-
-## 🔍 모니터링 및 로깅
-
-### 서비스 상태 확인
+### Docker 배포 (권장)
 ```bash
-# User Service 상태
-curl http://localhost:3002/health
+# 각 서비스별 Docker 이미지 빌드
+cd services/user-service
+docker build -t user-service .
 
-# Game Service 상태  
-curl http://localhost:3001/api/status
+cd ../game-service
+docker build -t game-service .
 
-# nginx 상태
-curl http://localhost/health
+# Docker Compose로 전체 시스템 실행
+docker-compose up -d
 ```
 
-### 로그 파일 위치
-- **User Service**: `services/user-service/logs/`
-- **Game Service**: `server/logs/`
-- **nginx**: `C:\nginx\logs\`
+### 수동 배포
+```bash
+# 프로덕션 환경에서 각 서비스별로 실행
+cd services/user-service
+NODE_ENV=production npm start
 
-## 👨‍💻 개발자 정보
+cd ../game-service
+NODE_ENV=production npm start
+```
 
-**개발자**: AI Assistant  
-**아키텍처**: 마이크로서비스 + JWT 인증  
-**기술 스택**: 
-- **Backend**: Node.js, Express, Socket.IO, Sequelize
-- **Database**: PostgreSQL
-- **API Gateway**: nginx
-- **Frontend**: Three.js, WebGL
-- **Authentication**: JWT
+## 📝 라이센스
 
-## 🤝 기여 가이드라인
+MIT License
 
-1. **코드 스타일**: ESLint 설정 준수
-2. **커밋 메시지**: 명확하고 설명적인 메시지 작성
-3. **보안**: JWT 시크릿 등 민감 정보 하드코딩 금지
-4. **테스트**: 새 기능 추가 시 테스트 코드 포함
-5. **문서화**: README 및 API 문서 업데이트
+## 👥 기여
 
-## 📄 라이선스
-
-MIT License - 자유롭게 사용, 수정, 배포 가능
+1. Fork the Project
+2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the Branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
 ---
 
-**🎮 즐거운 게임 되세요!** 
+**🎮 마이크로서비스 기반 멀티플레이어 게임을 즐겨보세요!**
 
-**🔒 보안 알림**: 프로덕션 환경에서는 반드시 JWT_SECRET, 데이터베이스 비밀번호 등을 변경하세요! 
+**⚠️ 주의**: 프로덕션 환경에서는 반드시 JWT_SECRET, 데이터베이스 비밀번호 등을 변경하세요!

@@ -104,12 +104,13 @@ export class GameClient {
             canvas: document.getElementById('gameCanvas'),
                 antialias: perfConfig.antialias !== false, // 기본값 true
                 alpha: false,
-                powerPreference: perfConfig.powerPreference || "default",
+                powerPreference: perfConfig.powerPreference || "high-performance", // 고성능 GPU 사용
                 failIfMajorPerformanceCaveat: false,
-                preserveDrawingBuffer: false,
+                preserveDrawingBuffer: false, // ReadPixels 방지
                 premultipliedAlpha: false,
                 depth: true,
-                stencil: false
+                stencil: false,
+                logarithmicDepthBuffer: false // 성능 최적화
         });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.setClearColor(0x87CEEB);
@@ -136,6 +137,10 @@ export class GameClient {
             // 추가 성능 최적화
             this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // 고해상도 디스플레이 최적화
             this.renderer.outputColorSpace = THREE.SRGBColorSpace; // outputEncoding 대신 outputColorSpace 사용
+            
+            // GPU 최적화 설정
+            this.renderer.info.autoReset = false; // 렌더링 통계 자동 리셋 비활성화
+            this.renderer.sortObjects = true; // 객체 정렬로 드로우콜 최적화
             
             // 저성능 모드 추가 최적화
             if (perfConfig.lowPerformanceMode) {
@@ -180,18 +185,31 @@ export class GameClient {
         const gl2 = canvas.getContext('webgl2');
         
         let hardwareAccelerated = false;
+        let gpuInfo = 'Unknown';
+        
         if (gl) {
             const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
             if (debugInfo) {
                 const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+                const vendor = gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL);
+                gpuInfo = `${vendor} - ${renderer}`;
                 hardwareAccelerated = !renderer.toLowerCase().includes('software');
+                
+                // GPU 정보 출력
+                console.log('🎮 GPU 정보:', {
+                    vendor,
+                    renderer,
+                    hardwareAccelerated,
+                    webglVersion: gl2 ? '2.0' : '1.0'
+                });
             }
         }
         
         return {
             webgl: !!gl,
             webgl2: !!gl2,
-            hardwareAccelerated
+            hardwareAccelerated,
+            gpuInfo
         };
     }
 
@@ -1881,6 +1899,9 @@ export class GameClient {
         
         const deltaTime = this.clock.getDelta();
         
+        // 프레임 제한 (60fps 이상일 때 성능 최적화)
+        if (deltaTime < 0.016) return; // 60fps 제한
+        
         // 입력 업데이트
         this.updateInputs();
         this.sendInputs();
@@ -1903,6 +1924,9 @@ export class GameClient {
                 cloud.position.x = -400;
             }
         });
+        
+        // 렌더링 통계 리셋 (성능 최적화)
+        this.renderer.info.reset();
         
         // 렌더링
         this.renderer.render(this.scene, this.camera);

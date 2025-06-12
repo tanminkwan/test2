@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Service API 테스트</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .test-section h3 {
+            margin-top: 0;
+            color: #ffd700;
+            font-size: 1.3em;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            box-sizing: border-box;
+        }
+        
+        button {
+            padding: 12px 24px;
+            margin: 5px;
+            border: none;
+            border-radius: 5px;
+            background: #4CAF50;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: bold;
+        }
+        
+        button:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+        
+        button.secondary {
+            background: #2196F3;
+        }
+        
+        button.secondary:hover {
+            background: #1976D2;
+        }
+        
+        button.danger {
+            background: #f44336;
+        }
+        
+        button.danger:hover {
+            background: #d32f2f;
+        }
+        
+        .response {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 5px;
+            background: rgba(0, 0, 0, 0.3);
+            border-left: 4px solid #4CAF50;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .response.error {
+            border-left-color: #f44336;
+            background: rgba(244, 67, 54, 0.1);
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+        
+        .status-online {
+            background: #4CAF50;
+            box-shadow: 0 0 10px #4CAF50;
+        }
+        
+        .status-offline {
+            background: #f44336;
+            box-shadow: 0 0 10px #f44336;
+        }
+        
+        .server-status {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 User Service API 테스트</h1>
+        
+        <div class="server-status">
+            <h3>서버 상태</h3>
+            <div id="serverStatus">
+                <span class="status-indicator status-offline"></span>
+                <span>서버 상태 확인 중...</span>
+            </div>
+            <button onclick="checkServerHealth()">상태 새로고침</button>
+        </div>
+        
+        <div class="test-section">
+            <h3>1. 게스트 사용자 생성</h3>
+            <div class="form-group">
+                <label for="guestName">사용자 이름:</label>
+                <input type="text" id="guestName" placeholder="게스트 이름을 입력하세요" value="TestUser">
+            </div>
+            <button onclick="createGuestUser()">게스트 사용자 생성</button>
+            <div id="guestResponse" class="response" style="display: none;"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>2. 일반 사용자 등록</h3>
+            <div class="form-group">
+                <label for="registerName">사용자 이름:</label>
+                <input type="text" id="registerName" placeholder="사용자 이름 (3-50자)" value="NewUser">
+            </div>
+            <div class="form-group">
+                <label for="registerPassword">비밀번호:</label>
+                <input type="password" id="registerPassword" placeholder="비밀번호 (최소 6자)" value="password123">
+            </div>
+            <div class="form-group">
+                <label for="registerEmail">이메일 (선택사항):</label>
+                <input type="text" id="registerEmail" placeholder="이메일 주소" value="test@example.com">
+            </div>
+            <div class="form-group">
+                <label for="registerVehicle">차량 타입:</label>
+                <select id="registerVehicle" style="width: 100%; padding: 10px; border: none; border-radius: 5px; font-size: 16px; background: rgba(255, 255, 255, 0.9); color: #333;">
+                    <option value="fighter">Fighter (빠른 차량)</option>
+                    <option value="heavy">Heavy (무거운 차량)</option>
+                </select>
+            </div>
+            <button onclick="registerUser()">사용자 등록</button>
+            <div id="registerResponse" class="response" style="display: none;"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>3. 사용자 로그인</h3>
+            <div class="form-group">
+                <label for="loginName">사용자 이름:</label>
+                <input type="text" id="loginName" placeholder="사용자 이름" value="TestUser">
+            </div>
+            <div class="form-group">
+                <label for="loginPassword">비밀번호:</label>
+                <input type="password" id="loginPassword" placeholder="비밀번호 (게스트는 빈칸)">
+            </div>
+            <button onclick="loginUser()">로그인</button>
+            <div id="loginResponse" class="response" style="display: none;"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>4. 사용자 프로필 조회</h3>
+            <p>로그인 후 토큰이 필요합니다.</p>
+            <button onclick="getUserProfile()">프로필 조회</button>
+            <div id="profileResponse" class="response" style="display: none;"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>5. 사용자 목록 조회</h3>
+            <button onclick="getUserList()">사용자 목록</button>
+            <div id="listResponse" class="response" style="display: none;"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>6. 데이터베이스 정보</h3>
+            <button onclick="getDatabaseInfo()" class="secondary">DB 정보 조회</button>
+            <div id="dbResponse" class="response" style="display: none;"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3002/api';
+        let authToken = null;
+
+        // 서버 상태 확인
+        async function checkServerHealth() {
+            try {
+                const response = await fetch('http://localhost:3002/health');
+                const data = await response.json();
+                
+                const statusElement = document.getElementById('serverStatus');
+                if (response.ok) {
+                    statusElement.innerHTML = `
+                        <span class="status-indicator status-online"></span>
+                        <span>서버 온라인 - ${data.service} v${data.version}</span>
+                    `;
+                } else {
+                    throw new Error('서버 응답 오류');
+                }
+            } catch (error) {
+                const statusElement = document.getElementById('serverStatus');
+                statusElement.innerHTML = `
+                    <span class="status-indicator status-offline"></span>
+                    <span>서버 오프라인 - ${error.message}</span>
+                `;
+            }
+        }
+
+        // 게스트 사용자 생성
+        async function createGuestUser() {
+            const name = document.getElementById('guestName').value;
+            const responseDiv = document.getElementById('guestResponse');
+            
+            try {
+                const response = await fetch(`${API_BASE}/users/guest`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ username: name })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    authToken = data.token;
+                    responseDiv.className = 'response';
+                    responseDiv.textContent = `✅ 성공!\n${JSON.stringify(data, null, 2)}`;
+                } else {
+                    responseDiv.className = 'response error';
+                    responseDiv.textContent = `❌ 오류!\n${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                responseDiv.className = 'response error';
+                responseDiv.textContent = `❌ 네트워크 오류: ${error.message}`;
+            }
+            
+            responseDiv.style.display = 'block';
+        }
+
+        // 일반 사용자 등록
+        async function registerUser() {
+            const username = document.getElementById('registerName').value;
+            const password = document.getElementById('registerPassword').value;
+            const email = document.getElementById('registerEmail').value;
+            const vehicleType = document.getElementById('registerVehicle').value;
+            const responseDiv = document.getElementById('registerResponse');
+            
+            try {
+                const requestBody = {
+                    username: username,
+                    password: password,
+                    vehicleType: vehicleType
+                };
+                
+                // 이메일이 입력된 경우에만 추가
+                if (email.trim()) {
+                    requestBody.email = email;
+                }
+                
+                const response = await fetch(`${API_BASE}/users/register`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    authToken = data.token;
+                    responseDiv.className = 'response';
+                    responseDiv.textContent = `✅ 등록 성공!\n${JSON.stringify(data, null, 2)}`;
+                } else {
+                    responseDiv.className = 'response error';
+                    responseDiv.textContent = `❌ 등록 실패!\n${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                responseDiv.className = 'response error';
+                responseDiv.textContent = `❌ 네트워크 오류: ${error.message}`;
+            }
+            
+            responseDiv.style.display = 'block';
+        }
+
+        // 사용자 로그인
+        async function loginUser() {
+            const username = document.getElementById('loginName').value;
+            const password = document.getElementById('loginPassword').value;
+            const responseDiv = document.getElementById('loginResponse');
+            
+            try {
+                const response = await fetch(`${API_BASE}/users/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    authToken = data.token;
+                    responseDiv.className = 'response';
+                    responseDiv.textContent = `✅ 로그인 성공!\n${JSON.stringify(data, null, 2)}`;
+                } else {
+                    responseDiv.className = 'response error';
+                    responseDiv.textContent = `❌ 로그인 실패!\n${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                responseDiv.className = 'response error';
+                responseDiv.textContent = `❌ 네트워크 오류: ${error.message}`;
+            }
+            
+            responseDiv.style.display = 'block';
+        }
+
+        // 사용자 프로필 조회
+        async function getUserProfile() {
+            const responseDiv = document.getElementById('profileResponse');
+            
+            if (!authToken) {
+                responseDiv.className = 'response error';
+                responseDiv.textContent = '❌ 먼저 로그인하세요!';
+                responseDiv.style.display = 'block';
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/users/profile`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    responseDiv.className = 'response';
+                    responseDiv.textContent = `✅ 프로필 조회 성공!\n${JSON.stringify(data, null, 2)}`;
+                } else {
+                    responseDiv.className = 'response error';
+                    responseDiv.textContent = `❌ 프로필 조회 실패!\n${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                responseDiv.className = 'response error';
+                responseDiv.textContent = `❌ 네트워크 오류: ${error.message}`;
+            }
+            
+            responseDiv.style.display = 'block';
+        }
+
+        // 사용자 목록 조회
+        async function getUserList() {
+            const responseDiv = document.getElementById('listResponse');
+            
+            try {
+                const response = await fetch(`${API_BASE}/users/list`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    responseDiv.className = 'response';
+                    responseDiv.textContent = `✅ 사용자 목록 조회 성공!\n${JSON.stringify(data, null, 2)}`;
+                } else {
+                    responseDiv.className = 'response error';
+                    responseDiv.textContent = `❌ 사용자 목록 조회 실패!\n${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                responseDiv.className = 'response error';
+                responseDiv.textContent = `❌ 네트워크 오류: ${error.message}`;
+            }
+            
+            responseDiv.style.display = 'block';
+        }
+
+        // 데이터베이스 정보 조회
+        async function getDatabaseInfo() {
+            const responseDiv = document.getElementById('dbResponse');
+            
+            try {
+                const response = await fetch(`${API_BASE}/database/info`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    responseDiv.className = 'response';
+                    responseDiv.textContent = `✅ DB 정보 조회 성공!\n${JSON.stringify(data, null, 2)}`;
+                } else {
+                    responseDiv.className = 'response error';
+                    responseDiv.textContent = `❌ DB 정보 조회 실패!\n${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                responseDiv.className = 'response error';
+                responseDiv.textContent = `❌ 네트워크 오류: ${error.message}`;
+            }
+            
+            responseDiv.style.display = 'block';
+        }
+
+        // 페이지 로드 시 서버 상태 확인
+        window.onload = function() {
+            checkServerHealth();
+        };
+    </script>
+</body>
+</html> 

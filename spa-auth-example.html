@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game SPA - JWT Auth Example</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .hidden {
+            display: none;
+        }
+        pre {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎮 Game SPA - JWT Authentication</h1>
+        
+        <!-- 로그인 섹션 -->
+        <div id="loginSection">
+            <h2>로그인</h2>
+            <div class="form-group">
+                <label for="username">사용자명:</label>
+                <input type="text" id="username" value="testuser1">
+            </div>
+            <div class="form-group">
+                <label for="password">비밀번호:</label>
+                <input type="password" id="password" value="password123">
+            </div>
+            <button onclick="login()">로그인</button>
+            <button onclick="register()">회원가입</button>
+        </div>
+
+        <!-- 게임 섹션 -->
+        <div id="gameSection" class="hidden">
+            <h2>🎮 게임 대시보드</h2>
+            <div id="userInfo"></div>
+            <button onclick="getGameData()">게임 데이터 조회</button>
+            <button onclick="getUserProfile()">프로필 조회</button>
+            <button onclick="logout()">로그아웃</button>
+        </div>
+
+        <!-- 상태 메시지 -->
+        <div id="statusMessage"></div>
+
+        <!-- API 응답 -->
+        <div id="apiResponse"></div>
+    </div>
+
+    <script>
+        // JWT 토큰 저장소
+        let authToken = localStorage.getItem('authToken');
+
+        // 페이지 로드 시 토큰 확인
+        window.onload = function() {
+            if (authToken) {
+                verifyToken();
+            }
+        };
+
+        // 상태 메시지 표시
+        function showStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('statusMessage');
+            statusDiv.className = `status ${type}`;
+            statusDiv.textContent = message;
+            statusDiv.style.display = 'block';
+        }
+
+        // API 응답 표시
+        function showApiResponse(data) {
+            const responseDiv = document.getElementById('apiResponse');
+            responseDiv.innerHTML = '<h3>API 응답:</h3><pre>' + JSON.stringify(data, null, 2) + '</pre>';
+        }
+
+        // 로그인
+        async function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            if (!username || !password) {
+                showStatus('사용자명과 비밀번호를 입력해주세요.', 'error');
+                return;
+            }
+
+            try {
+                showStatus('로그인 중...', 'info');
+                
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await response.json();
+                showApiResponse(data);
+
+                if (response.ok && data.token) {
+                    authToken = data.token;
+                    localStorage.setItem('authToken', authToken);
+                    showStatus('로그인 성공!', 'success');
+                    showGameSection(data.user);
+                } else {
+                    showStatus(data.message || '로그인 실패', 'error');
+                }
+            } catch (error) {
+                showStatus('로그인 요청 실패: ' + error.message, 'error');
+            }
+        }
+
+        // 회원가입
+        async function register() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            if (!username || !password) {
+                showStatus('사용자명과 비밀번호를 입력해주세요.', 'error');
+                return;
+            }
+
+            try {
+                showStatus('회원가입 중...', 'info');
+                
+                const response = await fetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        username, 
+                        password,
+                        email: username + '@example.com'
+                    })
+                });
+
+                const data = await response.json();
+                showApiResponse(data);
+
+                if (response.ok) {
+                    showStatus('회원가입 성공! 로그인해주세요.', 'success');
+                } else {
+                    showStatus(data.message || '회원가입 실패', 'error');
+                }
+            } catch (error) {
+                showStatus('회원가입 요청 실패: ' + error.message, 'error');
+            }
+        }
+
+        // 토큰 검증
+        async function verifyToken() {
+            if (!authToken) {
+                showLoginSection();
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/user/profile', {
+                    headers: {
+                        'Authorization': 'Bearer ' + authToken
+                    }
+                });
+
+                if (response.ok) {
+                    const userData = await response.json();
+                    showGameSection(userData);
+                } else {
+                    localStorage.removeItem('authToken');
+                    authToken = null;
+                    showLoginSection();
+                    showStatus('토큰이 만료되었습니다. 다시 로그인해주세요.', 'error');
+                }
+            } catch (error) {
+                showStatus('토큰 검증 실패: ' + error.message, 'error');
+                showLoginSection();
+            }
+        }
+
+        // 게임 데이터 조회
+        async function getGameData() {
+            try {
+                showStatus('게임 데이터 조회 중...', 'info');
+                
+                const response = await fetch('/api/game/data', {
+                    headers: {
+                        'Authorization': 'Bearer ' + authToken
+                    }
+                });
+
+                const data = await response.json();
+                showApiResponse(data);
+
+                if (response.ok) {
+                    showStatus('게임 데이터 조회 성공!', 'success');
+                } else {
+                    showStatus(data.message || '게임 데이터 조회 실패', 'error');
+                }
+            } catch (error) {
+                showStatus('게임 데이터 요청 실패: ' + error.message, 'error');
+            }
+        }
+
+        // 사용자 프로필 조회
+        async function getUserProfile() {
+            try {
+                showStatus('프로필 조회 중...', 'info');
+                
+                const response = await fetch('/api/user/profile', {
+                    headers: {
+                        'Authorization': 'Bearer ' + authToken
+                    }
+                });
+
+                const data = await response.json();
+                showApiResponse(data);
+
+                if (response.ok) {
+                    showStatus('프로필 조회 성공!', 'success');
+                } else {
+                    showStatus(data.message || '프로필 조회 실패', 'error');
+                }
+            } catch (error) {
+                showStatus('프로필 요청 실패: ' + error.message, 'error');
+            }
+        }
+
+        // 로그아웃
+        function logout() {
+            localStorage.removeItem('authToken');
+            authToken = null;
+            showLoginSection();
+            showStatus('로그아웃되었습니다.', 'info');
+            document.getElementById('apiResponse').innerHTML = '';
+        }
+
+        // 로그인 섹션 표시
+        function showLoginSection() {
+            document.getElementById('loginSection').classList.remove('hidden');
+            document.getElementById('gameSection').classList.add('hidden');
+        }
+
+        // 게임 섹션 표시
+        function showGameSection(userData) {
+            document.getElementById('loginSection').classList.add('hidden');
+            document.getElementById('gameSection').classList.remove('hidden');
+            
+            if (userData) {
+                document.getElementById('userInfo').innerHTML = 
+                    `<div class="status success">환영합니다, ${userData.username || userData.name}님!</div>`;
+            }
+        }
+    </script>
+</body>
+</html> 

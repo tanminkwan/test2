@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Service API Test Page</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .api-section {
+            margin-bottom: 40px;
+            border: 1px solid #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .api-header {
+            background: #f8f9fa;
+            padding: 15px 20px;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .api-title {
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .method-badge {
+            padding: 5px 12px;
+            border-radius: 20px;
+            color: white;
+            font-size: 0.9em;
+            font-weight: bold;
+        }
+
+        .method-get { background: #28a745; }
+        .method-post { background: #007bff; }
+        .method-put { background: #ffc107; color: #333; }
+
+        .api-body {
+            padding: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        .form-group input, .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .form-group textarea {
+            height: 80px;
+            resize: vertical;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: transform 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .response-area {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            border-left: 4px solid #007bff;
+        }
+
+        .response-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .response-content {
+            background: #fff;
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #e0e0e0;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-success { background: #28a745; }
+        .status-error { background: #dc3545; }
+        .status-pending { background: #ffc107; }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 20px;
+        }
+
+        .auth-token {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+
+        .auth-token label {
+            font-weight: bold;
+            color: #1976d2;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 User Service API Test</h1>
+            <p>PostgreSQL 연결된 User Service API 테스트 페이지</p>
+        </div>
+
+        <div class="content">
+            <!-- Auth Token Section -->
+            <div class="auth-token">
+                <label for="authToken">🔑 JWT Token (로그인 후 자동 설정됨):</label>
+                <input type="text" id="authToken" placeholder="Bearer token will be set here after login">
+            </div>
+
+            <div class="grid">
+                <!-- Health Check -->
+                <div class="api-section">
+                    <div class="api-header">
+                        <span class="api-title">Health Check</span>
+                        <span class="method-badge method-get">GET</span>
+                    </div>
+                    <div class="api-body">
+                        <button class="btn" onclick="healthCheck()">서비스 상태 확인</button>
+                        <div class="response-area" id="health-response" style="display: none;">
+                            <div class="response-title">
+                                <span class="status-indicator" id="health-status"></span>
+                                Response:
+                            </div>
+                            <div class="response-content" id="health-content"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Create Guest User -->
+                <div class="api-section">
+                    <div class="api-header">
+                        <span class="api-title">게스트 사용자 생성</span>
+                        <span class="method-badge method-post">POST</span>
+                    </div>
+                    <div class="api-body">
+                        <div class="form-group">
+                            <label for="guestUsername">사용자명:</label>
+                            <input type="text" id="guestUsername" placeholder="guestuser" value="guestuser">
+                        </div>
+                        <div class="form-group">
+                            <label for="guestVehicleType">차량 타입:</label>
+                            <select id="guestVehicleType" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                                <option value="fighter">Fighter</option>
+                                <option value="heavy">Heavy</option>
+                            </select>
+                        </div>
+                        <button class="btn" onclick="createGuest()">게스트 생성</button>
+                        <div class="response-area" id="guest-response" style="display: none;">
+                            <div class="response-title">
+                                <span class="status-indicator" id="guest-status"></span>
+                                Response:
+                            </div>
+                            <div class="response-content" id="guest-content"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Register User -->
+                <div class="api-section">
+                    <div class="api-header">
+                        <span class="api-title">회원가입</span>
+                        <span class="method-badge method-post">POST</span>
+                    </div>
+                    <div class="api-body">
+                        <div class="form-group">
+                            <label for="regUsername">사용자명:</label>
+                            <input type="text" id="regUsername" placeholder="testuser" value="testuser">
+                        </div>
+                        <div class="form-group">
+                            <label for="regEmail">이메일:</label>
+                            <input type="email" id="regEmail" placeholder="test@example.com">
+                        </div>
+                        <div class="form-group">
+                            <label for="regPassword">비밀번호:</label>
+                            <input type="password" id="regPassword" placeholder="password123">
+                        </div>
+                        <button class="btn" onclick="registerUser()">회원가입</button>
+                        <div class="response-area" id="register-response" style="display: none;">
+                            <div class="response-title">
+                                <span class="status-indicator" id="register-status"></span>
+                                Response:
+                            </div>
+                            <div class="response-content" id="register-content"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Login User -->
+                <div class="api-section">
+                    <div class="api-header">
+                        <span class="api-title">로그인</span>
+                        <span class="method-badge method-post">POST</span>
+                    </div>
+                    <div class="api-body">
+                        <div class="form-group">
+                            <label for="loginUsername">사용자명:</label>
+                            <input type="text" id="loginUsername" placeholder="testuser" value="testuser">
+                        </div>
+                        <div class="form-group">
+                            <label for="loginPassword">비밀번호:</label>
+                            <input type="password" id="loginPassword" placeholder="password123">
+                        </div>
+                        <button class="btn" onclick="loginUser()">로그인</button>
+                        <div class="response-area" id="login-response" style="display: none;">
+                            <div class="response-title">
+                                <span class="status-indicator" id="login-status"></span>
+                                Response:
+                            </div>
+                            <div class="response-content" id="login-content"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Get Profile -->
+                <div class="api-section">
+                    <div class="api-header">
+                        <span class="api-title">프로필 조회</span>
+                        <span class="method-badge method-get">GET</span>
+                    </div>
+                    <div class="api-body">
+                        <button class="btn" onclick="getProfile()">프로필 조회</button>
+                        <div class="response-area" id="profile-response" style="display: none;">
+                            <div class="response-title">
+                                <span class="status-indicator" id="profile-status"></span>
+                                Response:
+                            </div>
+                            <div class="response-content" id="profile-content"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Update Vehicle Settings -->
+                <div class="api-section">
+                    <div class="api-header">
+                        <span class="api-title">차량 설정 업데이트</span>
+                        <span class="method-badge method-put">PUT</span>
+                    </div>
+                    <div class="api-body">
+                        <div class="form-group">
+                            <label for="vehicleType">차량 타입:</label>
+                            <select id="vehicleType" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                                <option value="fighter">Fighter</option>
+                                <option value="heavy">Heavy</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="vehicleColor">차량 색상:</label>
+                            <input type="text" id="vehicleColor" placeholder="#ff0000">
+                        </div>
+                        <button class="btn" onclick="updateVehicle()">차량 설정 업데이트</button>
+                        <div class="response-area" id="vehicle-response" style="display: none;">
+                            <div class="response-title">
+                                <span class="status-indicator" id="vehicle-status"></span>
+                                Response:
+                            </div>
+                            <div class="response-content" id="vehicle-content"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Database Info -->
+                <div class="api-section">
+                    <div class="api-header">
+                        <span class="api-title">데이터베이스 정보</span>
+                        <span class="method-badge method-get">GET</span>
+                    </div>
+                    <div class="api-body">
+                        <button class="btn" onclick="getDatabaseInfo()">DB 정보 조회</button>
+                        <div class="response-area" id="db-response" style="display: none;">
+                            <div class="response-title">
+                                <span class="status-indicator" id="db-status"></span>
+                                Response:
+                            </div>
+                            <div class="response-content" id="db-content"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- List Users -->
+                <div class="api-section">
+                    <div class="api-header">
+                        <span class="api-title">사용자 목록</span>
+                        <span class="method-badge method-get">GET</span>
+                    </div>
+                    <div class="api-body">
+                        <button class="btn" onclick="listUsers()">사용자 목록 조회</button>
+                        <div class="response-area" id="users-response" style="display: none;">
+                            <div class="response-title">
+                                <span class="status-indicator" id="users-status"></span>
+                                Response:
+                            </div>
+                            <div class="response-content" id="users-content"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost';
+        
+        function getAuthHeaders() {
+            const token = document.getElementById('authToken').value;
+            return token ? { 'Authorization': `Bearer ${token}` } : {};
+        }
+
+        async function makeRequest(url, options = {}) {
+            try {
+                const response = await fetch(url, {
+                    ...options,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...getAuthHeaders(),
+                        ...options.headers
+                    }
+                });
+                
+                let data;
+                const responseText = await response.text();
+                try {
+                    data = JSON.parse(responseText);
+                } catch (e) {
+                    data = { error: 'Invalid JSON response', text: responseText };
+                }
+                
+                return { response, data };
+            } catch (error) {
+                return { error: error.message };
+            }
+        }
+
+        function displayResponse(sectionId, response, data, error) {
+            const responseDiv = document.getElementById(`${sectionId}-response`);
+            const statusDiv = document.getElementById(`${sectionId}-status`);
+            const contentDiv = document.getElementById(`${sectionId}-content`);
+            
+            responseDiv.style.display = 'block';
+            
+            if (error) {
+                statusDiv.className = 'status-indicator status-error';
+                contentDiv.textContent = `Error: ${error}`;
+            } else {
+                statusDiv.className = response.ok ? 'status-indicator status-success' : 'status-indicator status-error';
+                contentDiv.textContent = JSON.stringify(data, null, 2);
+            }
+        }
+
+        async function healthCheck() {
+            const { response, data, error } = await makeRequest(`${API_BASE}/health`);
+            displayResponse('health', response, data, error);
+        }
+
+        async function createGuest() {
+            const username = document.getElementById('guestUsername').value;
+            const vehicleType = document.getElementById('guestVehicleType').value;
+            
+            const { response, data, error } = await makeRequest(`${API_BASE}/api/auth/users/guest`, {
+                method: 'POST',
+                body: JSON.stringify({ username, vehicleType })
+            });
+            displayResponse('guest', response, data, error);
+        }
+
+        async function registerUser() {
+            const username = document.getElementById('regUsername').value;
+            const email = document.getElementById('regEmail').value;
+            const password = document.getElementById('regPassword').value;
+            
+            const { response, data, error } = await makeRequest(`${API_BASE}/api/auth/users/register`, {
+                method: 'POST',
+                body: JSON.stringify({ username, email, password })
+            });
+            displayResponse('register', response, data, error);
+        }
+
+        async function loginUser() {
+            const username = document.getElementById('loginUsername').value;
+            const password = document.getElementById('loginPassword').value;
+            
+            const { response, data, error } = await makeRequest(`${API_BASE}/api/auth/users/login`, {
+                method: 'POST',
+                body: JSON.stringify({ username, password })
+            });
+            
+            if (data && data.token) {
+                document.getElementById('authToken').value = data.token;
+            }
+            
+            displayResponse('login', response, data, error);
+        }
+
+        async function getProfile() {
+            const { response, data, error } = await makeRequest(`${API_BASE}/api/user/users/profile`);
+            displayResponse('profile', response, data, error);
+        }
+
+        async function updateVehicle() {
+            const preferredVehicleType = document.getElementById('vehicleType').value;
+            const vehicleColor = document.getElementById('vehicleColor').value;
+            
+            const { response, data, error } = await makeRequest(`${API_BASE}/api/user/users/vehicle-settings`, {
+                method: 'PUT',
+                body: JSON.stringify({ 
+                    vehicleType: preferredVehicleType,
+                    customization: { vehicleColor }
+                })
+            });
+            displayResponse('vehicle', response, data, error);
+        }
+
+        async function getDatabaseInfo() {
+            const { response, data, error } = await makeRequest(`${API_BASE}/api/user/database/info`);
+            displayResponse('db', response, data, error);
+        }
+
+        async function listUsers() {
+            const { response, data, error } = await makeRequest(`${API_BASE}/api/user/users/list`);
+            displayResponse('users', response, data, error);
+        }
+
+        // 페이지 로드 시 자동으로 헬스체크 실행
+        window.onload = function() {
+            healthCheck();
+        };
+    </script>
+</body>
+</html> 

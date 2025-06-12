@@ -1,0 +1,6 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+application 실행 방법을 확인하거나, 실행 방법을 기록할 때도 항상 `dev-env-4windows.md`를 사용해

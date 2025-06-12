@@ -7,6 +7,7 @@ import yaml from 'yaml';
 import { EventEmitter } from 'events';
 import os from 'os';
 import { fileURLToPath } from 'url';
+import jwt from 'jsonwebtoken';
 
 import GameManager from './services/GameManager.js';
 
@@ -89,12 +90,95 @@ const gameManager = new GameManager(config, gameEventEmitter);
 setupGameEventListeners();
 
 // Socket.IO 연결 처리
+io.use((socket, next) => {
+    // JWT 토큰 검증
+    const token = socket.handshake.auth.token || socket.handshake.headers.authorization?.replace('Bearer ', '');
+    
+    console.log('🔍 JWT Debug Info:');
+    console.log('  - Auth token:', socket.handshake.auth.token ? 'Present' : 'Missing');
+    console.log('  - Header auth:', socket.handshake.headers.authorization ? 'Present' : 'Missing');
+    console.log('  - Final token:', token ? `${token.substring(0, 20)}...` : 'Missing');
+    
+    if (!token) {
+        console.log('❌ No authentication token provided');
+        return next(new Error('Authentication token required'));
+    }
+    
+    try {
+        // JWT 시크릿은 User Service와 동일해야 함
+        const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
+        console.log('🔑 Using JWT secret:', JWT_SECRET.substring(0, 10) + '...');
+        console.log('🔑 Full JWT secret for debugging:', JWT_SECRET);
+        
+        // 토큰 구조 분석
+        const tokenParts = token.split('.');
+        console.log('🔍 Token structure:');
+        console.log('  - Parts count:', tokenParts.length);
+        if (tokenParts.length === 3) {
+            try {
+                const header = JSON.parse(Buffer.from(tokenParts[0], 'base64').toString());
+                const payload = JSON.parse(Buffer.from(tokenParts[1], 'base64').toString());
+                console.log('  - Header:', header);
+                console.log('  - Payload (partial):', { 
+                    userId: payload.userId?.substring(0, 8) + '...', 
+                    username: payload.username,
+                    iat: payload.iat,
+                    exp: payload.exp
+                });
+                console.log('  - Full payload for debugging:', payload);
+            } catch (e) {
+                console.log('  - Failed to decode token parts:', e.message);
+            }
+        }
+        
+        // 다른 가능한 시크릿들로도 테스트
+        const possibleSecrets = [
+            'your-super-secret-jwt-key-change-in-production',
+            'your-secret-key-change-in-production',
+            'your-secret-key-change-this',
+            'your-secret-key-here-change-in-production'
+        ];
+        
+        let decoded = null;
+        let usedSecret = null;
+        
+        for (const secret of possibleSecrets) {
+            try {
+                decoded = jwt.verify(token, secret);
+                usedSecret = secret;
+                console.log(`✅ JWT verified successfully with secret: ${secret.substring(0, 10)}...`);
+                break;
+            } catch (e) {
+                console.log(`❌ Failed with secret ${secret.substring(0, 10)}...: ${e.message}`);
+            }
+        }
+        
+        if (!decoded) {
+            throw new Error('Token verification failed with all possible secrets');
+        }
+        
+        console.log('✅ JWT decoded successfully:', { userId: decoded.userId, username: decoded.username });
+        
+        // 사용자 정보를 socket에 저장
+        socket.userId = decoded.userId;
+        socket.username = decoded.username;
+        
+        console.log(`Authenticated user: ${decoded.username} (${decoded.userId})`);
+        next();
+    } catch (error) {
+        console.log('❌ JWT verification failed:', error.message);
+        console.log('   Error type:', error.name);
+        console.log('   Error details:', error);
+        return next(new Error('Invalid authentication token'));
+    }
+});
+
 io.on('connection', (socket) => {
-    console.log(`Client connected: ${socket.id}`);
+    console.log(`Client connected: ${socket.id} (User: ${socket.username})`);
     
     // 플레이어 조인
     socket.on('joinGame', (data) => {
-        const playerName = data.name || `Player_${socket.id.substring(0, 6)}`;
+        const playerName = socket.username || `Player_${socket.id.substring(0, 6)}`;
         const vehicleType = data.vehicleType || 'fighter';
         const result = gameManager.addPlayer(socket.id, playerName, vehicleType);
         
@@ -123,7 +207,7 @@ io.on('connection', (socket) => {
     
     // 연결 해제 처리
     socket.on('disconnect', () => {
-        console.log(`Client disconnected: ${socket.id}`);
+        console.log(`Client disconnected: ${socket.id} (User: ${socket.username})`);
         gameManager.removePlayer(socket.id);
     });
 });

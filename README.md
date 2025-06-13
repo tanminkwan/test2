@@ -69,7 +69,8 @@ sequenceDiagram
     
     Note over Client, Database: 게임 접속
     Client->>Nginx: WebSocket + JWT token
-    Nginx->>Nginx: Verify JWT token
+    Nginx->>UserService: Verify JWT token
+    UserService->>Nginx: Token validation result
     Nginx->>GameService: Forward authenticated connection
     GameService->>GameService: Verify JWT signature
     GameService->>Client: Game connection established

@@ -247,19 +247,66 @@ getTerrainHeight()    // 지형 높이 계산
 
 ## 🚀 시작하기
 
-### 1. 서버 실행
-```bash
-cd services/game-service
-npm start
+### 📋 **배포 아키텍처**
+클라이언트는 **nginx API Gateway에서 static 자원으로 서빙**됩니다:
+
+```
+브라우저 → nginx:80 → {
+    /                    → client/ (static files)
+    /api/auth/          → user-service:3002
+    /api/game/          → game-service:3001  
+    /socket.io/         → game-service:3001 (WebSocket)
+}
 ```
 
-### 2. 클라이언트 접속
-브라우저에서 `http://localhost:3000` 접속
+### 🔧 **전체 시스템 실행**
 
-### 3. 게임 플레이
-- 닉네임 입력 후 게임 참가
-- 비행체 조작법 숙지
-- 다른 플레이어와 전투
+#### 1. Docker Compose로 전체 시스템 실행 (권장)
+```bash
+# 프로젝트 루트에서
+docker-compose up -d
+
+# 또는 개발 환경용
+docker-compose -f docker-compose.yml -f docker-compose.override.yml up -d
+```
+
+#### 2. 개별 서비스 실행 (개발용)
+```bash
+# 1. PostgreSQL 실행 (Docker 또는 로컬)
+docker run -d --name postgres \
+  -e POSTGRES_PASSWORD=1q2w3e4r!! \
+  -p 5432:5432 postgres:15
+
+# 2. User Service 실행
+cd services/user-service
+npm install
+npm start  # 포트 3002
+
+# 3. Game Service 실행  
+cd services/game-service
+npm install
+npm start  # 포트 3001
+
+# 4. nginx 실행 (클라이언트 static 서빙)
+nginx -c /path/to/project/nginx.conf
+```
+
+### 🌐 **클라이언트 접속**
+- **URL**: `http://localhost` (nginx 포트 80)
+- **개발 시**: nginx가 `client/` 디렉토리를 static으로 서빙
+- **프로덕션**: Docker 볼륨 마운트로 배포
+
+### 🎮 **게임 플레이**
+1. 브라우저에서 `http://localhost` 접속
+2. 닉네임 입력 후 게임 참가
+3. 비행체 조작법 숙지
+4. 다른 플레이어와 전투
+
+### ⚠️ **중요 사항**
+- 클라이언트는 **npm으로 실행하지 않습니다**
+- nginx가 static 파일 서버 역할을 담당
+- 모든 API 요청은 nginx를 통해 마이크로서비스로 라우팅
+- WebSocket 연결도 nginx를 통해 Game Service로 프록시
 
 ## 🔧 개발 가이드
 

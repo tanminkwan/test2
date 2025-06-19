@@ -78,11 +78,17 @@ export class WeaponSystem {
     /**
      * 발사체 업데이트
      */
-    updateProjectiles(deltaTime) {
+    updateProjectiles(deltaTime, vehicles) {
         const toRemove = [];
 
         for (const [id, projectile] of this.projectiles) {
-            projectile.update(deltaTime);
+            // 미사일인 경우, 타겟 정보를 찾아서 update에 넘겨줌
+            if (projectile.targetId && vehicles) {
+                const targetVehicle = vehicles.get(projectile.targetId);
+                projectile.update(deltaTime, targetVehicle);
+            } else {
+                projectile.update(deltaTime);
+            }
 
             // 사거리 초과 또는 충돌 시 제거
             if (projectile.shouldDestroy()) {

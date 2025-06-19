@@ -200,13 +200,16 @@ weapons:
     speed: 150                       # 미사일 기본 속도
     range: 600                       # 미사일 최대 사거리
     cooldown: 2000                   # 발사 간 쿨다운(ms)
-    trackingPower: 2.0               # 추적 강도 (높을수록 더 빠르게 회전)
-    maxTurnRate: 0.08                # 최대 회전 속도 (라디안/프레임)
+    trackingPower: 3.5               # 추적 강도 (높을수록 더 빠르게 회전)
+    maxTurnRate: 0.3                 # 최대 회전 속도 (라디안/프레임)
     lifeTime: 6000                   # 미사일 생존 시간(ms)
     armingTime: 300                  # 발사체 무장 시간(ms)
     explosionRadius: 8               # 폭발 반경
     splashDamage: true               # 범위 데미지 여부
     trailEffect: "smoke"             # 미사일 궤적 효과
+    maxRange: 300                   # 타겟팅 유효 범위
+    targetingAngle: 45               # 타겟팅을 시도할 정면 시야각 (도 단위)
+    missileLockAngle: 15             # 미사일 락온이 가능한 유효 각도 (도 단위)
     
     visual:
       length: 5                      # 미사일 길이

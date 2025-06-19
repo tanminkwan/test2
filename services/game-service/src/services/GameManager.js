@@ -204,7 +204,8 @@ export default class GameManager {
             deaths: 0,
             color: color,
             vehicleType: vehicleType,
-            joinedAt: Date.now()
+            joinedAt: Date.now(),
+            currentTargetId: null // 현재 타겟 ID 추가
         };
 
         // 차량 생성
@@ -309,9 +310,9 @@ export default class GameManager {
         
         // 미사일 발사 처리
         if (inputs.fireMissile) {
-            // 2단계에서는 일단 targetId 없이 발사 (직선 이동만 구현)
-            // 추후 단계에서 타겟팅 시스템 추가 예정
-            const targetId = inputs.targetId || null;
+            // 가장 가까운 적을 자동으로 타겟팅
+            const target = this.findNearestTarget(playerId);
+            const targetId = target ? target.id : null;
             
             const missile = this.weaponSystem.fireWeapon(
                 playerId, 
@@ -326,12 +327,79 @@ export default class GameManager {
                 this.eventEmitter.emit('missileLaunched', {
                     playerId: playerId,
                     vehicleId: vehicle.id,
-                    missileId: missile.id
+                    missileId: missile.id,
+                    targetId: targetId // 타겟 정보 추가
                 });
                 
-                console.log(`Player ${playerId} launched missile ${missile.id}`);
+                console.log(`Player ${playerId} launched missile ${missile.id} targeting ${targetId}`);
             }
         }
+    }
+
+    /**
+     * 가장 가까운 적 타겟을 찾음
+     */
+    findNearestTarget(playerId) {
+        const playerVehicle = this.getPlayerVehicle(playerId);
+        if (!playerVehicle) return null;
+
+        // 미사일 설정값 가져오기
+        const missileConfig = this.config.weapons?.missile || {};
+        const maxRange = missileConfig.maxRange || 300;
+        const lockAngle = missileConfig.missileLockAngle || 15; // 미사일 락온 각도
+        const cosMaxLockAngle = Math.cos(lockAngle * (Math.PI / 180)); // 비교를 위해 코사인 값 미리 계산
+
+        // 플레이어의 정면 벡터 계산
+        const forwardVector = {
+            x: Math.sin(playerVehicle.rotation.y) * Math.cos(playerVehicle.rotation.x),
+            y: -Math.sin(playerVehicle.rotation.x),
+            z: Math.cos(playerVehicle.rotation.y) * Math.cos(playerVehicle.rotation.x)
+        };
+
+        let bestTarget = null;
+        let minDistanceSq = Infinity;
+
+        for (const vehicle of this.vehicles.values()) {
+            if (vehicle.playerId === playerId || !vehicle.active) {
+                continue;
+            }
+
+            const dx = vehicle.position.x - playerVehicle.position.x;
+            const dy = vehicle.position.y - playerVehicle.position.y;
+            const dz = vehicle.position.z - playerVehicle.position.z;
+            const distanceSq = dx * dx + dy * dy + dz * dz;
+
+            // 1. 최대 사정거리 체크
+            if (distanceSq > maxRange * maxRange) {
+                continue;
+            }
+
+            // 2. 락온 각도 체크
+            const directionToTarget = { x: dx, y: dy, z: dz };
+            const distance = Math.sqrt(distanceSq);
+            if (distance > 0.001) {
+                directionToTarget.x /= distance;
+                directionToTarget.y /= distance;
+                directionToTarget.z /= distance;
+            }
+
+            const dotProduct = forwardVector.x * directionToTarget.x + 
+                               forwardVector.y * directionToTarget.y + 
+                               forwardVector.z * directionToTarget.z;
+            
+            // 내적 값이 미리 계산한 코사인 값보다 커야 각도 내에 있는 것
+            if (dotProduct < cosMaxLockAngle) {
+                continue;
+            }
+
+            // 3. 모든 조건을 통과한 타겟 중 가장 가까운 타겟 선택
+            if (distanceSq < minDistanceSq) {
+                minDistanceSq = distanceSq;
+                bestTarget = vehicle;
+            }
+        }
+
+        return bestTarget;
     }
 
     /**
@@ -441,13 +509,24 @@ export default class GameManager {
         this.lastUpdateTime = now;
 
         if (this.gameState === 'playing') {
-        this.updateVehicles(deltaTime);
+            this.updatePlayerTargets();
+            this.updateVehicles(deltaTime);
             this.updateWeapons(deltaTime);
             this.updateEffects(deltaTime);
-        this.checkCollisions();
+            this.checkCollisions();
         }
 
         this.syncGameState();
+    }
+
+    /**
+     * 플레이어들의 타겟 정보를 업데이트
+     */
+    updatePlayerTargets() {
+        for (const player of this.players.values()) {
+            const target = this.findNearestTarget(player.id);
+            player.currentTargetId = target ? target.id : null;
+        }
     }
 
     /**
@@ -528,7 +607,7 @@ export default class GameManager {
      * 무기 시스템 업데이트
      */
     updateWeapons(deltaTime) {
-        const removedProjectiles = this.weaponSystem.updateProjectiles(deltaTime);
+        const removedProjectiles = this.weaponSystem.updateProjectiles(deltaTime, this.vehicles);
         
         // 제거된 발사체들에 대한 이벤트 발생
         if (removedProjectiles.length > 0) {

@@ -2,6 +2,7 @@
  * UI 관리자 클래스
  * UI 업데이트, 플레이어 정보 관리, 알림 시스템을 담당
  */
+import * as THREE from 'three';
 import { UI_COLORS } from '../config/Constants.js';
 
 export class UIManager {
@@ -13,7 +14,8 @@ export class UIManager {
             playerInfo: null,
             healthFill: null,
             players: null,
-            gameStatus: null
+            gameStatus: null,
+            targetBox: null
         };
         
         // 플레이어 데이터
@@ -31,6 +33,7 @@ export class UIManager {
         this.elements.healthFill = document.getElementById('healthFill');
         this.elements.players = document.getElementById('players');
         this.elements.gameStatus = document.getElementById('gameStatus');
+        this.elements.targetBox = document.getElementById('targetBox');
         
         // 요소가 없으면 경고
         Object.keys(this.elements).forEach(key => {
@@ -148,6 +151,64 @@ export class UIManager {
             `;
             
             this.elements.players.appendChild(playerDiv);
+        }
+    }
+    
+    /**
+     * 타겟팅 박스 UI 업데이트
+     * @param {THREE.Object3D} targetVehicle - 타겟 차량 3D 객체
+     * @param {THREE.Camera} camera - 씬 카메라
+     * @param {HTMLElement} rendererDomElement - 렌더러의 DOM 요소
+     * @param {THREE.Object3D} myVehicle - 현재 플레이어의 차량 3D 객체
+     */
+    updateTargetBox(targetVehicle, camera, rendererDomElement, myVehicle) {
+        if (!this.elements.targetBox) return;
+
+        // 타겟이 없거나, 타겟이 비활성 상태이거나, 씬에서 제거된 경우 숨김
+        if (!targetVehicle || !targetVehicle.userData.vehicleData?.active || !targetVehicle.parent) {
+            this.elements.targetBox.style.display = 'none';
+            return;
+        }
+
+        const targetPosition = new THREE.Vector3();
+        targetVehicle.getWorldPosition(targetPosition);
+
+        // 카메라 뒤에 있는지 확인
+        const cameraDirection = new THREE.Vector3();
+        camera.getWorldDirection(cameraDirection);
+        const vectorToTarget = new THREE.Vector3().subVectors(targetPosition, camera.position);
+        
+        if (vectorToTarget.dot(cameraDirection) < 0) {
+            this.elements.targetBox.style.display = 'none';
+            return;
+        }
+        
+        // 3D 좌표를 2D 화면 좌표로 변환
+        const screenPosition = targetPosition.clone().project(camera);
+
+        const width = rendererDomElement.clientWidth;
+        const height = rendererDomElement.clientHeight;
+
+        const x = (screenPosition.x * 0.5 + 0.5) * width;
+        const y = (-screenPosition.y * 0.5 + 0.5) * height;
+
+        // 화면 밖에 있는지 확인
+        if (x < -100 || x > width + 100 || y < -100 || y > height + 100) {
+            this.elements.targetBox.style.display = 'none';
+            return;
+        }
+
+        // 박스 스타일 업데이트
+        this.elements.targetBox.style.display = 'block';
+        this.elements.targetBox.style.left = `${x}px`;
+        this.elements.targetBox.style.top = `${y}px`;
+        
+        // 추가 정보 표시 (거리 등) - 내 비행기 위치 기준으로 계산
+        if (myVehicle) {
+            const distance = myVehicle.position.distanceTo(targetPosition).toFixed(0);
+            this.elements.targetBox.textContent = `${distance}m`;
+        } else {
+            this.elements.targetBox.textContent = ``; // 내 비행기가 없으면 거리 표시 안함
         }
     }
     
@@ -288,4 +349,4 @@ export class UIManager {
         this.myPlayer = null;
         this.latestGameState = null;
     }
-} 
+}

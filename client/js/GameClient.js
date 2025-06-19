@@ -596,15 +596,14 @@ export class GameClient {
         this.mouseX = mousePos.x;
         this.mouseY = mousePos.y;
         
-        this.sendInputs();
-        
-        // 발사 입력 리셋 (네트워크 전송 후)
-        if (this.inputs.fire) {
-            this.inputManager.resetFireInput();
-        }
-        
         // 내 비행체 부스터 효과 업데이트
         this.updateMyVehicleBooster();
+        
+        // 타겟팅 UI 업데이트
+        this.updateTargetingUI();
+        
+        // 입력 전송
+        this.sendInputs();
         
         // 카메라 업데이트
         this.updateCamera();
@@ -624,6 +623,23 @@ export class GameClient {
         
         // 렌더링
         this.renderer.render(this.scene, this.camera);
+    }
+
+    /**
+     * 타겟팅 UI 업데이트
+     */
+    updateTargetingUI() {
+        if (!this.myPlayer || !this.uiManager || !this.latestGameState) return;
+        
+        const myPlayerData = this.latestGameState.players.find(p => p.id === this.myPlayer.id);
+        
+        if (myPlayerData && myPlayerData.currentTargetId) {
+            const targetVehicle = this.vehicles.get(myPlayerData.currentTargetId);
+            this.uiManager.updateTargetBox(targetVehicle, this.camera, this.renderer.domElement, this.myVehicle);
+        } else {
+            // 타겟이 없을 경우
+            this.uiManager.updateTargetBox(null, this.camera, this.renderer.domElement, this.myVehicle);
+        }
     }
 
     /**

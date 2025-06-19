@@ -234,6 +234,10 @@ function setupGameEventListeners() {
         io.emit('muzzleFlash', data);
     });
     
+    gameEventEmitter.on('missileLaunched', (data) => {
+        io.emit('missileLaunched', data);
+    });
+    
     gameEventEmitter.on('projectilesRemoved', (projectileIds) => {
         io.emit('projectilesRemoved', projectileIds);
     });

@@ -24,7 +24,8 @@ export class NetworkManager {
             onVehicleDestroyed: null,
             onVehicleRespawned: null,
             onGameStarted: null,
-            onGameEnded: null
+            onGameEnded: null,
+            onMissileLaunched: null
         };
         
         this.setupSocketListeners();
@@ -49,6 +50,12 @@ export class NetworkManager {
         this.socket.on('muzzleFlash', (data) => {
             if (this.callbacks.onMuzzleFlash) {
                 this.callbacks.onMuzzleFlash(data);
+            }
+        });
+        
+        this.socket.on('missileLaunched', (data) => {
+            if (this.callbacks.onMissileLaunched) {
+                this.callbacks.onMissileLaunched(data);
             }
         });
         

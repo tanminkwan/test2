@@ -1,4 +1,5 @@
 import { MachineGun } from '../entities/weapons/MachineGun.js';
+import { GuidedMissile } from '../entities/weapons/GuidedMissile.js';
 
 /**
  * 무기 시스템 서비스 (Single Responsibility Principle)
@@ -28,6 +29,9 @@ export class WeaponSystem {
         switch (weaponType) {
             case 'machinegun':
                 weapon = new MachineGun(weaponId, playerId, config);
+                break;
+            case 'missile':
+                weapon = new GuidedMissile(weaponId, playerId, config);
                 break;
             default:
                 throw new Error(`Unknown weapon type: ${weaponType}`);

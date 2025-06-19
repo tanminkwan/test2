@@ -219,6 +219,14 @@ export default class GameManager {
 
         // 무기 장착 (기본 기관총)
         this.weaponSystem.equipWeapon(playerId, 'machinegun');
+        
+        // 미사일 무기 장착
+        const missileConfig = this.config.vehicles[vehicleType] || {};
+        this.weaponSystem.equipWeapon(playerId, 'missile', {
+            ammo: missileConfig.missileCount || 4,
+            maxAmmo: missileConfig.missileCount || 4,
+            reloadTime: (missileConfig.missileReloadTime || 25) * 1000 // 초 -> 밀리초
+        });
 
         this.players.set(playerId, player);
         this.vehicles.set(vehicleId, vehicle);
@@ -296,6 +304,32 @@ export default class GameManager {
                     playerId: playerId,
                     vehicleId: vehicle.id
                 });
+            }
+        }
+        
+        // 미사일 발사 처리
+        if (inputs.fireMissile) {
+            // 2단계에서는 일단 targetId 없이 발사 (직선 이동만 구현)
+            // 추후 단계에서 타겟팅 시스템 추가 예정
+            const targetId = inputs.targetId || null;
+            
+            const missile = this.weaponSystem.fireWeapon(
+                playerId, 
+                'missile', 
+                vehicle.position, 
+                vehicle.rotation,
+                targetId
+            );
+
+            if (missile) {
+                // 미사일 발사 이벤트 전송 (추후 효과 추가)
+                this.eventEmitter.emit('missileLaunched', {
+                    playerId: playerId,
+                    vehicleId: vehicle.id,
+                    missileId: missile.id
+                });
+                
+                console.log(`Player ${playerId} launched missile ${missile.id}`);
             }
         }
     }
@@ -730,11 +764,22 @@ export default class GameManager {
      * 게임 상태 가져오기
      */
     getGameState() {
+        // 플레이어별 무기 정보 수집
+        const weaponsData = [];
+        for (const [playerId] of this.players) {
+            const playerWeapons = this.weaponSystem.getPlayerWeapons(playerId);
+            weaponsData.push({
+                playerId: playerId,
+                weapons: Object.values(playerWeapons)
+            });
+        }
+        
         return {
             gameState: this.gameState,
             players: Array.from(this.players.values()),
             vehicles: Array.from(this.vehicles.values()).map(v => v.serialize()),
             projectiles: this.weaponSystem.getAllProjectiles().map(p => p.serialize()),
+            weapons: weaponsData, // 무기 정보 추가
             effects: this.effectSystem.serialize(),
             billboards: Array.from(this.billboards.values()).map(b => b.serialize()),
             timestamp: Date.now()

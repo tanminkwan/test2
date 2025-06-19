@@ -65,6 +65,7 @@ export class UIManager {
                 <p><strong>킬:</strong> ${this.myPlayer.kills || 0}</p>
                 <p><strong>데스:</strong> ${this.myPlayer.deaths || 0}</p>
                 <p><strong>체력:</strong> ${vehicleData.health}/${vehicleData.maxHealth}</p>
+                <p><strong>미사일:</strong> ${vehicleData.weapons?.missile?.ammo || 0}/${vehicleData.weapons?.missile?.maxAmmo || 0}</p>
             `;
             
             // 체력바 업데이트
@@ -80,6 +81,7 @@ export class UIManager {
                 <p><strong>킬:</strong> ${this.myPlayer.kills || 0}</p>
                 <p><strong>데스:</strong> ${this.myPlayer.deaths || 0}</p>
                 <p><strong>체력:</strong> 대기 중...</p>
+                <p><strong>미사일:</strong> 대기 중...</p>
             `;
             
             if (this.elements.healthFill) {

@@ -14,7 +14,9 @@ export class InputManager {
             yaw: 0,
             roll: 0,
             vertical: 0,
-            fire: false
+            fire: false,
+            fireMissile: false, // 미사일 발사 입력 추가
+            targetId: null      // 타겟 ID (2단계에서는 사용하지 않음)
         };
         
         // 시점 상태
@@ -50,6 +52,11 @@ export class InputManager {
                 this.inputs.fire = true;
             }
             
+            // 미사일 발사 (M키)
+            if (e.code === 'KeyM') {
+                this.inputs.fireMissile = true;
+            }
+            
             // 기본 동작 방지 (스페이스바 스크롤 등)
             if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
                 e.preventDefault();
@@ -62,6 +69,11 @@ export class InputManager {
             // 발사 (P키) - 키를 뗄 때 false로 설정
             if (e.code === 'KeyP') {
                 this.inputs.fire = false;
+            }
+            
+            // 미사일 발사 (M키) - 키를 뗄 때 false로 설정
+            if (e.code === 'KeyM') {
+                this.inputs.fireMissile = false;
             }
             
             // 기본 동작 방지
@@ -238,6 +250,7 @@ export class InputManager {
      */
     resetFireInput() {
         this.inputs.fire = false;
+        this.inputs.fireMissile = false; // 미사일 발사 입력도 리셋
     }
     
     /**

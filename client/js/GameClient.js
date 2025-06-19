@@ -130,6 +130,11 @@ export class GameClient {
                 }
             },
             
+            onMissileLaunched: (data) => {
+                console.log('Missile launched:', data);
+                this.createMissile(data.missileId, data.playerId, data.vehicleId);
+            },
+            
             onMuzzleFlash: (data) => {
                 // 서버에서 직접 총구 효과 이벤트를 받은 경우 - EffectManager로 위임
                 if (data.playerId && this.effectManager) {
@@ -736,6 +741,103 @@ export class GameClient {
     }
 
     /**
+     * 미사일 생성
+     */
+    createMissile(missileId, playerId, vehicleId) {
+        // 미사일 설정 가져오기 - 기본값은 빨간색 큰 발사체
+        const missileConfig = this.config?.effects?.missile || {};
+        
+        const missileGroup = new THREE.Group();
+        
+        // 미사일 본체 (총알보다 훨씬 크게)
+        const missileGeometry = new THREE.CylinderGeometry(0.5, 0.7, 4, 8);
+        const missileMaterial = new THREE.MeshBasicMaterial({
+            color: missileConfig.color || 0xff3300
+        });
+        const missileMesh = new THREE.Mesh(missileGeometry, missileMaterial);
+        missileMesh.rotation.x = Math.PI / 2;
+        missileGroup.add(missileMesh);
+        
+        // 미사일 트레일 (길고 눈에 띄는 트레일)
+        const trailGeometry = new THREE.CylinderGeometry(0.5, 0.2, 8, 8);
+        const trailMaterial = new THREE.MeshBasicMaterial({
+            color: missileConfig.trailColor || 0xff7700,
+            transparent: true,
+            opacity: 0.8
+        });
+        const trail = new THREE.Mesh(trailGeometry, trailMaterial);
+        trail.position.z = -5;
+        trail.rotation.x = Math.PI / 2;
+        missileGroup.add(trail);
+        
+        // 미사일 글로우 효과 (더 크게)
+        const glowGeometry = new THREE.SphereGeometry(1.0, 16, 16);
+        const glowMaterial = new THREE.MeshBasicMaterial({
+            color: missileConfig.glowColor || 0xff5500,
+            transparent: true,
+            opacity: 0.6
+        });
+        const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+        missileGroup.add(glow);
+        
+        // 추가: 미사일 날개
+        const finGeometry = new THREE.BoxGeometry(2, 0.1, 1);
+        const finMaterial = new THREE.MeshBasicMaterial({
+            color: 0xcccccc
+        });
+        
+        // 수평 날개
+        const horizontalFin = new THREE.Mesh(finGeometry, finMaterial);
+        horizontalFin.position.set(0, 0, 0);
+        missileGroup.add(horizontalFin);
+        
+        // 수직 날개
+        const verticalFin = new THREE.Mesh(finGeometry, finMaterial);
+        verticalFin.rotation.z = Math.PI / 2;
+        verticalFin.position.set(0, 0, 0);
+        missileGroup.add(verticalFin);
+        
+        // 발사한 비행체 찾아서 미사일 위치 설정
+        const vehicle = this.vehicles.get(vehicleId);
+        if (vehicle) {
+            missileGroup.position.copy(vehicle.position);
+            missileGroup.rotation.copy(vehicle.rotation);
+            
+            // 약간 아래쪽에서 발사되도록 오프셋
+            missileGroup.position.y -= 2;
+        } else {
+            console.warn(`Vehicle ${vehicleId} not found for missile attachment`);
+        }
+        
+        // 미사일 데이터 설정
+        missileGroup.userData = {
+            id: missileId,
+            playerId: playerId,
+            vehicleId: vehicleId,
+            type: 'missile'
+        };
+        
+        // 그림자 설정
+        missileGroup.castShadow = true;
+        
+        // 미사일 추가
+        this.scene.add(missileGroup);
+        this.bullets.set(missileId, missileGroup); // 총알과 같은 컬렉션에 저장
+        
+        // 미사일 발사 효과 추가 (작은 폭발)
+        if (this.effectManager && vehicle) {
+            this.effectManager.createExplosion({
+                position: vehicle.position,
+                radius: 2,
+                duration: 500,
+                intensity: 0.5
+            });
+        }
+        
+        return missileGroup;
+    }
+
+    /**
      * 지형 높이 계산 - WorldManager로 위임
      */
     getTerrainHeight(x, z) {
@@ -836,19 +938,56 @@ export class GameClient {
                         const newBullet = this.createBullet(projectileData);
                     } else {
                         // 기존 총알 위치 업데이트
-                bullet.position.set(
+                        bullet.position.set(
                             projectileData.position.x || 0,
                             projectileData.position.y || 0,
                             projectileData.position.z || 0
-                );
-                bullet.rotation.set(
+                        );
+                        bullet.rotation.set(
                             projectileData.rotation.x || 0,
                             projectileData.rotation.y || 0,
                             projectileData.rotation.z || 0
-                );
+                        );
                     }
-            }
-        });
+                } else if (projectileData.type === 'missile') {
+                    // 미사일 타입 처리
+                    const missile = this.bullets.get(projectileData.id);
+                    if (!missile) {
+                        // 새로운 미사일 생성 (createMissile 함수 사용)
+                        this.createMissile(projectileData.id, projectileData.ownerId, null);
+                    }
+                    
+                    // 기존 미사일 위치 업데이트
+                    if (missile) {
+                        missile.position.set(
+                            projectileData.position.x || 0,
+                            projectileData.position.y || 0,
+                            projectileData.position.z || 0
+                        );
+                        
+                        // 미사일이 이동 방향을 향하도록 회전
+                        if (projectileData.velocity) {
+                            // 속도 벡터로부터 회전 계산
+                            const direction = new THREE.Vector3(
+                                projectileData.velocity.x,
+                                projectileData.velocity.y,
+                                projectileData.velocity.z
+                            ).normalize();
+                            
+                            // lookAt은 Z축이 앞쪽을 향하게 함
+                            const target = new THREE.Vector3().copy(missile.position).add(direction);
+                            missile.lookAt(target);
+                        } else {
+                            // 기본 회전 설정
+                            missile.rotation.set(
+                                projectileData.rotation.x || 0,
+                                projectileData.rotation.y || 0,
+                                projectileData.rotation.z || 0
+                            );
+                        }
+                    }
+                }
+            });
         } else {
             // 서버에 발사체가 없으면 클라이언트의 모든 총알 제거
             for (const [bulletId, bullet] of this.bullets) {
@@ -885,6 +1024,33 @@ export class GameClient {
             });
         }
         
+        // 무기 정보 업데이트
+        if (gameState.weapons && this.myPlayer) {
+            const playerWeapons = gameState.weapons.find(w => w.playerId === this.myPlayer.id);
+            if (playerWeapons && playerWeapons.weapons) {
+                // 내 비행체 찾기
+                if (this.myVehicle && this.myVehicle.userData.vehicleData) {
+                    // 무기 정보 추가
+                    if (!this.myVehicle.userData.vehicleData.weapons) {
+                        this.myVehicle.userData.vehicleData.weapons = {};
+                    }
+                    
+                    // 미사일 정보 업데이트
+                    const missileWeapon = playerWeapons.weapons.find(w => w.weaponType === 'guidedmissile');
+                    if (missileWeapon) {
+                        this.myVehicle.userData.vehicleData.weapons.missile = {
+                            ammo: missileWeapon.ammo || 0,
+                            maxAmmo: missileWeapon.maxAmmo || 0,
+                            reloadProgress: missileWeapon.reloadProgress || 0
+                        };
+                    }
+                    
+                    // UI 갱신
+                    this.updatePlayerInfo();
+                }
+            }
+        }
+        
         // 플레이어 정보 업데이트
         if (gameState.players) {
             // gameData에 플레이어 정보 저장 (플레이어 목록에서 사용)
@@ -898,6 +1064,8 @@ export class GameClient {
                 this.myPlayer = myPlayerData;
                 // UIManager에 플레이어 데이터 업데이트 알림
                 this.uiManager.updateMyPlayer(myPlayerData);
+                // 플레이어 정보 UI 갱신
+                this.updatePlayerInfo();
             }
         }
         

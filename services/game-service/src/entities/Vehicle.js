@@ -40,7 +40,9 @@ export default class Vehicle extends GameEntity {
             yaw: 0,         // -1 to 1
             roll: 0,        // -1 to 1
             vertical: 0,    // -1 to 1
-            fire: false
+            fire: false,    // 기관총 발사
+            fireMissile: false, // 미사일 발사
+            targetId: null  // 미사일 타겟 ID
         };
         
         // 무기 상태 (WeaponSystem으로 이동됨)

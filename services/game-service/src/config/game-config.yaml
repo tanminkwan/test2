@@ -195,6 +195,27 @@ weapons:
     range: 300                       # 사거리 (기본값)
     bulletLifetime: 3                # 총알 지속 시간 (초)
     
+  missile:                           # 미사일 설정
+    damage: 30                       # 미사일 기본 데미지
+    speed: 150                       # 미사일 기본 속도
+    range: 600                       # 미사일 최대 사거리
+    cooldown: 2000                   # 발사 간 쿨다운(ms)
+    trackingPower: 2.0               # 추적 강도 (높을수록 더 빠르게 회전)
+    maxTurnRate: 0.08                # 최대 회전 속도 (라디안/프레임)
+    lifeTime: 6000                   # 미사일 생존 시간(ms)
+    armingTime: 300                  # 발사체 무장 시간(ms)
+    explosionRadius: 8               # 폭발 반경
+    splashDamage: true               # 범위 데미지 여부
+    trailEffect: "smoke"             # 미사일 궤적 효과
+    
+    visual:
+      length: 5                      # 미사일 길이
+      radius: 0.8                    # 미사일 반지름
+      engineGlow: "#FF6600"          # 엔진 불빛 색상
+      smokeColor: "#888888"          # 연기 색상
+      smokeRate: 0.05                # 연기 생성률
+      explosionSize: 3.0             # 폭발 효과 크기
+  
 physics:
   airResistance: 0.98                # 공기 저항 (0.98 = 2% 감속)
   groundFriction: 0.95               # 지면 마찰 (지면 충돌 시)
@@ -278,3 +299,11 @@ logging:
   maxLogSize: "10MB"                 # 로그 파일 최대 크기
   enablePerformanceLogs: true        # 성능 로그 활성화
   enableEventLogs: true              # 이벤트 로그 활성화 
+
+# 타겟팅 시스템 설정
+targeting:
+  lockRange: 800                     # 타겟 감지 최대 거리
+  lockTime: 1.5                      # 타겟 락온 소요 시간(초)
+  maxTargets: 3                      # 동시 락온 가능 타겟 수
+  targetBoxColor: "#FF0000"          # 타겟 UI 색상
+  lockedTargetColor: "#FFFF00"       # 락온 완료 UI 색상 

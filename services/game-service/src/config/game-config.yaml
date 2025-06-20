@@ -205,6 +205,7 @@ weapons:
     lifeTime: 6000                   # 미사일 생존 시간(ms)
     armingTime: 300                  # 발사체 무장 시간(ms)
     explosionRadius: 8               # 폭발 반경
+    directHitDistance: 20            # 유도를 멈추고 직진하는 거리 (m)
     splashDamage: true               # 범위 데미지 여부
     trailEffect: "smoke"             # 미사일 궤적 효과
     maxRange: 300                   # 타겟팅 유효 범위

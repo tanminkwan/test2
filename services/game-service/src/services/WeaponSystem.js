@@ -6,7 +6,8 @@ import { GuidedMissile } from '../entities/weapons/GuidedMissile.js';
  * 무기 관련 로직만 담당
  */
 export class WeaponSystem {
-    constructor() {
+    constructor(config) {
+        this.config = config; // config 저장
         this.weapons = new Map(); // playerId -> weapon instances
         this.projectiles = new Map(); // projectileId -> projectile instance
         this.eventEmitter = null; // GameManager에서 설정
@@ -25,13 +26,16 @@ export class WeaponSystem {
     equipWeapon(playerId, weaponType, config = {}) {
         const weaponId = `weapon_${playerId}_${weaponType}`;
         
+        // 전체 게임 설정을 무기 생성자에 전달
+        const weaponConfig = { ...this.config, ...config };
+
         let weapon;
         switch (weaponType) {
             case 'machinegun':
-                weapon = new MachineGun(weaponId, playerId, config);
+                weapon = new MachineGun(weaponId, playerId, weaponConfig);
                 break;
             case 'missile':
-                weapon = new GuidedMissile(weaponId, playerId, config);
+                weapon = new GuidedMissile(weaponId, playerId, weaponConfig);
                 break;
             default:
                 throw new Error(`Unknown weapon type: ${weaponType}`);

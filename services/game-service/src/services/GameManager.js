@@ -5,6 +5,7 @@ import { WeaponSystem } from './WeaponSystem.js';
 import { EffectSystem } from './EffectSystem.js';
 import { VehicleFactory } from './VehicleFactory.js';
 import { PerformanceMonitor } from './PerformanceMonitor.js';
+import { TargetingSystem } from './TargetingSystem.js';
 
 /**
  * 게임 매니저 클래스 (Dependency Inversion Principle)
@@ -27,6 +28,10 @@ export default class GameManager {
         this.effectSystem = new EffectSystem(this.eventEmitter);
         this.vehicleFactory = new VehicleFactory(this.config);
         this.performanceMonitor = new PerformanceMonitor(this.config);
+        this.targetingSystem = new TargetingSystem(
+            this.config, 
+            (x, z) => this.getTerrainHeight(x, z)
+        );
         
         // 게임 설정
         this.maxPlayers = config.game.maxPlayers;
@@ -205,7 +210,9 @@ export default class GameManager {
             color: color,
             vehicleType: vehicleType,
             joinedAt: Date.now(),
-            currentTargetId: null // 현재 타겟 ID 추가
+            awarenessTargetId: null, // 상황 인식용 타겟 ID
+            lockOnTargetId: null,    // 락온용 타겟 ID (기존 currentTargetId)
+            lockOnState: { isLocked: false, progress: 0 } // 락온 상태 추가
         };
 
         // 차량 생성
@@ -215,7 +222,8 @@ export default class GameManager {
         // Factory 패턴을 사용하여 비행체 생성
         const vehicle = this.vehicleFactory.createVehicle(vehicleId, playerId, spawnPosition, {
             color: color,
-            vehicleType: vehicleType
+            vehicleType: vehicleType,
+            config: this.config // config 전체를 전달
         });
 
         // 무기 장착 (기본 기관총)
@@ -509,8 +517,8 @@ export default class GameManager {
         this.lastUpdateTime = now;
 
         if (this.gameState === 'playing') {
-            this.updatePlayerTargets();
             this.updateVehicles(deltaTime);
+            this.updatePlayerTargetsAndLockOn(deltaTime);
             this.updateWeapons(deltaTime);
             this.updateEffects(deltaTime);
             this.checkCollisions();
@@ -520,7 +528,27 @@ export default class GameManager {
     }
 
     /**
+     * 플레이어들의 타겟 정보와 락온 상태를 업데이트
+     */
+    updatePlayerTargetsAndLockOn(deltaTime) {
+        for (const player of this.players.values()) {
+            const playerVehicle = this.getPlayerVehicle(player.id);
+            if (!playerVehicle) continue;
+
+            const enemies = Array.from(this.vehicles.values()).filter(v => v.playerId !== player.id && v.active);
+
+            this.targetingSystem.update(
+                player,
+                playerVehicle,
+                enemies,
+                deltaTime
+            );
+        }
+    }
+
+    /**
      * 플레이어들의 타겟 정보를 업데이트
+     * @deprecated 이제 updatePlayerTargetsAndLockOn을 사용합니다.
      */
     updatePlayerTargets() {
         for (const player of this.players.values()) {
@@ -843,24 +871,24 @@ export default class GameManager {
      * 게임 상태 가져오기
      */
     getGameState() {
-        // 플레이어별 무기 정보 수집
-        const weaponsData = [];
-        for (const [playerId] of this.players) {
-            const playerWeapons = this.weaponSystem.getPlayerWeapons(playerId);
-            weaponsData.push({
-                playerId: playerId,
-                weapons: Object.values(playerWeapons)
-            });
-        }
-        
         return {
-            gameState: this.gameState,
-            players: Array.from(this.players.values()),
             vehicles: Array.from(this.vehicles.values()).map(v => v.serialize()),
-            projectiles: this.weaponSystem.getAllProjectiles().map(p => p.serialize()),
-            weapons: weaponsData, // 무기 정보 추가
-            effects: this.effectSystem.serialize(),
+            players: Array.from(this.players.values()).map(p => ({
+                id: p.id,
+                name: p.name,
+                score: p.score,
+                kills: p.kills,
+                deaths: p.deaths,
+                color: p.color,
+                vehicleType: p.vehicleType,
+                awarenessTargetId: p.awarenessTargetId,
+                lockOnTargetId: p.lockOnTargetId,
+                lockOnState: p.lockOnState
+            })),
             billboards: Array.from(this.billboards.values()).map(b => b.serialize()),
+            projectiles: this.weaponSystem.getAllProjectiles().map(p => p.serialize()),
+            effects: this.effectSystem.serialize(),
+            gameState: this.gameState,
             timestamp: Date.now()
         };
     }

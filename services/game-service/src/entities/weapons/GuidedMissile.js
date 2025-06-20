@@ -65,7 +65,8 @@ export class GuidedMissile extends Weapon {
             range: this.range,
             speed: this.speed,
             trackingPower: this.trackingPower,
-            maxTurnRate: this.maxTurnRate
+            maxTurnRate: this.maxTurnRate,
+            config: this.config // 전체 설정을 전달
         });
     }
 

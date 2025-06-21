@@ -55,6 +55,21 @@ world:
   spawnHeight:                       # 스폰 높이 설정
     min: 80                          # 최소 스폰 높이
     max: 120                         # 최대 스폰 높이
+
+# 지형 생성 설정
+terrain:
+  baseHeight: 0                      # 기본 지형 높이
+  noise1Scale: 0.008                 # 노이즈 1 스케일
+  noise1Factor: 25                   # 노이즈 1 강도
+  noise2Scale: 0.015                 # 노이즈 2 스케일
+  noise2Factor: 15                   # 노이즈 2 강도
+  noise3Scale: 0.03                  # 노이즈 3 스케일
+  noise3Factor: 8                    # 노이즈 3 강도
+  noise4Scale: 0.05                  # 노이즈 4 스케일
+  noise4Factor: 4                    # 노이즈 4 강도
+  flatness:                          # 지형 평탄도 검사 설정
+    checkPoints: 8                   # 평탄도 검사 포인트 수
+    maxHeightDiff: 10                # 허용 최대 높이 차이
   
 # 광고판 설정 (파괴 가능한 오브젝트)
 billboards:

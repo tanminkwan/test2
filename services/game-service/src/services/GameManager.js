@@ -6,6 +6,7 @@ import { EffectSystem } from './EffectSystem.js';
 import { VehicleFactory } from './VehicleFactory.js';
 import { PerformanceMonitor } from './PerformanceMonitor.js';
 import { TargetingSystem } from './TargetingSystem.js';
+import { TerrainManager } from './TerrainManager.js';
 
 /**
  * 게임 매니저 클래스 (Dependency Inversion Principle)
@@ -24,13 +25,14 @@ export default class GameManager {
         this.billboards = new Map();
         
         // 시스템들 (Dependency Injection)
+        this.terrainManager = new TerrainManager(this.config);
         this.weaponSystem = new WeaponSystem(this.config);
         this.effectSystem = new EffectSystem(this.eventEmitter);
         this.vehicleFactory = new VehicleFactory(this.config);
         this.performanceMonitor = new PerformanceMonitor(this.config);
         this.targetingSystem = new TargetingSystem(
             this.config, 
-            (x, z) => this.getTerrainHeight(x, z)
+            (x, z) => this.terrainManager.getTerrainHeight(x, z)
         );
         
         // 게임 설정
@@ -79,7 +81,7 @@ export default class GameManager {
                 const x = Math.cos(angle) * distance;
                 const z = Math.sin(angle) * distance;
                 
-                const terrainHeight = this.getTerrainHeight(x, z);
+                const terrainHeight = this.terrainManager.getTerrainHeight(x, z);
                 
                 position = {
                     x: x,
@@ -126,39 +128,14 @@ export default class GameManager {
      * 지형 높이 계산 (클라이언트와 동일한 공식)
      */
     getTerrainHeight(x, z) {
-        const height = 
-            Math.sin(x * 0.008) * 25 +
-            Math.cos(z * 0.008) * 25 +
-            Math.sin(x * 0.015) * 15 +
-            Math.cos(z * 0.015) * 15 +
-            Math.sin(x * 0.03) * 8 +
-            Math.cos(z * 0.03) * 8 +
-            Math.sin(x * 0.05) * 4 +
-            Math.cos(z * 0.05) * 4;
-            
-        return height;
+        return this.terrainManager.getTerrainHeight(x, z);
     }
 
     /**
      * 지형이 평평한지 확인
      */
     isTerrainFlat(x, z, radius) {
-        const centerHeight = this.getTerrainHeight(x, z);
-        const checkPoints = this.config.billboards?.terrainFlatness?.checkPoints || 8;
-        const maxHeightDiff = this.config.billboards?.terrainFlatness?.maxHeightDiff || 10;
-        
-        for (let i = 0; i < checkPoints; i++) {
-            const angle = (i / checkPoints) * Math.PI * 2;
-            const checkX = x + Math.cos(angle) * radius;
-            const checkZ = z + Math.sin(angle) * radius;
-            const checkHeight = this.getTerrainHeight(checkX, checkZ);
-            
-            if (Math.abs(checkHeight - centerHeight) > maxHeightDiff) {
-                return false;
-            }
-        }
-        
-        return true;
+        return this.terrainManager.isTerrainFlat(x, z, radius);
     }
 
     /**
@@ -846,7 +823,7 @@ export default class GameManager {
         }
 
         const victimId = vehicle.playerId;
-        const attackerId = collision.attackerId;
+        const attackerId = collision.ownerId;
 
         // 1. 비행체 비활성화
         vehicle.active = false;

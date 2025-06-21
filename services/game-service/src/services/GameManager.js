@@ -7,6 +7,7 @@ import { VehicleFactory } from './VehicleFactory.js';
 import { PerformanceMonitor } from './PerformanceMonitor.js';
 import { TargetingSystem } from './TargetingSystem.js';
 import { TerrainManager } from './TerrainManager.js';
+import { PlayerManager } from './PlayerManager.js';
 
 /**
  * 게임 매니저 클래스 (Dependency Inversion Principle)
@@ -20,11 +21,11 @@ export default class GameManager {
         
         // 게임 상태
         this.gameState = 'waiting'; // waiting, playing, ended
-        this.players = new Map();
         this.vehicles = new Map();
         this.billboards = new Map();
         
         // 시스템들 (Dependency Injection)
+        this.playerManager = new PlayerManager(config, eventEmitter);
         this.terrainManager = new TerrainManager(this.config);
         this.weaponSystem = new WeaponSystem(this.config);
         this.effectSystem = new EffectSystem(this.eventEmitter);
@@ -168,29 +169,13 @@ export default class GameManager {
      * 플레이어 추가
      */
     addPlayer(playerId, playerName, vehicleType = 'fighter') {
-        if (this.players.size >= this.maxPlayers) {
-            return { success: false, reason: 'Game is full' };
+        const playerResult = this.playerManager.addPlayer(playerId, playerName, vehicleType);
+
+        if (!playerResult.success) {
+            return { success: false, reason: playerResult.reason };
         }
 
-        const color = this.assignColor();
-        if (!color) {
-            return { success: false, reason: 'No available colors' };
-        }
-
-        // 플레이어 생성
-        const player = {
-            id: playerId,
-            name: playerName,
-            score: 0,
-            kills: 0,
-            deaths: 0,
-            color: color,
-            vehicleType: vehicleType,
-            joinedAt: Date.now(),
-            awarenessTargetId: null, // 상황 인식용 타겟 ID
-            lockOnTargetId: null,    // 락온용 타겟 ID (기존 currentTargetId)
-            lockOnState: { isLocked: false, progress: 0 } // 락온 상태 추가
-        };
+        const { player } = playerResult;
 
         // 차량 생성
         const vehicleId = uuidv4();
@@ -198,9 +183,9 @@ export default class GameManager {
         
         // Factory 패턴을 사용하여 비행체 생성
         const vehicle = this.vehicleFactory.createVehicle(vehicleId, playerId, spawnPosition, {
-            color: color,
+            color: player.color,
             vehicleType: vehicleType,
-            config: this.config // config 전체를 전달
+            config: this.config
         });
 
         const vehicleConfig = this.config.vehicles[vehicleType] || this.config.vehicles.fighter;
@@ -210,20 +195,17 @@ export default class GameManager {
             damage: vehicleConfig.bulletDamage,
             speed: vehicleConfig.bulletSpeed,
             range: vehicleConfig.bulletRange,
-            cooldown: 1000 / vehicleConfig.fireRate // 초당 발사 수 -> 쿨다운(ms)
+            cooldown: 1000 / vehicleConfig.fireRate
         });
         
         // 미사일 무기 장착
         this.weaponSystem.equipWeapon(playerId, 'missile', {
             ammo: vehicleConfig.missileCount || 4,
             maxAmmo: vehicleConfig.missileCount || 4,
-            reloadTime: (vehicleConfig.missileReloadTime || 25) * 1000 // 초 -> 밀리초
+            reloadTime: (vehicleConfig.missileReloadTime || 25) * 1000
         });
 
-        this.players.set(playerId, player);
         this.vehicles.set(vehicleId, vehicle);
-
-        console.log(`Player ${playerName} (${playerId}) joined the game with ${vehicleType} vehicle`);
 
         this.checkGameStart();
         this.syncGameState();
@@ -240,11 +222,8 @@ export default class GameManager {
      * 플레이어 제거
      */
     removePlayer(playerId) {
-        const player = this.players.get(playerId);
+        const player = this.playerManager.getPlayer(playerId);
         if (!player) return false;
-
-        // 색상 반환
-        this.returnColor(player.color);
 
         // 플레이어 차량 찾기 및 제거
         for (const [vehicleId, vehicle] of this.vehicles) {
@@ -257,10 +236,8 @@ export default class GameManager {
         // 무기 제거
         this.weaponSystem.removePlayerWeapons(playerId);
 
-        // 플레이어 제거
-        this.players.delete(playerId);
-
-        console.log(`Player ${player.name} (${playerId}) left the game`);
+        // 플레이어 제거 (PlayerManager 위임)
+        this.playerManager.removePlayer(playerId);
 
         this.checkGameEnd();
         this.syncGameState();
@@ -302,7 +279,7 @@ export default class GameManager {
         
         // 미사일 발사 처리
         if (inputs.fireMissile) {
-            const player = this.players.get(playerId);
+            const player = this.playerManager.getPlayer(playerId);
             let targetId = null;
 
             // 락온이 완료된 상태에서만 타겟 ID 설정
@@ -458,7 +435,7 @@ export default class GameManager {
      * 게임 시작 확인
      */
     checkGameStart() {
-        if (this.gameState === 'waiting' && this.players.size >= this.minPlayersToStart) {
+        if (this.gameState === 'waiting' && this.playerManager.getAllPlayers().length >= this.minPlayersToStart) {
             this.startGame();
         }
     }
@@ -468,9 +445,9 @@ export default class GameManager {
      */
     startGame() {
         this.gameState = 'playing';
-        console.log(`Game started with ${this.players.size} players`);
+        console.log(`Game started with ${this.playerManager.getAllPlayers().length} players`);
         this.eventEmitter.emit('gameStarted', {
-            playerCount: this.players.size
+            playerCount: this.playerManager.getAllPlayers().length
         });
     }
 
@@ -478,7 +455,7 @@ export default class GameManager {
      * 게임 종료 확인
      */
     checkGameEnd() {
-        if (this.gameState === 'playing' && this.players.size < this.minPlayersToStart) {
+        if (this.gameState === 'playing' && this.playerManager.getAllPlayers().length < this.minPlayersToStart) {
             this.endGame();
         }
     }
@@ -524,7 +501,7 @@ export default class GameManager {
      * 플레이어들의 타겟 정보와 락온 상태를 업데이트
      */
     updatePlayerTargetsAndLockOn(deltaTime) {
-        for (const player of this.players.values()) {
+        for (const player of this.playerManager.getAllPlayers()) {
             const playerVehicle = this.getPlayerVehicle(player.id);
             if (!playerVehicle) continue;
 
@@ -544,9 +521,11 @@ export default class GameManager {
      * @deprecated 이제 updatePlayerTargetsAndLockOn을 사용합니다.
      */
     updatePlayerTargets() {
-        for (const player of this.players.values()) {
+        for (const player of this.playerManager.getAllPlayers()) {
             const target = this.findNearestTarget(player.id);
-            player.currentTargetId = target ? target.id : null;
+            if (player) { // player가 null이 아닌지 확인
+                player.currentTargetId = target ? target.id : null;
+            }
         }
     }
 
@@ -763,14 +742,14 @@ export default class GameManager {
         this.billboards.delete(billboard.id);
 
         // 플레이어 사망 처리
-        const player = this.players.get(billboard.playerId);
+        const player = this.playerManager.getPlayer(billboard.playerId);
         if (player) {
             player.deaths++;
         }
 
         // 킬 점수 처리 (발사체 소유자)
         if (collision.ownerId && collision.ownerId !== billboard.playerId) {
-            const killer = this.players.get(collision.ownerId);
+            const killer = this.playerManager.getPlayer(collision.ownerId);
             if (killer) {
                 killer.kills++;
                 // config에서 킬 보상 점수 가져오기
@@ -805,7 +784,10 @@ export default class GameManager {
             explosionIntensity
         );
 
-        // 리스폰 타이머 설정
+        // 4. 점수 및 통계 업데이트
+        this.playerManager.updatePlayerStats(billboard.playerId, collision.ownerId);
+
+        // 5. 리스폰 타이머 설정
         const respawnTime = this.config.game.respawnTime;
         setTimeout(() => {
             this.respawnVehicle(billboard);
@@ -851,20 +833,7 @@ export default class GameManager {
         );
 
         // 4. 점수 및 통계 업데이트
-        const victimPlayer = this.players.get(victimId);
-        if (victimPlayer) {
-            victimPlayer.deaths += 1;
-            console.log(`Player ${victimPlayer.name} destroyed.`);
-        }
-
-        if (attackerId && attackerId !== victimId) {
-            const attackerPlayer = this.players.get(attackerId);
-            if (attackerPlayer) {
-                attackerPlayer.kills += 1;
-                attackerPlayer.score += this.config.scoring.killReward || 100;
-                console.log(`Player ${attackerPlayer.name} got a kill.`);
-            }
-        }
+        this.playerManager.updatePlayerStats(victimId, attackerId);
 
         // 5. 리스폰 타이머 설정
         const respawnTime = this.config.game.respawnTime || 5000;
@@ -907,7 +876,7 @@ export default class GameManager {
     getGameState() {
         return {
             vehicles: Array.from(this.vehicles.values()).filter(v => v.active).map(v => v.serialize()),
-            players: Array.from(this.players.values()).map(p => {
+            players: this.playerManager.getAllPlayers().map(p => {
                 return {
                     id: p.id,
                     name: p.name,

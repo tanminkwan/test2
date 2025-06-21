@@ -263,6 +263,12 @@ export class GameClient {
                 this.uiManager.showGameEvent('vehicleRespawned', data);
             },
             
+            onPlayerNotification: (data) => {
+                if (data.playerId === this.myPlayer.id) {
+                    this.uiManager.showNotification(data.message);
+                }
+            },
+            
             onGameStarted: (data) => {
                 this.uiManager.showGameEvent('gameStarted', data);
             },

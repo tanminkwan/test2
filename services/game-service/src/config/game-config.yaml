@@ -45,11 +45,11 @@ network:
 # 선물 상자 설정
 giftBoxes:
   enabled: true
-  count: 20
+  count: 5
   health: 10
   size: 5
   rewards:
-    score: 50
+    score: 20
     missiles: 2
   spawnOptions:
     minHeight: 80

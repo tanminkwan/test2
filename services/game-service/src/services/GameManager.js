@@ -241,10 +241,10 @@ export default class GameManager {
         const { explosionRadius, explosionDuration, explosionIntensity } = this.config.giftBoxes.destruction;
         this.effectSystem.createExplosion(giftBox.position, explosionRadius, explosionDuration, explosionIntensity);
 
-        // 2. 보상 지급 (현재는 비활성화)
-        // const rewards = this.config.giftBoxes.rewards;
-        // this.weaponSystem.addMissileAmmo(ownerId, rewards.missiles);
-        // this.playerManager.addScore(ownerId, rewards.score);
+        // 2. 보상 지급
+        const rewards = this.config.giftBoxes.rewards;
+        this.weaponSystem.addMissileAmmo(ownerId, rewards.missiles);
+        this.playerManager.addScore(ownerId, rewards.score);
 
         // 3. 파괴 이벤트 전송 (클라이언트에서 모델 제거용)
         this.eventEmitter.emit('giftBoxDestroyed', {
@@ -255,14 +255,14 @@ export default class GameManager {
         // 4. 기존 상자 제거 및 새 상자 스폰
         this.giftBoxManager.destroyAndRespawn(giftBox.id);
 
-        // 5. 파괴한 플레이어에게 알림 (현재는 비활성화)
-        // const player = this.playerManager.getPlayer(ownerId);
-        // if(player) {
-        //     this.eventEmitter.emit('playerNotification', {
-        //         playerId: ownerId,
-        //         message: `선물 상자 파괴!`
-        //     });
-        // }
+        // 5. 파괴한 플레이어에게 알림
+        const player = this.playerManager.getPlayer(ownerId);
+        if(player) {
+            this.eventEmitter.emit('playerNotification', {
+                playerId: ownerId,
+                message: `선물 상자 파괴! 미사일 +${rewards.missiles}, 점수 +${rewards.score}`
+            });
+        }
     }
 
     handleVehicleDestroyed(vehicle, collision) {

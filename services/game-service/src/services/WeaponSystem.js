@@ -285,4 +285,17 @@ export class WeaponSystem {
             projectileCount: this.projectiles.size
         };
     }
+
+    /**
+     * 특정 플레이어에게 미사일 탄약을 추가합니다.
+     * @param {string} playerId 
+     * @param {number} count 
+     */
+    addMissileAmmo(playerId, count) {
+        const playerWeapons = this.weapons.get(playerId);
+        const missileWeapon = playerWeapons?.get('missile');
+        if (missileWeapon) {
+            missileWeapon.ammo = Math.min(missileWeapon.maxAmmo, missileWeapon.ammo + count);
+        }
+    }
 } 

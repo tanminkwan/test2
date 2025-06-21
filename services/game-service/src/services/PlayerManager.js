@@ -119,4 +119,16 @@ export class PlayerManager {
     returnColor(color) {
         this.usedColors.delete(color);
     }
+
+    /**
+     * 특정 플레이어에게 점수를 추가합니다.
+     * @param {string} playerId 
+     * @param {number} scoreToAdd 
+     */
+    addScore(playerId, scoreToAdd) {
+        const player = this.players.get(playerId);
+        if (player) {
+            player.score += scoreToAdd;
+        }
+    }
 } 

@@ -156,6 +156,11 @@ export default class Vehicle extends GameEntity {
         // 수직 이동 (상승/하강)
         this.velocity.y += this.inputs.vertical * this.acceleration * 0.5 * deltaTime;
         
+        // 중력 적용
+        if (this.config && this.config.world && typeof this.config.world.gravity === 'number') {
+            this.velocity.y += this.config.world.gravity * deltaTime;
+        }
+        
         // 공기 저항 적용
         this.velocity.multiplyScalar(this.airResistance);
         

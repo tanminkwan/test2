@@ -47,7 +47,7 @@ world:
   terrainDetail: 100                 # 지형 세부도 (높을수록 더 세밀한 지형)
   waterLevel: -5                     # 물 높이 (Y축 좌표)
   maxHeight: 200                     # 최대 비행 높이 (맵 경계)
-  gravity: -7.81                     # 중력 가속도 (m/s²)
+  gravity: 0                     # 중력 가속도 (m/s²)
   boundaryBuffer: 10                 # 맵 경계에서 여유 공간 (충돌 방지)
   spawnDistance:                     # 스폰 위치 설정
     min: 50                          # 맵 중심에서 최소 거리

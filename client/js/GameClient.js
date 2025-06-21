@@ -633,12 +633,13 @@ export class GameClient {
         
         const myPlayerData = this.latestGameState.players.find(p => p.id === this.myPlayer.id);
         
-        if (myPlayerData && myPlayerData.currentTargetId) {
-            const targetVehicle = this.vehicles.get(myPlayerData.currentTargetId);
-            this.uiManager.updateTargetBox(targetVehicle, this.camera, this.renderer.domElement, this.myVehicle);
-        } else {
-            // 타겟이 없을 경우
-            this.uiManager.updateTargetBox(null, this.camera, this.renderer.domElement, this.myVehicle);
+        if (myPlayerData) {
+            this.uiManager.updateTargetingIndicators(
+                myPlayerData, 
+                this.vehicles, 
+                this.camera, 
+                this.renderer.domElement
+            );
         }
     }
 

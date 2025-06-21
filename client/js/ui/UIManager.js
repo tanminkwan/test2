@@ -15,8 +15,12 @@ export class UIManager {
             healthFill: null,
             players: null,
             gameStatus: null,
-            targetBox: null
+            targetBox: null,
+            targetingContainer: null
         };
+        
+        // 타겟 박스 캐시
+        this.targetBoxes = new Map();
         
         // 플레이어 데이터
         this.myPlayer = null;
@@ -34,6 +38,16 @@ export class UIManager {
         this.elements.players = document.getElementById('players');
         this.elements.gameStatus = document.getElementById('gameStatus');
         this.elements.targetBox = document.getElementById('targetBox');
+        
+        // 새로운 타겟팅 컨테이너 생성 및 추가
+        this.elements.targetingContainer = document.createElement('div');
+        this.elements.targetingContainer.id = 'targetingContainer';
+        document.body.appendChild(this.elements.targetingContainer);
+        
+        // 기존 targetBox는 숨김 처리 (이제 사용 안 함)
+        if (this.elements.targetBox) {
+            this.elements.targetBox.style.display = 'none';
+        }
         
         // 요소가 없으면 경고
         Object.keys(this.elements).forEach(key => {
@@ -162,61 +176,104 @@ export class UIManager {
     }
     
     /**
-     * 타겟팅 박스 UI 업데이트
-     * @param {THREE.Object3D} targetVehicle - 타겟 차량 3D 객체
+     * 타겟팅 UI 업데이트 (기존 updateTargetBox 대체)
+     * @param {object} myPlayerData - 현재 플레이어의 최신 데이터 (락온 정보 포함)
+     * @param {Map<string, THREE.Object3D>} vehicles - 모든 비행체 맵
      * @param {THREE.Camera} camera - 씬 카메라
-     * @param {HTMLElement} rendererDomElement - 렌더러의 DOM 요소
-     * @param {THREE.Object3D} myVehicle - 현재 플레이어의 차량 3D 객체
+     * @param {HTMLElement} rendererDomElement - 렌더러 DOM 요소
      */
-    updateTargetBox(targetVehicle, camera, rendererDomElement, myVehicle) {
-        if (!this.elements.targetBox) return;
+    updateTargetingIndicators(myPlayerData, vehicles, camera, rendererDomElement) {
+        if (!myPlayerData || !this.elements.targetingContainer) return;
 
-        // 타겟이 없거나, 타겟이 비활성 상태이거나, 씬에서 제거된 경우 숨김
+        const visibleTargets = new Set();
+        
+        // 1. 락온 타겟 처리
+        if (myPlayerData.lockOnTargetId) {
+            const targetVehicle = vehicles.get(myPlayerData.lockOnTargetId);
+            if (targetVehicle) {
+                const lockOnState = myPlayerData.lockOnState || { isLocked: false, progress: 0 };
+                let style = 'lock-on-progress'; // 노란 점선 (기본)
+                if (lockOnState.isLocked) {
+                    style = 'locked-on'; // 노란 실선
+                }
+                this.drawTargetBox(targetVehicle, style, camera, rendererDomElement);
+                visibleTargets.add(myPlayerData.lockOnTargetId);
+            }
+        }
+        
+        // 2. 인식 타겟 처리 (락온 타겟과 다를 경우)
+        if (myPlayerData.awarenessTargetId && myPlayerData.awarenessTargetId !== myPlayerData.lockOnTargetId) {
+            const targetVehicle = vehicles.get(myPlayerData.awarenessTargetId);
+            if (targetVehicle) {
+                this.drawTargetBox(targetVehicle, 'awareness', camera, rendererDomElement);
+                visibleTargets.add(myPlayerData.awarenessTargetId);
+            }
+        }
+        
+        // 3. 화면에서 사라진 타겟 박스 제거
+        for (const [targetId, boxElement] of this.targetBoxes.entries()) {
+            if (!visibleTargets.has(targetId)) {
+                boxElement.remove();
+                this.targetBoxes.delete(targetId);
+            }
+        }
+    }
+
+    /**
+     * 개별 타겟 박스를 그리거나 업데이트하는 함수
+     * @param {THREE.Object3D} targetVehicle - 타겟 차량 객체
+     * @param {string} style - 'awareness', 'lock-on-progress', 'locked-on'
+     * @param {THREE.Camera} camera
+     * @param {HTMLElement} rendererDomElement
+     */
+    drawTargetBox(targetVehicle, style, camera, rendererDomElement) {
         if (!targetVehicle || !targetVehicle.userData.vehicleData?.active || !targetVehicle.parent) {
-            this.elements.targetBox.style.display = 'none';
             return;
         }
+
+        const targetId = targetVehicle.userData.vehicleData.id;
+        let box = this.targetBoxes.get(targetId);
+
+        // 박스가 없으면 새로 생성
+        if (!box) {
+            box = document.createElement('div');
+            box.className = 'target-box';
+            this.elements.targetingContainer.appendChild(box);
+            this.targetBoxes.set(targetId, box);
+        }
+        
+        // 스타일 클래스 업데이트
+        box.className = `target-box ${style}`;
 
         const targetPosition = new THREE.Vector3();
         targetVehicle.getWorldPosition(targetPosition);
 
-        // 카메라 뒤에 있는지 확인
         const cameraDirection = new THREE.Vector3();
         camera.getWorldDirection(cameraDirection);
         const vectorToTarget = new THREE.Vector3().subVectors(targetPosition, camera.position);
         
         if (vectorToTarget.dot(cameraDirection) < 0) {
-            this.elements.targetBox.style.display = 'none';
+            box.style.display = 'none';
             return;
         }
         
-        // 3D 좌표를 2D 화면 좌표로 변환
         const screenPosition = targetPosition.clone().project(camera);
-
         const width = rendererDomElement.clientWidth;
         const height = rendererDomElement.clientHeight;
-
         const x = (screenPosition.x * 0.5 + 0.5) * width;
         const y = (-screenPosition.y * 0.5 + 0.5) * height;
 
-        // 화면 밖에 있는지 확인
         if (x < -100 || x > width + 100 || y < -100 || y > height + 100) {
-            this.elements.targetBox.style.display = 'none';
+            box.style.display = 'none';
             return;
         }
-
-        // 박스 스타일 업데이트
-        this.elements.targetBox.style.display = 'block';
-        this.elements.targetBox.style.left = `${x}px`;
-        this.elements.targetBox.style.top = `${y}px`;
         
-        // 추가 정보 표시 (거리 등) - 내 비행기 위치 기준으로 계산
-        if (myVehicle) {
-            const distance = myVehicle.position.distanceTo(targetPosition).toFixed(0);
-            this.elements.targetBox.textContent = `${distance}m`;
-        } else {
-            this.elements.targetBox.textContent = ``; // 내 비행기가 없으면 거리 표시 안함
-        }
+        box.style.display = 'block';
+        box.style.left = `${x}px`;
+        box.style.top = `${y}px`;
+        
+        const distance = camera.position.distanceTo(targetPosition).toFixed(0);
+        box.textContent = `${distance}m`;
     }
     
     /**

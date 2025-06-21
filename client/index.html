@@ -380,17 +380,40 @@
         
         .target-box {
             position: absolute;
-            border: 2px solid #00ff00;
-            border-radius: 5px;
-            color: #00ff00;
-            background-color: rgba(0, 255, 0, 0.1);
-            padding: 5px 10px;
-            font-size: 14px;
-            font-weight: bold;
-            transform: translate(-50%, -50%); /* 중앙 정렬 */
-            pointer-events: none;
-            display: none; /* 기본적으로 숨김 */
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
+            width: 60px;
+            height: 60px;
+            border: 2px solid green;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 12px;
+            text-align: center;
+            line-height: 60px;
+            text-shadow: 1px 1px 2px black;
+            transition: all 0.1s linear;
+        }
+        
+        /* 인식 타겟 (기본) */
+        .target-box.awareness {
+            border-color: #0f0; /* 밝은 녹색 */
+        }
+        
+        /* 락온 진행 중 */
+        .target-box.lock-on-progress {
+            border-color: yellow;
+            border-style: dashed;
+            animation: blink 0.8s infinite;
+        }
+        
+        /* 락온 완료 */
+        .target-box.locked-on {
+            border-color: yellow;
+            border-style: solid;
+        }
+        
+        @keyframes blink {
+            0% { opacity: 1; }
+            50% { opacity: 0.3; }
+            100% { opacity: 1; }
         }
         
         /* 메시지 */

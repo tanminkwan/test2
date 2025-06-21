@@ -60,6 +60,13 @@ export class UIManager {
     updatePlayerInfo(myVehicle) {
         if (!this.elements.playerInfo || !this.myPlayer) return;
         
+        // 데이터 출처를 myPlayer로 통일 (가장 신뢰성 높은 소스)
+        const weapons = this.myPlayer.weapons || {};
+        const missileWeapon = weapons.missile; // 'missile' 키로 직접 접근
+        
+        const missileAmmo = missileWeapon?.ammo ?? 0;
+        const missileMaxAmmo = missileWeapon?.maxAmmo ?? 0;
+
         if (myVehicle && myVehicle.userData.vehicleData) {
             const vehicleData = myVehicle.userData.vehicleData;
             this.elements.playerInfo.innerHTML = `
@@ -68,7 +75,7 @@ export class UIManager {
                 <p><strong>킬:</strong> ${this.myPlayer.kills || 0}</p>
                 <p><strong>데스:</strong> ${this.myPlayer.deaths || 0}</p>
                 <p><strong>체력:</strong> ${vehicleData.health}/${vehicleData.maxHealth}</p>
-                <p><strong>미사일:</strong> ${vehicleData.weapons?.missile?.ammo || 0}/${vehicleData.weapons?.missile?.maxAmmo || 0}</p>
+                <p><strong>미사일:</strong> ${missileAmmo}/${missileMaxAmmo}</p>
             `;
             
             // 체력바 업데이트
@@ -84,7 +91,7 @@ export class UIManager {
                 <p><strong>킬:</strong> ${this.myPlayer.kills || 0}</p>
                 <p><strong>데스:</strong> ${this.myPlayer.deaths || 0}</p>
                 <p><strong>체력:</strong> 대기 중...</p>
-                <p><strong>미사일:</strong> 대기 중...</p>
+                <p><strong>미사일:</strong> ${missileAmmo}/${missileMaxAmmo}</p>
             `;
             
             if (this.elements.healthFill) {

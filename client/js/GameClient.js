@@ -1040,33 +1040,6 @@ export class GameClient {
             });
         }
         
-        // 무기 정보 업데이트
-        if (gameState.weapons && this.myPlayer) {
-            const playerWeapons = gameState.weapons.find(w => w.playerId === this.myPlayer.id);
-            if (playerWeapons && playerWeapons.weapons) {
-                // 내 비행체 찾기
-                if (this.myVehicle && this.myVehicle.userData.vehicleData) {
-                    // 무기 정보 추가
-                    if (!this.myVehicle.userData.vehicleData.weapons) {
-                        this.myVehicle.userData.vehicleData.weapons = {};
-                    }
-                    
-                    // 미사일 정보 업데이트
-                    const missileWeapon = playerWeapons.weapons.find(w => w.weaponType === 'guidedmissile');
-                    if (missileWeapon) {
-                        this.myVehicle.userData.vehicleData.weapons.missile = {
-                            ammo: missileWeapon.ammo || 0,
-                            maxAmmo: missileWeapon.maxAmmo || 0,
-                            reloadProgress: missileWeapon.reloadProgress || 0
-                        };
-                    }
-                    
-                    // UI 갱신
-                    this.updatePlayerInfo();
-                }
-            }
-        }
-        
         // 플레이어 정보 업데이트
         if (gameState.players) {
             // gameData에 플레이어 정보 저장 (플레이어 목록에서 사용)
@@ -1080,8 +1053,6 @@ export class GameClient {
                 this.myPlayer = myPlayerData;
                 // UIManager에 플레이어 데이터 업데이트 알림
                 this.uiManager.updateMyPlayer(myPlayerData);
-                // 플레이어 정보 UI 갱신
-                this.updatePlayerInfo();
             }
         }
         

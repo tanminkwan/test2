@@ -1,0 +1,6 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+code 수정할 때는 항상 side effect 가 발생하지 않도록 한다

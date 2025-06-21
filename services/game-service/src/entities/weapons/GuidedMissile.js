@@ -1,5 +1,7 @@
 import { Weapon } from './Weapon.js';
 import Missile from '../Missile.js';
+import * as THREE from 'three';
+import { v4 as uuidv4 } from 'uuid';
 
 /**
  * 유도 미사일 클래스
@@ -82,5 +84,66 @@ export class GuidedMissile extends Weapon {
             maxAmmo: this.maxAmmo,
             reloadProgress: Math.min(1, (Date.now() - this.lastReloadTime) / this.reloadTime)
         };
+    }
+
+    /**
+     * 무기 발사
+     */
+    fire(position, rotation, vehicles, targetId = null) {
+        if (!this.canFire()) return null;
+
+        let initialVelocity;
+        const weaponConfig = this.config.weapons.missile || {};
+        const speed = weaponConfig.speed || 150;
+
+        // 타겟이 있으면 타겟 방향으로, 없으면 정면으로 발사
+        if (targetId && vehicles) {
+            const target = vehicles.get(targetId);
+            const shooterVehicle = vehicles.get(this.getVehicleIdByPlayerId(vehicles));
+
+            if (target && shooterVehicle) {
+                initialVelocity = new THREE.Vector3()
+                    .subVectors(target.position, shooterVehicle.position)
+                    .normalize()
+                    .multiplyScalar(speed);
+            }
+        }
+        
+        // initialVelocity가 계산되지 않은 경우 (타겟이 없거나 못 찾았을 때)
+        if (!initialVelocity) {
+            const quaternion = new THREE.Quaternion().setFromEuler(new THREE.Euler(
+                rotation.x, rotation.y, rotation.z, 'YXZ'
+            ));
+            initialVelocity = new THREE.Vector3(0, 0, 1);
+            initialVelocity.applyQuaternion(quaternion).multiplyScalar(speed);
+        }
+
+        const missile = new Missile(
+            `missile_${uuidv4()}`,
+            this.ownerId,
+            position,
+            initialVelocity,
+            targetId,
+            { config: this.config }
+        );
+        
+        this.lastFired = Date.now();
+        this.ammo--;
+
+        return missile;
+    }
+
+    /**
+     * Player ID로 Vehicle ID를 찾는 헬퍼 함수
+     * @param {Map<string, Vehicle>} vehicles 
+     * @returns {string|null}
+     */
+    getVehicleIdByPlayerId(vehicles) {
+        for (const [vehicleId, vehicle] of vehicles.entries()) {
+            if (vehicle.playerId === this.ownerId) {
+                return vehicleId;
+            }
+        }
+        return null;
     }
 } 

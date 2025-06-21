@@ -1,5 +1,8 @@
 import { MachineGun } from '../entities/weapons/MachineGun.js';
 import { GuidedMissile } from '../entities/weapons/GuidedMissile.js';
+import * as THREE from 'three';
+import { v4 as uuidv4 } from 'uuid';
+import Projectile from '../entities/Projectile.js';
 
 /**
  * 무기 시스템 서비스 (Single Responsibility Principle)
@@ -52,7 +55,7 @@ export class WeaponSystem {
     /**
      * 무기 발사
      */
-    fireWeapon(playerId, weaponType, position, rotation, targetId = null) {
+    fireWeapon(playerId, weaponType, position, rotation, vehicles, targetId = null) {
         const playerWeapons = this.weapons.get(playerId);
         if (!playerWeapons) {
             return null;
@@ -62,8 +65,11 @@ export class WeaponSystem {
         if (!weapon) {
             return null;
         }
+        
+        // 무기 클래스가 발사체를 생성하고 초기 속도를 계산하도록 모든 정보를 전달합니다.
+        // WeaponSystem은 더 이상 속도 계산 로직을 갖지 않습니다.
+        const projectile = weapon.fire(position, rotation, vehicles, targetId);
 
-        const projectile = weapon.fire(position, rotation, targetId);
         if (projectile) {
             this.projectiles.set(projectile.id, projectile);
             

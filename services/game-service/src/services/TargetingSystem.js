@@ -35,30 +35,44 @@ export class TargetingSystem {
         player.awarenessTargetId = awarenessTarget ? awarenessTarget.id : null;
 
         // 2. 락온 타겟(노란색 박스) 유효성 검사 및 업데이트
-        let lockOnTarget = enemies.find(e => e.id === player.lockOnTargetId);
+        let currentLockOnTarget = enemies.find(e => e.id === player.lockOnTargetId);
 
-        // 현재 락온 타겟이 유효하지 않은 경우, 상황 인식 타겟을 락온 타겟 후보로 설정
-        if (!lockOnTarget || !this.isTargetValidForLockOn(vehicle, lockOnTarget, enemies)) {
-            lockOnTarget = null; // 기존 락온 타겟 해제
-            // 상황인식 타겟이 락온 가능한지 체크
-            if (awarenessTarget && this.isTargetValidForLockOn(vehicle, awarenessTarget, enemies)) {
-                lockOnTarget = awarenessTarget;
+        // 이미 락온이 완료된 타겟이 있다면, 좀 더 관대한 조건으로 유효성 검사
+        if (currentLockOnTarget && player.lockOnState?.isLocked) {
+            if (!this.isLockedTargetStillValid(vehicle, currentLockOnTarget)) {
+                // 관대한 조건마저 만족 못하면 락온 해제
+                currentLockOnTarget = null;
+            }
+        } 
+        // 새로운 타겟을 찾거나, 기존 타겟의 락온을 진행하는 경우
+        else {
+            // 현재 락온 타겟이 유효하지 않은 경우, 상황 인식 타겟을 락온 타겟 후보로 설정
+            if (!currentLockOnTarget || !this.isTargetValidForLockOn(vehicle, currentLockOnTarget, enemies)) {
+                currentLockOnTarget = null; // 기존 락온 타겟 해제
+                // 상황인식 타겟이 락온 가능한지 체크
+                if (awarenessTarget && this.isTargetValidForLockOn(vehicle, awarenessTarget, enemies)) {
+                    currentLockOnTarget = awarenessTarget;
+                }
             }
         }
-        player.lockOnTargetId = lockOnTarget ? lockOnTarget.id : null;
+        
+        player.lockOnTargetId = currentLockOnTarget ? currentLockOnTarget.id : null;
         
         // 3. 락온 진행도 업데이트
-        this.updateLockOnProgress(player, lockOnTarget, deltaTime);
+        this.updateLockOnProgress(player, currentLockOnTarget, vehicle, enemies, deltaTime);
     }
 
     /**
      * 플레이어의 락온 진행 상태를 업데이트합니다.
      * @param {object} player 
      * @param {Vehicle | null} target 
+     * @param {Vehicle} vehicle 
+     * @param {Array<Vehicle>} enemies 
      * @param {number} deltaTime 
      */
-    updateLockOnProgress(player, target, deltaTime) {
-        if (!target) {
+    updateLockOnProgress(player, target, vehicle, enemies, deltaTime) {
+        // 타겟이 없거나, 유효하지 않으면 락온 리셋
+        if (!target || !this.isTargetValidForLockOn(vehicle, target, enemies)) {
             this.resetLockOn(player);
             return;
         }
@@ -133,7 +147,16 @@ export class TargetingSystem {
      * @returns {number} 각도 (degrees)
      */
     getAngleToTarget(vehicle, target) {
-        const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(vehicle.mesh.quaternion);
+        // vehicle.rotation (Euler)을 사용하여 정면 벡터 계산
+        const forward = new THREE.Vector3(0, 0, 1); // Z+ 방향을 정면으로 가정
+        const quaternion = new THREE.Quaternion().setFromEuler(new THREE.Euler(
+            vehicle.rotation.x,
+            vehicle.rotation.y,
+            vehicle.rotation.z,
+            'YXZ' // 회전 순서 중요
+        ));
+        forward.applyQuaternion(quaternion);
+
         const toTarget = new THREE.Vector3().subVectors(target.position, vehicle.position).normalize();
         return forward.angleTo(toTarget) * (180 / Math.PI);
     }
@@ -214,5 +237,29 @@ export class TargetingSystem {
         }
         player.lockOnState.isLocked = false;
         player.lockOnState.progress = 0;
+    }
+
+    /**
+     * 이미 락온된 타겟이 여전히 유효한지 관대한 기준으로 확인합니다.
+     * @param {Vehicle} vehicle 
+     * @param {Vehicle} target 
+     * @returns {boolean}
+     */
+    isLockedTargetStillValid(vehicle, target) {
+        if (!target || !target.active) return false;
+
+        const distance = vehicle.position.distanceTo(target.position);
+        // 최대 거리 + 10% 여유
+        if (distance > this.maxDistance * 1.1) return false;
+
+        const angle = this.getAngleToTarget(vehicle, target);
+        // 최대 각도 + 5도 여유
+        if (angle > this.maxAngle + 5) return false;
+
+        // 장애물 검사는 이 단계에서는 생략하여 순간적인 끊김을 방지할 수 있습니다.
+        // 또는, 더 적은 빈도로 검사하는 로직을 추가할 수도 있습니다.
+        // 여기서는 일단 생략하여 안정성을 높입니다.
+
+        return true;
     }
 } 

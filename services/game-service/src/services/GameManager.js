@@ -301,7 +301,8 @@ export default class GameManager {
                 playerId, 
                 'machinegun', 
                 vehicle.position, 
-                vehicle.rotation
+                vehicle.rotation,
+                this.vehicles
             );
 
             if (projectile) {
@@ -318,15 +319,24 @@ export default class GameManager {
         
         // 미사일 발사 처리
         if (inputs.fireMissile) {
-            // 가장 가까운 적을 자동으로 타겟팅
-            const target = this.findNearestTarget(playerId);
-            const targetId = target ? target.id : null;
+            const player = this.players.get(playerId);
+            let targetId = null;
+
+            // 락온이 완료된 상태에서만 타겟 ID 설정
+            if (player && player.lockOnState?.isLocked && player.lockOnTargetId) {
+                targetId = player.lockOnTargetId;
+            } else {
+                // 락온되지 않은 경우, 미사일 발사 실패 처리 (또는 비유도 발사)
+                console.log(`Player ${playerId} tried to fire missile without lock-on.`);
+                return; // 락온 없이는 발사되지 않음
+            }
             
             const missile = this.weaponSystem.fireWeapon(
                 playerId, 
                 'missile', 
                 vehicle.position, 
                 vehicle.rotation,
+                this.vehicles,
                 targetId
             );
 

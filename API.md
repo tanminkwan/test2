@@ -386,211 +386,120 @@ Authorization: Bearer <jwt_token>
 
 ## 🎮 Game Service API
 
-**Base URL**: `http://localhost:3001/api/`  
-**Direct Port**: 3001
+**Base URL**: `http://localhost/`  
+**Port**: 3001 (nginx를 통해 라우팅)
 
-### 게임 상태 API (인증 불필요)
+### 상태 확인 API (인증 불필요)
 
 #### GET /api/status
-게임 서버 상태 조회
-
-**Request:**
-```http
-GET /api/status
-```
+Game Service의 현재 상태와 연결된 플레이어 수를 반환합니다.
 
 **Response (200):**
 ```json
 {
   "success": true,
   "data": {
-    "status": "running",
-    "uptime": 3600,
-    "version": "4.0.0",
-    "players": {
-      "online": 15,
-      "inGame": 12
-    }
+    "status": "ok",
+    "players": 5,
+    "uptime": "1h 23m 45s"
   }
 }
 ```
 
-## 🔫 WebSocket 이벤트
+---
 
-**Connection URL**: `ws://localhost/socket.io/`  
-**Authentication**: JWT Token in `auth.token`
+## 🛰️ WebSocket 이벤트
 
-### 연결 과정
-클라이언트는 `io()` 함수를 호출할 때 `auth` 객체에 유효한 JWT 토큰을 포함하여 연결을 시도합니다. 서버는 연결 시 토큰을 검증하고, 유효한 경우에만 연결을 수락합니다.
+Game Service는 Socket.IO를 사용하여 실시간 통신을 처리합니다. 클라이언트는 인증된 JWT 토큰을 사용하여 WebSocket에 연결해야 합니다.
+
+### 연결 엔드포인트
+- `http://localhost/` (nginx를 통해 Game Service로 라우팅)
+
+### 인증
+
+연결 시 `auth` 객체에 JWT 토큰을 포함하여 전송해야 합니다.
 
 ```javascript
-const socket = io('ws://your-server-address', {
+const socket = io("http://localhost/", {
   auth: {
-    token: 'your_jwt_token_here'
+    token: "your-jwt-token"
   }
 });
 ```
 
-### 클라이언트 → 서버 이벤트
+### 서버 -> 클라이언트 이벤트
 
-#### `join-game`
-플레이어가 게임에 참여하고 자신의 비행체 종류를 선택합니다.
+서버가 클라이언트에게 보내는 주요 이벤트입니다.
 
-**Payload:**
-```json
-{
-  "name": "PlayerName",
-  "vehicleType": "fighter" 
-}
-```
-- `name`: 플레이어 이름 (선택 사항).
-- `vehicleType`: 'fighter', 'heavy', 'test' 등 `game-config.yaml`에 정의된 비행체 타입.
+| 이벤트 | 데이터 | 설명 |
+|---|---|---|
+| `connect` | - | WebSocket 연결 성공 |
+| `disconnect` | `reason` (string) | 연결 종료 (예: `io server disconnect`) |
+| `error` | `error` (object) | 에러 발생 (예: 인증 실패) |
+| `player:list` | `players` (array) | 현재 게임에 참여 중인 모든 플레이어 목록 |
+| `player:joined` | `player` (object) | 새로운 플레이어 접속 |
+| `player:left` | `playerId` (string) | 플레이어 퇴장 |
+| `player:update` | `updateData` (object) | 특정 플레이어의 상태(위치, 체력, 점수 등) 업데이트 |
+| `player:respawn`| `player` (object) | 플레이어 부활 |
+| `bullet:spawn` | `bullet` (object) | 새로운 총알 생성 |
+| `missile:spawn`| `missile` (object) | 새로운 미사일 생성 |
+| `object:destroyed` | `objectId` (string) | 파괴된 오브젝트(예: 광고판) ID |
+| `giftbox:spawn` | `giftBox` (object) | 새로운 선물 상자 생성 |
+| `giftbox:collected` | `data` (object) | 플레이어가 선물 상자 획득 (`{ collectorId, giftBoxId }`) |
 
----
+### 클라이언트 -> 서버 이벤트
 
-#### `player-input`
-플레이어의 조작 및 액션 입력을 서버로 전송합니다. 이 이벤트는 클라이언트의 렌더링 루프(예: `requestAnimationFrame`)에 맞춰 지속적으로 발생합니다.
+클라이언트가 서버에게 보내는 주요 이벤트입니다.
 
-**Payload:**
-```json
-{
-  "keys": { "w": true, "s": false, "a": false, "d": false, ... },
-  "fire": false,
-  "fireMissile": false
-}
-```
-- `keys`: 키보드 입력 상태.
-- `fire`: `true`일 경우 기관총을 발사합니다.
-- `fireMissile`: `true`일 경우 미사일을 발사합니다.
-
----
-
-#### `disconnect`
-클라이언트의 연결이 끊어질 때 자동으로 발생하는 이벤트입니다. 서버는 이 이벤트를 감지하여 해당 플레이어를 게임에서 제거합니다.
-
-**Payload:** (없음)
-
----
-
-### 서버 → 클라이언트 이벤트
-
-#### `gameStateUpdate`
-서버가 현재 게임의 모든 상태를 담아 클라이언트로 브로드캐스트하는 핵심 이벤트입니다. 클라이언트는 이 데이터를 받아 화면을 렌더링합니다.
-
-**Payload:**
-```json
-{
-  "vehicles": [ /* Vehicle 객체 배열 */ ],
-  "players": [ /* Player 객체 배열 */ ],
-  "billboards": [ /* Billboard 객체 배열 */ ],
-  "projectiles": [ /* Projectile 객체 배열 */ ],
-  "effects": { /* 활성화된 Effect 정보 */ },
-  "gameState": "playing",
-  "timestamp": 1706176800000
-}
-```
-- 각 배열에는 `serialize()` 메소드를 통해 직렬화된 게임 엔티티의 정보가 담겨 있습니다.
-- `effects`: 폭발, 피격 효과 등의 정보를 포함합니다.
-
----
-
-#### `vehicleDestroyed`
-비행체가 파괴되었을 때 발생하는 이벤트입니다.
-
-**Payload:**
-```json
-{
-  "vehicleId": "vehicle_123",
-  "playerId": "player_456",
-  "killedBy": "player_789",
-  "position": { "x": 10, "y": 20, "z": 30 },
-  "shouldHide": true
-}
-```
-- `killedBy`: 파괴한 플레이어의 ID.
-- `shouldHide`: 클라이언트에서 해당 비행체를 즉시 숨겨야 하는지 여부.
-
----
-
-#### `missileLaunched`
-플레이어가 미사일을 발사했을 때 발생하는 이벤트입니다.
-
-**Payload:**
-```json
-{
-  "playerId": "player_123",
-  "vehicleId": "vehicle_456",
-  "missileId": "missile_789",
-  "targetId": "target_vehicle_123"
-}
-```
-- `targetId`: 미사일이 추적하는 대상 비행체의 ID.
-
----
-
-#### `billboardDestroyed`
-광고판이 파괴되었을 때 발생하는 이벤트입니다.
-
-**Payload:**
-```json
-{
-  "billboardId": "billboard_1",
-  "debris": { /* 파편 데이터 */ },
-  "destroyedBy": "player_123"
-}
-```
-
----
-
-#### `muzzleFlash`
-기관총 발사 시 총구 섬광 효과를 위해 발생하는 이벤트입니다.
-
-**Payload:**
-```json
-{
-  "playerId": "player_123",
-  "vehicleId": "vehicle_456"
-}
-```
+| 이벤트 | 데이터 | 설명 |
+|---|---|---|
+| `player:move` | `movementData` (object) | 플레이어의 이동 및 회전 정보 전송 |
+| `weapon:fire` | `fireData` (object) | 무기 발사 (기관총) |
+| `missile:launch` | `missileData` (object) | 미사일 발사 |
+| `player:set-target` | `targetId` (string) | 새로운 타겟 설정 |
 
 ---
 
 ## 🚨 에러 처리
 
-### HTTP API 에러
+### 공통 에러 코드
 
-| 상태 코드 | 에러 코드 | 의미 |
+| 코드 | 메시지 | 설명 |
 |---|---|---|
-| 400 Bad Request | `VALIDATION_ERROR` | 요청 데이터 유효성 검사 실패 |
-| 401 Unauthorized | `INVALID_TOKEN` | 유효하지 않은 JWT 토큰 |
-| 429 Too Many Requests | `RATE_LIMIT_EXCEEDED` | Rate limit 초과 |
+| `UNAUTHORIZED` | Authentication failed | 인증 실패 (유효하지 않은 토큰) |
+| `FORBIDDEN` | Access denied | 권한 없음 |
+| `NOT_FOUND` | Resource not found | 요청한 리소스를 찾을 수 없음 |
+| `VALIDATION_ERROR` | Invalid input data | 입력 데이터 유효성 검사 실패 |
+| `SERVER_ERROR` | Internal server error | 서버 내부 오류 |
 
-### 에러 코드
+### User Service 에러
 
-#### User Service 에러
-| 코드 | 설명 |
-|---|---|
-| `USER_NOT_FOUND` | 사용자를 찾을 수 없음 |
-| `INVALID_CREDENTIALS` | 잘못된 인증 정보 |
-| `USERNAME_TAKEN` | 이미 사용 중인 사용자명 |
-| `EMAIL_TAKEN` | 이미 사용 중인 이메일 |
+| 코드 | 메시지 | 설명 |
+|---|---|---|
+| `USERNAME_EXISTS` | Username is already taken | 사용자 이름 중복 |
+| `EMAIL_EXISTS` | Email is already registered | 이메일 중복 |
+| `INVALID_CREDENTIALS` | Invalid username or password | 로그인 정보 불일치 |
 
-#### Game Service 에러 (WebSocket)
-| 코드 | 설명 |
-|---|---|
-| `AUTHENTICATION_ERROR` | WebSocket 인증 실패 |
-| `INVALID_VEHICLE_TYPE` | 유효하지 않은 비행체 타입 |
-| `GAME_FULL` | 게임 서버가 가득 참 |
+### Game Service 에러 (WebSocket)
 
-## ⚖️ Rate Limiting
+| 코드 | 메시지 | 설명 |
+|---|---|---|
+| `INVALID_TOKEN` | Invalid or expired token | 유효하지 않거나 만료된 토큰 |
+| `PLAYER_NOT_FOUND`| Player not found in game | 게임 월드에서 플레이어를 찾을 수 없음 |
 
-### User Service
-- **인증 API**: 15분에 100회
-- **사용자 API**: 15분에 1000회
+## ⏱️ Rate Limiting
 
-### Game Service
-- `player-input`: 초당 60회
-- `fire`, `fireMissile`: 무기별 발사 속도에 따름
+DDoS 공격 및 서비스 남용을 방지하기 위해 API 엔드포인트에 Rate Limiting이 적용됩니다.
 
----
-**문서 버전 관리**: API 변경 시 즉시 업데이트합니다.
+- **User Service (인증 API)**: 1분에 10회 요청
+- **User Service (사용자 관리 API)**: 1분에 100회 요청
+- **Game Service (상태 API)**: 1분에 20회 요청
+
+> 제한을 초과하면 `429 Too Many Requests` 에러가 반환됩니다.
+
+## 🧪 API 테스트
+
+- User Service API는 `api-test.html` 파일을 통해 브라우저에서 직접 테스트할 수 있습니다.
+  - URL: `http://localhost/api-test.html`
+- 게임 클라이언트를 통해 Game Service의 WebSocket 이벤트를 테스트할 수 있습니다.
+  - URL: `http://localhost`

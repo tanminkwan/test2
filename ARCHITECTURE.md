@@ -198,6 +198,7 @@ GET  /api/user/database/info           # DB 정보
 - 충돌 감지 및 데미지 판정
 - 타겟팅 및 락온 시스템
 - 게임 내 이펙트(폭발, 연기 등) 및 동적 환경 요소(광고판) 관리
+- 선물 상자(생성, 획득) 관리
 
 #### 기술 스택
 ```json
@@ -231,6 +232,7 @@ graph TD
         C[VehicleManager]
         F[GameStateManager]
         H[BillboardManager]
+        M[GiftBoxSystem]
     end
 
     subgraph "Core Systems"
@@ -267,6 +269,7 @@ graph TD
     E -- "이벤트 발생/수신" --> L
     I -- "이벤트 발생/수신" --> L
     H -- "이벤트 발생/수신" --> L
+    M -- "이벤트 발생/수신" --> L
 
     A -- "모든 시스템 통합" --> L
     
@@ -287,6 +290,7 @@ graph TD
 - **`TerrainManager`**: 3D 지형의 높이 정보를 제공하여 비행체와 지형 간의 상호작용을 지원합니다.
 - **`VehicleFactory`**: 설정 파일을 기반으로 다양한 종류의 비행체 인스턴스를 생성합니다.
 - **`EventEmitter`**: 시스템 간의 결합도를 낮추기 위한 중앙 이벤트 버스 역할을 합니다. 예를 들어, `CollisionSystem`이 충돌 이벤트를 발생시키면 `PlayerManager`는 점수를 업데이트하고 `EffectSystem`은 폭발 효과를 생성합니다.
+- **`GiftBoxSystem`**: 게임 월드에 주기적으로 선물 상자를 생성하고, 플레이어의 획득을 처리하며, 보상을 분배하는 역할을 담당합니다.
 
 #### WebSocket 이벤트
 ```javascript

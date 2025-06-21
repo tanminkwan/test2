@@ -84,7 +84,8 @@ sequenceDiagram
 - **물리 기반 비행**: 현실적인 비행 역학 시뮬레이션
 - **무기 시스템**: 기관총 및 유도 미사일 시스템
 - **타겟팅 시스템**: 상황 인식 및 락온(Lock-on) 기능
-- **동적 환경**: 파괴 가능한 광고판(Billboard) 등 상호작용 가능한 오브젝트
+- **선물 상자 시스템**: 게임 월드에 주기적으로 생성되는 선물 상자를 획득하면 점수, 무기 등 다양한 보상을 얻을 수 있습니다.
+- **동적 환경**: 파괴 가능한 광고판(Billboard), 보상을 제공하는 선물 상자(GiftBox) 등 상호작용 가능한 오브젝트
 - **폭발 효과**: 피격 시 작은 폭발, 파괴 시 대형 폭발
 - **점수 시스템**: 킬/데스 통계 및 점수 집계
 - **자동 리스폰**: 5초 후 자동 부활
@@ -247,15 +248,42 @@ multiplayer-vehicle-game/
 │   │
 │   └── game-service/              # 게임 로직 마이크로서비스
 │       ├── src/
+│       ├── systems/               # SRP 원칙에 따라 분리된 게임 시스템
+│       │   ├── PlayerManager.js
+│       │   ├── VehicleManager.js
+│       │   ├── WeaponSystem.js
+│       │   ├── TargetingManager.js
+│       │   ├── CollisionSystem.js
+│       │   └── GiftBoxSystem.js     # 선물 상자 시스템
+│       ├── models/                # 게임 데이터 모델
 │       ├── package.json           # 독립적 의존성
-│       ├── .env                   # 환경 변수
-│       └── README.md
+│       └── ...
 │
-├── client/                        # 프론트엔드
-├── nginx.conf                     # API Gateway 설정
-├── package.json                   # 루트 스크립트 (개발 도구)
+├── client/                        # 3D 게임 클라이언트
+│   ├── src/
+│   └── ...
+│
+├── nginx.conf                     # Nginx API 게이트웨이 설정
+├── docker-compose.yml             # Docker 다중 컨테이너 실행 설정
 └── README.md
 ```
+
+## 🛠️ 주요 기술 스택
+
+- **Backend**: Node.js, Express
+- **Frontend**: HTML, CSS, JavaScript, Three.js
+- **Real-time Communication**: Socket.IO
+- **Database**: PostgreSQL
+- **API Gateway**: Nginx
+- **Containerization**: Docker
+
+## 🤝 기여하기
+
+프로젝트에 기여하고 싶으신 분은 언제든지 Pull Request를 보내주시거나 이슈를 등록해주세요.
+
+## 📄 라이선스
+
+본 프로젝트는 MIT 라이선스를 따릅니다.
 
 ## 🎯 게임 조작법
 

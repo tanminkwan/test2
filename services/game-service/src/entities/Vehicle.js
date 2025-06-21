@@ -244,8 +244,7 @@ export default class Vehicle extends GameEntity {
         
         if (this.health <= 0) {
             this.health = 0;
-            this.active = false;
-            return true; // 파괴됨
+            return true; // 파괴됨 (active 상태는 GameManager에서 변경)
         }
         
         return false; // 파괴되지 않음

@@ -226,15 +226,21 @@ export default class GameManager {
             config: this.config // config 전체를 전달
         });
 
-        // 무기 장착 (기본 기관총)
-        this.weaponSystem.equipWeapon(playerId, 'machinegun');
+        const vehicleConfig = this.config.vehicles[vehicleType] || this.config.vehicles.fighter;
+
+        // 무기 장착 (기본 기관총) - 기체별 설정 적용
+        this.weaponSystem.equipWeapon(playerId, 'machinegun', {
+            damage: vehicleConfig.bulletDamage,
+            speed: vehicleConfig.bulletSpeed,
+            range: vehicleConfig.bulletRange,
+            cooldown: 1000 / vehicleConfig.fireRate // 초당 발사 수 -> 쿨다운(ms)
+        });
         
         // 미사일 무기 장착
-        const missileConfig = this.config.vehicles[vehicleType] || {};
         this.weaponSystem.equipWeapon(playerId, 'missile', {
-            ammo: missileConfig.missileCount || 4,
-            maxAmmo: missileConfig.missileCount || 4,
-            reloadTime: (missileConfig.missileReloadTime || 25) * 1000 // 초 -> 밀리초
+            ammo: vehicleConfig.missileCount || 4,
+            maxAmmo: vehicleConfig.missileCount || 4,
+            reloadTime: (vehicleConfig.missileReloadTime || 25) * 1000 // 초 -> 밀리초
         });
 
         this.players.set(playerId, player);
@@ -680,17 +686,15 @@ export default class GameManager {
      * 충돌 처리
      */
     handleCollision(collision) {
-        // 발사체 제거
-        this.weaponSystem.removeProjectile(collision.projectileId);
-
+        // 순서 변경: 피격 처리를 먼저 수행
         if (collision.type === 'vehicle') {
             this.handleVehicleHit(collision);
         } else if (collision.type === 'billboard') {
             this.handleBillboardHit(collision);
         }
 
-        // 충돌 효과는 각 핸들러에서 개별적으로 처리하므로 여기서는 제거
-        // this.effectSystem.createImpactEffect(collision.position, collision.type);
+        // 모든 피격 처리가 끝난 후 발사체를 제거
+        this.weaponSystem.removeProjectile(collision.projectileId);
     }
 
     /**
@@ -705,12 +709,9 @@ export default class GameManager {
             return;
         }
         
-        // 파괴 여부를 미리 확인 (takeDamage 전에)
-        const willBeDestroyed = (vehicle.health - collision.damage) <= 0;
-        
         const wasDestroyed = vehicle.takeDamage(collision.damage);
 
-        if (willBeDestroyed || wasDestroyed) {
+        if (wasDestroyed) {
             // 차량 파괴 처리
             this.handleVehicleDestroyed(vehicle, collision);
         } else {
@@ -814,9 +815,9 @@ export default class GameManager {
 
         // 큰 폭발 효과 생성 (차량 파괴 시)
         const collisionConfig = this.config.collision || {};
-        const explosionRadius = collisionConfig.explosionRadiusLarge;
-        const explosionDuration = collisionConfig.explosionDurationLarge;
-        const explosionIntensity = collisionConfig.explosionIntensityLarge;
+        const explosionRadius = collisionConfig.explosionRadiusLarge || 25;
+        const explosionDuration = collisionConfig.explosionDurationLarge || 3000;
+        const explosionIntensity = collisionConfig.explosionIntensityLarge || 1.5;
         
         console.log(`Vehicle destroyed: Creating large explosion with duration ${explosionDuration}ms`);
         
@@ -832,6 +833,70 @@ export default class GameManager {
         setTimeout(() => {
             this.respawnVehicle(billboard);
         }, respawnTime);
+    }
+
+    /**
+     * 비행체가 파괴되었을 때의 로직을 처리합니다.
+     * @param {Vehicle} vehicle - 파괴된 비행체
+     * @param {object} collision - 충돌 정보
+     */
+    handleVehicleDestroyed(vehicle, collision) {
+        if (!vehicle) {
+            return;
+        }
+
+        const victimId = vehicle.playerId;
+        const attackerId = collision.attackerId;
+
+        // 1. 비행체 비활성화
+        vehicle.active = false;
+        
+        // 2. 파괴 이벤트 전송 (클라이언트에서 숨김 처리 및 효과 생성)
+        this.eventEmitter.emit('vehicleDestroyed', {
+            vehicleId: vehicle.id,
+            playerId: victimId,
+            killedBy: attackerId || null,
+            position: vehicle.position,
+            shouldHide: true
+        });
+
+        // 3. 서버 측 대형 폭발 효과 생성
+        const collisionConfig = this.config.collision || {};
+        const explosionRadius = collisionConfig.explosionRadiusLarge || 25;
+        const explosionDuration = collisionConfig.explosionDurationLarge || 3000;
+        const explosionIntensity = collisionConfig.explosionIntensityLarge || 1.5;
+        
+        this.effectSystem.createExplosion(
+            vehicle.position,
+            explosionRadius,
+            explosionDuration,
+            explosionIntensity
+        );
+
+        // 4. 점수 및 통계 업데이트
+        const victimPlayer = this.players.get(victimId);
+        if (victimPlayer) {
+            victimPlayer.deaths += 1;
+            console.log(`Player ${victimPlayer.name} destroyed.`);
+        }
+
+        if (attackerId && attackerId !== victimId) {
+            const attackerPlayer = this.players.get(attackerId);
+            if (attackerPlayer) {
+                attackerPlayer.kills += 1;
+                attackerPlayer.score += this.config.scoring.killReward || 100;
+                console.log(`Player ${attackerPlayer.name} got a kill.`);
+            }
+        }
+
+        // 5. 리스폰 타이머 설정
+        const respawnTime = this.config.game.respawnTime || 5000;
+        setTimeout(() => {
+            this.respawnVehicle(vehicle);
+        }, respawnTime);
+
+        // 6. 게임 상태 동기화
+        this.syncGameState();
     }
 
     /**
@@ -864,7 +929,7 @@ export default class GameManager {
      */
     getGameState() {
         return {
-            vehicles: Array.from(this.vehicles.values()).map(v => v.serialize()),
+            vehicles: Array.from(this.vehicles.values()).filter(v => v.active).map(v => v.serialize()),
             players: Array.from(this.players.values()).map(p => {
                 return {
                     id: p.id,

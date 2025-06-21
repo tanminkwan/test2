@@ -13,8 +13,12 @@ export class TargetingSystem {
         this.lockOnTime = (this.config.lockOnTime || 2) * 1000; // ms
         this.tickRate = config.server?.tickRate || 30;
         this.lockLostCooldown = this.config.lockLostCooldown || 1000; // ms
-        this.maxDistance = this.config.maxDistance || 1000;
-        this.maxAngle = this.config.maxAngle || 15;
+        this.maxDistance = this.config.maxDistance || 200; // config에서 가져오거나 기본값 200
+        this.lockOnDistanceGraceFactor = this.config.lockOnDistanceGraceFactor || 1.1; // 락온 유지 거리 여유 계수
+        this.angleBrackets = this.config.angleBrackets || [
+            [50, 8], [100, 12], [150, 18], [200, 25]
+        ]; // 기본값 설정
+        this.lockOnAngleBuffer = this.config.lockOnAngleBuffer || 2; // 락온 유지 각도 버퍼
     }
 
     /**
@@ -125,14 +129,32 @@ export class TargetingSystem {
         if (distance > this.maxDistance) return false;
         if (distance < 10) return false;
 
+        // 거리별 동적 최대 각도 가져오기
+        const maxAngle = this.getMaxAngleForDistance(distance);
         const angle = this.getAngleToTarget(vehicle, target);
-        if (angle > this.maxAngle) return false;
+        if (angle > maxAngle) return false;
 
         if (this.hasObstacle(vehicle, target, enemies)) return false;
 
         return true;
     }
     
+    /**
+     * 거리에 따라 허용되는 최대 각도를 반환합니다.
+     * @param {number} distance 
+     * @returns {number}
+     */
+    getMaxAngleForDistance(distance) {
+        for (const [maxDist, angle] of this.angleBrackets) {
+            if (distance <= maxDist) {
+                return angle;
+            }
+        }
+        // 어떤 구간에도 속하지 않으면 가장 마지막 각도(가장 관대한 각도)를 반환하거나 0을 반환하여 락온을 막을 수 있습니다.
+        // 여기서는 마지막 구간의 각도를 사용합니다.
+        return this.angleBrackets[this.angleBrackets.length - 1][1];
+    }
+
     /**
      * @deprecated 이제 isTargetValidForLockOn 을 사용합니다.
      */
@@ -249,12 +271,12 @@ export class TargetingSystem {
         if (!target || !target.active) return false;
 
         const distance = vehicle.position.distanceTo(target.position);
-        // 최대 거리 + 10% 여유
-        if (distance > this.maxDistance * 1.1) return false;
+        // 최대 거리 + 여유 계수
+        if (distance > this.maxDistance * this.lockOnDistanceGraceFactor) return false;
 
         const angle = this.getAngleToTarget(vehicle, target);
-        // 최대 각도 + 5도 여유
-        if (angle > this.maxAngle + 5) return false;
+        // 최대 각도 + 버퍼값 여유
+        if (angle > this.getMaxAngleForDistance(distance) + this.lockOnAngleBuffer) return false;
 
         // 장애물 검사는 이 단계에서는 생략하여 순간적인 끊김을 방지할 수 있습니다.
         // 또는, 더 적은 빈도로 검사하는 로직을 추가할 수도 있습니다.

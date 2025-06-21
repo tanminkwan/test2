@@ -306,8 +306,13 @@ logging:
 
 # 타겟팅 시스템 설정
 targeting:
-  lockRange: 800                     # 타겟 감지 최대 거리
-  lockTime: 1.5                      # 타겟 락온 소요 시간(초)
-  maxTargets: 3                      # 동시 락온 가능 타겟 수
-  targetBoxColor: "#FF0000"          # 타겟 UI 색상
-  lockedTargetColor: "#FFFF00"       # 락온 완료 UI 색상 
+  maxDistance: 200                   # 락온 가능 최대 거리
+  lockOnTime: 2                      # 락온에 걸리는 시간 (초)
+  lockLostCooldown: 1000             # 락온 분실 후 쿨다운 (ms)
+  lockOnAngleBuffer: 2               # 락온 유지 각도 버퍼 (도)
+  lockOnDistanceGraceFactor: 1.1     # 락온 유지 거리 여유 계수 (1.1 = 10% 여유)
+  angleBrackets:                     # 거리별 락온 가능 각도
+    - [50, 8]                        # 50m 이내, 8도
+    - [100, 12]                      # 100m 이내, 12도
+    - [150, 18]                      # 150m 이내, 18도
+    - [200, 25]                      # 200m 이내, 25도

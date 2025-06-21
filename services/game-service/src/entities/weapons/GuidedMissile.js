@@ -92,31 +92,15 @@ export class GuidedMissile extends Weapon {
     fire(position, rotation, vehicles, targetId = null) {
         if (!this.canFire()) return null;
 
-        let initialVelocity;
         const weaponConfig = this.config.weapons.missile || {};
         const speed = weaponConfig.speed || 150;
 
-        // 타겟이 있으면 타겟 방향으로, 없으면 정면으로 발사
-        if (targetId && vehicles) {
-            const target = vehicles.get(targetId);
-            const shooterVehicle = vehicles.get(this.getVehicleIdByPlayerId(vehicles));
-
-            if (target && shooterVehicle) {
-                initialVelocity = new THREE.Vector3()
-                    .subVectors(target.position, shooterVehicle.position)
-                    .normalize()
-                    .multiplyScalar(speed);
-            }
-        }
-        
-        // initialVelocity가 계산되지 않은 경우 (타겟이 없거나 못 찾았을 때)
-        if (!initialVelocity) {
-            const quaternion = new THREE.Quaternion().setFromEuler(new THREE.Euler(
-                rotation.x, rotation.y, rotation.z, 'YXZ'
-            ));
-            initialVelocity = new THREE.Vector3(0, 0, 1);
-            initialVelocity.applyQuaternion(quaternion).multiplyScalar(speed);
-        }
+        // 초기 속도를 항상 비행체 정면 방향으로 설정
+        const quaternion = new THREE.Quaternion().setFromEuler(new THREE.Euler(
+            rotation.x, rotation.y, rotation.z, 'YXZ'
+        ));
+        const initialVelocity = new THREE.Vector3(0, 0, 1);
+        initialVelocity.applyQuaternion(quaternion).multiplyScalar(speed);
 
         const missile = new Missile(
             `missile_${uuidv4()}`,

@@ -10,6 +10,7 @@ import { TerrainManager } from './TerrainManager.js';
 import { VehicleFactory } from './VehicleFactory.js';
 import { BillboardManager } from './BillboardManager.js';
 import { TargetingManager } from './TargetingManager.js';
+import { GiftBoxManager } from './GiftBoxManager.js';
 
 /**
  * 게임의 모든 시스템을 총괄하고 오케스트레이션하는 최상위 클래스
@@ -29,6 +30,7 @@ export default class GameManager {
         this.collisionSystem = new CollisionSystem(config, eventEmitter, this.weaponSystem);
         this.gameStateManager = new GameStateManager(config, eventEmitter);
         this.billboardManager = new BillboardManager(config, this.terrainManager);
+        this.giftBoxManager = new GiftBoxManager(config);
         this.targetingManager = new TargetingManager(config, (x, z) => this.terrainManager.getTerrainHeight(x, z));
         this.performanceMonitor = new PerformanceMonitor(config);
 
@@ -242,6 +244,7 @@ export default class GameManager {
                 weapons: this.weaponSystem.getPlayerWeapons(p.id)
             })),
             billboards: Array.from(this.billboardManager.getAllBillboards().values()).map(b => b.serialize()),
+            giftBoxes: this.giftBoxManager.getAllGiftBoxes().map(gb => gb.serialize()),
             projectiles: this.weaponSystem.getAllProjectiles().map(p => p.serialize()),
             effects: this.effectSystem.serialize(),
             gameState: this.gameStateManager.getGameState(),

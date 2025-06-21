@@ -31,6 +31,7 @@ export class GameClient {
         this.bullets = new Map();
         this.explosions = new Map();
         this.billboards = new Map();
+        this.giftBoxes = new Map();
         
         // 플레이어 상태
         this.myPlayer = gameData.player;
@@ -621,6 +622,9 @@ export class GameClient {
         // 렌더링 통계 리셋 (성능 최적화)
         this.renderer.info.reset();
         
+        // 선물 상자 애니메이션
+        this.updateGiftBoxesAnimation(deltaTime);
+        
         // 렌더링
         this.renderer.render(this.scene, this.camera);
     }
@@ -1093,6 +1097,11 @@ export class GameClient {
             });
         }
         
+        // 선물 상자 상태 업데이트
+        if (gameState.giftBoxes) {
+            this.updateGiftBoxes(gameState.giftBoxes);
+        }
+        
         // UIManager에 게임 상태 업데이트 알림
         this.uiManager.updateGameState(gameState);
         
@@ -1375,5 +1384,126 @@ export class GameClient {
         const texture = new THREE.CanvasTexture(canvas);
         panel.material.map = texture;
         panel.material.needsUpdate = true;
+    }
+
+    updateBillboards(billboardData) {
+        const receivedIds = new Set(billboardData.map(b => b.id));
+
+        // 기존 빌보드 업데이트 또는 신규 생성
+        for (const data of billboardData) {
+            if (this.billboards.has(data.id)) {
+                // 업데이트 로직 (필요시)
+            } else {
+                this.createBillboard(data);
+            }
+        }
+
+        // 서버에서 사라진 빌보드 제거
+        for (const id of this.billboards.keys()) {
+            if (!receivedIds.has(id)) {
+                const billboard = this.billboards.get(id);
+                this.scene.remove(billboard);
+                this.billboards.delete(id);
+            }
+        }
+    }
+
+    updateGiftBoxes(giftBoxData) {
+        const receivedIds = new Set(giftBoxData.map(g => g.id));
+
+        // 기존 선물 상자 업데이트 또는 신규 생성
+        for (const data of giftBoxData) {
+            if (this.giftBoxes.has(data.id)) {
+                // 서버가 보낸 최신 위치를 저장합니다. 애니메이션은 이 위치를 기준으로 적용됩니다.
+                const giftBox = this.giftBoxes.get(data.id);
+                if (giftBox.userData.serverPosition) {
+                    giftBox.userData.serverPosition.set(data.position.x, data.position.y, data.position.z);
+                }
+            } else {
+                this.createGiftBox(data);
+            }
+        }
+
+        // 서버에서 사라진 선물 상자 제거
+        for (const id of this.giftBoxes.keys()) {
+            if (!receivedIds.has(id)) {
+                const giftBox = this.giftBoxes.get(id);
+                this.scene.remove(giftBox);
+                this.giftBoxes.delete(id);
+            }
+        }
+    }
+
+    createGiftBox(data) {
+        const size = data.size || 5;
+        const giftBoxGroup = new THREE.Group();
+
+        // 1. 박스 몸체 (빨간색)
+        const boxMaterial = new THREE.MeshStandardMaterial({
+            color: 0xdc143c, // 진홍색
+            roughness: 0.4,
+        });
+        const boxGeometry = new THREE.BoxGeometry(size, size, size);
+        const boxMesh = new THREE.Mesh(boxGeometry, boxMaterial);
+        giftBoxGroup.add(boxMesh);
+
+        // 2. 리본 (금색)
+        const ribbonWidth = size * 0.25;
+        const ribbonSlightlyLarger = size * 1.01; // Z-파이팅 방지
+        const ribbonMaterial = new THREE.MeshStandardMaterial({
+            color: 0xffd700, // 금색
+            metalness: 0.8,
+            roughness: 0.2,
+        });
+
+        // 가로 리본
+        const hRibbonGeometry = new THREE.BoxGeometry(ribbonSlightlyLarger, ribbonWidth, ribbonWidth);
+        const hRibbon = new THREE.Mesh(hRibbonGeometry, ribbonMaterial);
+        giftBoxGroup.add(hRibbon);
+
+        // 세로 리본
+        const vRibbonGeometry = new THREE.BoxGeometry(ribbonWidth, ribbonSlightlyLarger, ribbonWidth);
+        const vRibbon = new THREE.Mesh(vRibbonGeometry, ribbonMaterial);
+        giftBoxGroup.add(vRibbon);
+
+        // 3. 상단 리본 매듭
+        const bowSize = size * 0.4;
+        const bowGeometry = new THREE.SphereGeometry(bowSize, 8, 6);
+        const bow = new THREE.Mesh(bowGeometry, ribbonMaterial);
+        bow.position.y = size / 2;
+        bow.scale.set(1, 0.5, 1); // 살짝 납작하게
+        giftBoxGroup.add(bow);
+
+        // 모든 메시에 그림자 설정 적용
+        giftBoxGroup.traverse((child) => {
+            if (child.isMesh) {
+                child.castShadow = true;
+                child.receiveShadow = true;
+            }
+        });
+
+        // 최종 위치 설정 및 애니메이션을 위한 데이터 저장
+        giftBoxGroup.position.set(data.position.x, data.position.y, data.position.z);
+        giftBoxGroup.userData.serverPosition = new THREE.Vector3(data.position.x, data.position.y, data.position.z);
+        giftBoxGroup.userData.creationTime = this.clock.getElapsedTime();
+
+
+        this.scene.add(giftBoxGroup);
+        this.giftBoxes.set(data.id, giftBoxGroup);
+        return giftBoxGroup;
+    }
+
+    updateGiftBoxesAnimation(deltaTime) {
+        const elapsedTime = this.clock.getElapsedTime();
+        this.giftBoxes.forEach(giftBox => {
+            if (giftBox.userData.serverPosition) {
+                // 위아래로 흔들리는 효과
+                const bobbleY = Math.sin(elapsedTime * 1.5 + giftBox.userData.creationTime) * 0.5;
+                giftBox.position.y = giftBox.userData.serverPosition.y + bobbleY;
+
+                // 천천히 회전하는 효과
+                giftBox.rotation.y += deltaTime * 0.3;
+            }
+        });
     }
 } 

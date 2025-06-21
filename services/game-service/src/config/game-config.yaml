@@ -42,6 +42,24 @@ network:
   maxPacketSize: 1024                # 최대 패킷 크기 (bytes)
   compressionEnabled: false          # 데이터 압축 활성화 (미래 기능)
   
+# 선물 상자 설정
+giftBoxes:
+  enabled: true
+  count: 20
+  health: 10
+  size: 5
+  rewards:
+    score: 50
+    missiles: 2
+  spawnOptions:
+    minHeight: 80
+    maxHeight: 150
+    areaRadius: 300 # 중심으로부터의 최대 스폰 반경
+  destruction:
+    explosionRadius: 10
+    explosionDuration: 1500
+    explosionIntensity: 1.0
+
 world:
   size: 400                          # 맵 크기 (정사각형, 단위: 게임 유닛)
   terrainDetail: 100                 # 지형 세부도 (높을수록 더 세밀한 지형)

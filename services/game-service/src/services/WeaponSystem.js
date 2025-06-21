@@ -143,15 +143,16 @@ export class WeaponSystem {
             }
 
             // 광고판과의 충돌 검사
-            for (const [billboardId, billboard] of billboards) {
+            for (const billboard of billboards.values()) {
                 if (this.checkBillboardCollision(projectile, billboard)) {
                     collisions.push({
                         type: 'billboard',
                         projectileId,
-                        targetId: billboardId,
+                        targetId: billboard.id,
                         damage: projectile.damage,
                         position: projectile.position,
-                        ownerId: projectile.ownerId
+                        ownerId: projectile.ownerId,
+                        projectileType: projectile.type,
                     });
                 }
             }
@@ -174,14 +175,23 @@ export class WeaponSystem {
      * 광고판 충돌 검사
      */
     checkBillboardCollision(projectile, billboard) {
-        const dx = projectile.position.x - billboard.position.x;
-        const dy = projectile.position.y - billboard.position.y;
-        const dz = projectile.position.z - billboard.position.z;
-        
-        // 광고판 크기 고려한 충돌 검사
-        return Math.abs(dx) < billboard.width / 2 && 
-               Math.abs(dy) < billboard.height / 2 && 
-               Math.abs(dz) < billboard.thickness / 2;
+        if (!projectile.position || !billboard.position || !billboard.active) {
+            return false;
+        }
+
+        const worldPosition = new THREE.Vector3();
+        billboard.mesh.getWorldPosition(worldPosition);
+
+        const localProjectilePos = new THREE.Vector3().copy(projectile.position);
+        billboard.mesh.worldToLocal(localProjectilePos);
+
+        const halfWidth = billboard.width / 2;
+        const halfHeight = billboard.height / 2;
+        const halfThickness = billboard.thickness / 2;
+
+        return Math.abs(localProjectilePos.x) < halfWidth &&
+               Math.abs(localProjectilePos.y) < halfHeight &&
+               Math.abs(localProjectilePos.z) < halfThickness;
     }
 
     /**

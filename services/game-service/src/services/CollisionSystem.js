@@ -17,15 +17,17 @@ export class CollisionSystem {
      * @param {Map<string, Billboard>} billboards 
      */
     update(vehicles, billboards) {
-        // 1. 발사체와 다른 엔티티들 간의 충돌 검사
-        const projectileCollisions = this.weaponSystem.checkCollisions(vehicles, billboards);
-        for (const collision of projectileCollisions) {
-            this.handleProjectileCollision(collision);
-        }
+        // 1. 발사체와 다른 엔티티들 간의 충돌 검사는 WeaponSystem으로 이관되었습니다.
+        // const projectileCollisions = this.weaponSystem.checkCollisions(vehicles, billboards);
+        // for (const collision of projectileCollisions) {
+        //     this.handleProjectileCollision(collision);
+        // }
 
         // 2. 차량과 광고판 간의 충돌 검사
         for (const vehicle of vehicles) {
+            if (!vehicle.active) continue;
             for (const billboard of billboards.values()) {
+                if (!billboard.active) continue;
                 if (billboard.checkCollision(vehicle)) {
                     this.resolveVehicleBillboardCollision(vehicle, billboard);
                 }
@@ -38,13 +40,18 @@ export class CollisionSystem {
      * @param {object} collision 
      */
     handleProjectileCollision(collision) {
+        const projectile = this.weaponSystem.projectiles.get(collision.projectileId);
+        if (!projectile) return;
+
         if (collision.type === 'vehicle') {
             this.eventEmitter.emit('vehicleHit', collision);
         } else if (collision.type === 'billboard') {
             this.eventEmitter.emit('billboardHit', collision);
         }
         
-        this.weaponSystem.removeProjectile(collision.projectileId);
+        // 발사체는 여기서 직접 파괴하지 않고, 충돌 이벤트 핸들러가 처리하도록 합니다.
+        // WeaponSystem은 발사체 상태 관리만 책임집니다.
+        projectile.active = false;
     }
 
     /**
@@ -63,8 +70,7 @@ export class CollisionSystem {
             const normalY = dy / distance;
             const normalZ = dz / distance;
 
-            const safeDistance = (Math.max(billboard.width, billboard.height, billboard.thickness) / 2) + 
-                                 (this.config.collision?.safeDistance || 15);
+            const safeDistance = this.config.collision.safeDistance || 15;
 
             vehicle.position.x = billboard.position.x + normalX * safeDistance;
             vehicle.position.y = billboard.position.y + normalY * safeDistance;
@@ -77,7 +83,11 @@ export class CollisionSystem {
             vehicle.velocity.y = normalY * velocityMagnitude * velocityReflection;
             vehicle.velocity.z = normalZ * velocityMagnitude * velocityReflection;
 
-            this.eventEmitter.emit('createEffect', { type: 'impact', position: vehicle.position, effectType: 'collision' });
+            this.eventEmitter.emit('vehicleBillboardCollision', {
+                vehicleId: vehicle.id,
+                billboardId: billboard.id,
+                position: { ...vehicle.position }
+            });
         }
     }
 

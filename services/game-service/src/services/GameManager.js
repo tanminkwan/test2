@@ -49,6 +49,7 @@ export default class GameManager {
     setupEventListeners() {
         this.eventEmitter.on('vehicleHit', this.handleVehicleHit.bind(this));
         this.eventEmitter.on('billboardHit', this.handleBillboardHit.bind(this));
+        this.eventEmitter.on('vehicleBillboardCollision', (data) => this.effectSystem.createImpactEffect(data.position, 'collision'));
         this.eventEmitter.on('createEffect', (data) => this.effectSystem.createEffect(data));
     }
 
@@ -153,7 +154,16 @@ export default class GameManager {
             this.updatePlayerTargetsAndLockOn(deltaTime);
             this.weaponSystem.updateProjectiles(deltaTime, this.vehicleManager.getAllVehicles());
             this.effectSystem.update(deltaTime);
-            this.collisionSystem.update(this.vehicleManager.getAllVehicles(), this.billboardManager.getAllBillboards());
+            
+            const vehicles = this.vehicleManager.getAllVehicles();
+            const billboards = this.billboardManager.getAllBillboards();
+
+            // Collision Detection
+            const projectileCollisions = this.weaponSystem.checkCollisions(vehicles, billboards);
+            for (const collision of projectileCollisions) {
+                this.collisionSystem.handleProjectileCollision(collision);
+            }
+            this.collisionSystem.update(vehicles, billboards);
         }
 
         this.syncGameState();

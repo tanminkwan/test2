@@ -102,6 +102,10 @@ billboards:
     back:                            # 뒷면 이미지 목록
       - "assets/billboards/back.svg"
       - "assets/billboards/kimhk.jpg"
+  destruction:                       # 파괴 효과 설정
+    explosionRadius: 20
+    explosionDuration: 3000
+    explosionIntensity: 1.5
   
 vehicles:
   colors:                            # 플레이어별 비행체 색상 목록

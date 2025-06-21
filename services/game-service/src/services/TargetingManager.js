@@ -1,12 +1,14 @@
 import * as THREE from 'three';
 
 /**
- * 서버 측 타겟팅 및 락온 시스템 클래스
+ * 타겟팅 시스템 (타겟 탐색, 락온 관리 등)
+ * Liskov Substitution Principle을 고려하여 인터페이스 분리 가능
  */
-export class TargetingSystem {
-    constructor(config, getTerrainHeight) {
-        this.config = config.targeting || {};
-        this.getTerrainHeight = getTerrainHeight; // 지형 높이 함수 저장
+export class TargetingManager {
+    constructor(config, getTerrainHeightCallback) {
+        this.config = config.targeting;
+        this.weaponConfig = config.weapons;
+        this.getTerrainHeight = getTerrainHeightCallback;
         this.raycaster = new THREE.Raycaster();
 
         // config에서 값을 가져오거나 기본값 설정
@@ -19,6 +21,92 @@ export class TargetingSystem {
             [50, 8], [100, 12], [150, 18], [200, 25]
         ]; // 기본값 설정
         this.lockOnAngleBuffer = this.config.lockOnAngleBuffer || 2; // 락온 유지 각도 버퍼
+    }
+
+    /**
+     * 플레이어의 타겟 및 락온 상태를 업데이트합니다.
+     * @param {Player} player 
+     * @param {Vehicle} playerVehicle 
+     * @param {Array<Vehicle>} enemies 
+     * @param {number} deltaTime 
+     */
+    update(player, playerVehicle, enemies, deltaTime) {
+        const bestTarget = this.findNearestTarget(playerVehicle, enemies);
+
+        // 타겟 상황 인식 (Awareness Target)
+        player.awarenessTargetId = bestTarget ? bestTarget.id : null;
+
+        // 락온 로직
+        this.updateLockOn(player, playerVehicle, bestTarget, deltaTime);
+    }
+
+    /**
+     * 가장 가까운 유효 타겟을 찾습니다.
+     * @param {Vehicle} playerVehicle 
+     * @param {Array<Vehicle>} enemies 
+     * @returns {Vehicle | null}
+     */
+    findNearestTarget(playerVehicle, enemies) {
+        const missileConfig = this.weaponConfig?.missile || {};
+        const maxRange = missileConfig.maxRange || 300;
+        const lockAngle = missileConfig.missileLockAngle || 15;
+        const cosMaxLockAngle = Math.cos(lockAngle * (Math.PI / 180));
+
+        const forwardVector = new THREE.Vector3(0, 0, 1);
+        forwardVector.applyQuaternion(playerVehicle.mesh.quaternion);
+
+        let bestTarget = null;
+        let minDistanceSq = Infinity;
+
+        for (const enemyVehicle of enemies) {
+            if (!enemyVehicle.active) continue;
+
+            const toEnemy = new THREE.Vector3().subVectors(enemyVehicle.position, playerVehicle.position);
+            const distanceSq = toEnemy.lengthSq();
+
+            if (distanceSq > maxRange * maxRange) continue;
+            
+            toEnemy.normalize();
+            const dotProduct = forwardVector.dot(toEnemy);
+
+            if (dotProduct < cosMaxLockAngle) continue;
+
+            if (distanceSq < minDistanceSq) {
+                minDistanceSq = distanceSq;
+                bestTarget = enemyVehicle;
+            }
+        }
+        return bestTarget;
+    }
+
+    /**
+     * 락온 상태를 업데이트합니다.
+     * @param {Player} player 
+     * @param {Vehicle} playerVehicle
+     * @param {Vehicle | null} target 
+     * @param {number} deltaTime 
+     */
+    updateLockOn(player, playerVehicle, target, deltaTime) {
+        const lockOnTime = this.config.lockOnTime || 2;
+        const lockLostCooldown = this.config.lockLostCooldown || 1000;
+
+        if (target && player.lockOnTargetId === target.id) {
+            // 타겟 유지
+            player.lockOnState.progress = Math.min(lockOnTime, player.lockOnState.progress + deltaTime);
+            if (player.lockOnState.progress >= lockOnTime) {
+                player.lockOnState.isLocked = true;
+            }
+        } else if (target) {
+            // 새로운 타겟 발견
+            player.lockOnTargetId = target.id;
+            player.lockOnState.progress = deltaTime;
+            player.lockOnState.isLocked = false;
+        } else {
+            // 타겟 없음
+            player.lockOnTargetId = null;
+            player.lockOnState.progress = 0;
+            player.lockOnState.isLocked = false;
+        }
     }
 
     /**

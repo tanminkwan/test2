@@ -198,6 +198,26 @@ export class GameClient {
                 }
             },
             
+            onGiftBoxDestroyed: (data) => {
+                const giftBox = this.giftBoxes.get(data.giftBoxId);
+                if (giftBox && this.effectManager) {
+                    // 폭발 효과 생성
+                    this.effectManager.createExplosion({
+                        position: giftBox.position,
+                        radius: 10,
+                        duration: 1500,
+                        intensity: 1.0
+                    });
+
+                    // 선물 상자 제거
+                    this.scene.remove(giftBox);
+                    this.giftBoxes.delete(data.giftBoxId);
+
+                    // UI 알림 (선택 사항)
+                    this.uiManager.showGameEvent('giftBoxDestroyed', data);
+                }
+            },
+            
             onVehicleDestroyed: (data) => {
                 console.log('Vehicle destroyed:', data);
                 

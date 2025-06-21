@@ -51,6 +51,7 @@ export default class GameManager {
     setupEventListeners() {
         this.eventEmitter.on('vehicleHit', this.handleVehicleHit.bind(this));
         this.eventEmitter.on('billboardHit', this.handleBillboardHit.bind(this));
+        this.eventEmitter.on('giftBoxHit', this.handleGiftBoxHit.bind(this));
         this.eventEmitter.on('vehicleBillboardCollision', (data) => this.effectSystem.createImpactEffect(data.position, 'collision'));
         this.eventEmitter.on('createEffect', (data) => this.effectSystem.createEffect(data));
     }
@@ -159,9 +160,10 @@ export default class GameManager {
             
             const vehicles = this.vehicleManager.getAllVehicles();
             const billboards = this.billboardManager.getAllBillboards();
+            const giftBoxes = this.giftBoxManager.getAllGiftBoxes();
 
             // Collision Detection
-            const projectileCollisions = this.weaponSystem.checkCollisions(vehicles, billboards);
+            const projectileCollisions = this.weaponSystem.checkCollisions(vehicles, billboards, giftBoxes);
             for (const collision of projectileCollisions) {
                 this.collisionSystem.handleProjectileCollision(collision);
             }
@@ -202,6 +204,20 @@ export default class GameManager {
         }
     }
 
+    handleGiftBoxHit(collision) {
+        const giftBox = this.giftBoxManager.getGiftBox(collision.targetId);
+        if (!giftBox || !giftBox.active) return;
+
+        // 미사일은 선물 상자에 데미지를 줄 수 없음 (게임 디자인 결정사항)
+        if (collision.projectileType === 'missile') return;
+
+        if (giftBox.takeDamage(collision.damage)) {
+            this.handleGiftBoxDestroyed(giftBox, collision);
+        } else {
+            this.effectSystem.createImpactEffect(collision.position, 'giftbox');
+        }
+    }
+
     handleBillboardDestroyed(billboard, collision) {
         const { explosionRadius, explosionDuration, explosionIntensity } = this.config.billboards.destruction;
         this.effectSystem.createExplosion(billboard.position, explosionRadius, explosionDuration, explosionIntensity);
@@ -215,6 +231,38 @@ export default class GameManager {
         }
         this.billboardManager.removeBillboard(billboard.id);
         this.playerManager.updatePlayerStats(billboard.playerId, collision.ownerId);
+    }
+
+    handleGiftBoxDestroyed(giftBox, collision) {
+        const ownerId = collision.ownerId;
+        if (!ownerId) return;
+
+        // 1. 폭발 효과 생성
+        const { explosionRadius, explosionDuration, explosionIntensity } = this.config.giftBoxes.destruction;
+        this.effectSystem.createExplosion(giftBox.position, explosionRadius, explosionDuration, explosionIntensity);
+
+        // 2. 보상 지급 (현재는 비활성화)
+        // const rewards = this.config.giftBoxes.rewards;
+        // this.weaponSystem.addMissileAmmo(ownerId, rewards.missiles);
+        // this.playerManager.addScore(ownerId, rewards.score);
+
+        // 3. 파괴 이벤트 전송 (클라이언트에서 모델 제거용)
+        this.eventEmitter.emit('giftBoxDestroyed', {
+            giftBoxId: giftBox.id,
+            destroyedBy: ownerId
+        });
+
+        // 4. 기존 상자 제거 및 새 상자 스폰
+        this.giftBoxManager.destroyAndRespawn(giftBox.id);
+
+        // 5. 파괴한 플레이어에게 알림 (현재는 비활성화)
+        // const player = this.playerManager.getPlayer(ownerId);
+        // if(player) {
+        //     this.eventEmitter.emit('playerNotification', {
+        //         playerId: ownerId,
+        //         message: `선물 상자 파괴!`
+        //     });
+        // }
     }
 
     handleVehicleDestroyed(vehicle, collision) {

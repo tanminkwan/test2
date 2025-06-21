@@ -117,10 +117,12 @@ export class WeaponSystem {
     /**
      * 충돌 검사
      */
-    checkCollisions(vehicles, billboards) {
+    checkCollisions(vehicles, billboards, giftBoxes) {
         const collisions = [];
 
         for (const [projectileId, projectile] of this.projectiles) {
+            if (!projectile.active) continue;
+
             // 차량과의 충돌 검사
             for (const vehicle of vehicles) {
                 // 자신의 발사체는 제외
@@ -156,6 +158,27 @@ export class WeaponSystem {
                     });
                 }
             }
+
+            // 선물 상자와의 충돌 검사
+            if (giftBoxes) {
+                for (const giftBox of giftBoxes) {
+                    if (this.checkGiftBoxCollision(projectile, giftBox)) {
+                        collisions.push({
+                            type: 'giftBox',
+                            projectileId,
+                            targetId: giftBox.id,
+                            damage: projectile.damage,
+                            position: projectile.position,
+                            ownerId: projectile.ownerId,
+                            projectileType: projectile.type
+                        });
+                        // 충돌 시 루프를 멈춰 한 발사체가 여러 객체와 동시에 충돌하는 것을 방지
+                        break; 
+                    }
+                }
+            }
+
+            if (!projectile.active) continue;
         }
 
         return collisions;
@@ -169,6 +192,16 @@ export class WeaponSystem {
         const dy = pos1.y - pos2.y;
         const dz = pos1.z - pos2.z;
         return Math.sqrt(dx * dx + dy * dy + dz * dz);
+    }
+
+    checkGiftBoxCollision(projectile, giftBox) {
+        if (!projectile.position || !giftBox.position || !giftBox.active) {
+            return false;
+        }
+        const distance = this.calculateDistance(projectile.position, giftBox.position);
+        // 선물 상자 크기와 발사체 반경을 고려한 충돌 거리
+        const minDistance = (giftBox.size / 2) + 0.5;
+        return distance < minDistance;
     }
 
     /**

@@ -47,6 +47,8 @@ export class CollisionSystem {
             this.eventEmitter.emit('vehicleHit', collision);
         } else if (collision.type === 'billboard') {
             this.eventEmitter.emit('billboardHit', collision);
+        } else if (collision.type === 'giftBox') {
+            this.eventEmitter.emit('giftBoxHit', collision);
         }
         
         // 발사체는 여기서 직접 파괴하지 않고, 충돌 이벤트 핸들러가 처리하도록 합니다.

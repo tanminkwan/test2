@@ -10,6 +10,7 @@ import { TerrainManager } from './TerrainManager.js';
 import { PlayerManager } from './PlayerManager.js';
 import { VehicleManager } from './VehicleManager.js';
 import { CollisionSystem } from './CollisionSystem.js';
+import { GameStateManager } from './GameStateManager.js';
 
 /**
  * 게임 매니저 클래스 (Dependency Inversion Principle)
@@ -22,7 +23,6 @@ export default class GameManager {
         this.eventEmitter = eventEmitter;
         
         // 게임 상태
-        this.gameState = 'waiting'; // waiting, playing, ended
         this.billboards = new Map();
         
         // 시스템들 (Dependency Injection)
@@ -33,6 +33,7 @@ export default class GameManager {
         this.weaponSystem = new WeaponSystem(config);
         this.effectSystem = new EffectSystem(this.eventEmitter);
         this.collisionSystem = new CollisionSystem(config, eventEmitter, this.weaponSystem);
+        this.gameStateManager = new GameStateManager(config, eventEmitter);
         this.performanceMonitor = new PerformanceMonitor(config);
         this.targetingSystem = new TargetingSystem(
             config, 
@@ -212,7 +213,7 @@ export default class GameManager {
             reloadTime: (vehicleConfig.missileReloadTime || 25) * 1000
         });
 
-        this.checkGameStart();
+        this.gameStateManager.updatePlayerCount(this.playerManager.getAllPlayers().length);
         this.syncGameState();
 
         return { 
@@ -239,7 +240,7 @@ export default class GameManager {
         // 플레이어 제거 (PlayerManager 위임)
         this.playerManager.removePlayer(playerId);
 
-        this.checkGameEnd();
+        this.gameStateManager.updatePlayerCount(this.playerManager.getAllPlayers().length);
         this.syncGameState();
 
         return true;
@@ -415,44 +416,6 @@ export default class GameManager {
     }
 
     /**
-     * 게임 시작 확인
-     */
-    checkGameStart() {
-        if (this.gameState === 'waiting' && this.playerManager.getAllPlayers().length >= this.minPlayersToStart) {
-            this.startGame();
-        }
-    }
-
-    /**
-     * 게임 시작
-     */
-    startGame() {
-        this.gameState = 'playing';
-        console.log(`Game started with ${this.playerManager.getAllPlayers().length} players`);
-        this.eventEmitter.emit('gameStarted', {
-            playerCount: this.playerManager.getAllPlayers().length
-        });
-    }
-
-    /**
-     * 게임 종료 확인
-     */
-    checkGameEnd() {
-        if (this.gameState === 'playing' && this.playerManager.getAllPlayers().length < this.minPlayersToStart) {
-            this.endGame();
-        }
-    }
-
-    /**
-     * 게임 종료
-     */
-    endGame() {
-        this.gameState = 'waiting';
-        console.log('Game ended');
-        this.eventEmitter.emit('gameEnded');
-    }
-
-    /**
      * 게임 루프 시작
      */
     startGameLoop() {
@@ -469,7 +432,7 @@ export default class GameManager {
         const deltaTime = (now - this.lastUpdateTime) / 1000;
         this.lastUpdateTime = now;
 
-        if (this.gameState === 'playing') {
+        if (this.gameStateManager.getGameState() === 'playing') {
             this.vehicleManager.update(deltaTime);
             this.updatePlayerTargetsAndLockOn(deltaTime);
             this.updateWeapons(deltaTime);
@@ -720,7 +683,7 @@ export default class GameManager {
             billboards: Array.from(this.billboards.values()).map(b => b.serialize()),
             projectiles: this.weaponSystem.getAllProjectiles().map(p => p.serialize()),
             effects: this.effectSystem.serialize(),
-            gameState: this.gameState,
+            gameState: this.gameStateManager.getGameState(),
             timestamp: Date.now()
         };
     }

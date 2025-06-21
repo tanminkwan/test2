@@ -8,6 +8,7 @@ import { PerformanceMonitor } from './PerformanceMonitor.js';
 import { TargetingSystem } from './TargetingSystem.js';
 import { TerrainManager } from './TerrainManager.js';
 import { PlayerManager } from './PlayerManager.js';
+import { VehicleManager } from './VehicleManager.js';
 
 /**
  * 게임 매니저 클래스 (Dependency Inversion Principle)
@@ -21,15 +22,15 @@ export default class GameManager {
         
         // 게임 상태
         this.gameState = 'waiting'; // waiting, playing, ended
-        this.vehicles = new Map();
         this.billboards = new Map();
         
         // 시스템들 (Dependency Injection)
         this.playerManager = new PlayerManager(config, eventEmitter);
-        this.terrainManager = new TerrainManager(this.config);
+        this.terrainManager = new TerrainManager(config);
+        this.vehicleFactory = new VehicleFactory(config);
+        this.vehicleManager = new VehicleManager(config, eventEmitter, this.vehicleFactory, this.terrainManager);
         this.weaponSystem = new WeaponSystem(this.config);
         this.effectSystem = new EffectSystem(this.eventEmitter);
-        this.vehicleFactory = new VehicleFactory(this.config);
         this.performanceMonitor = new PerformanceMonitor(this.config);
         this.targetingSystem = new TargetingSystem(
             this.config, 
@@ -177,21 +178,13 @@ export default class GameManager {
 
         const { player } = playerResult;
 
-        // 차량 생성
-        const vehicleId = uuidv4();
-        const spawnPosition = this.getSpawnPosition();
-        
-        // Factory 패턴을 사용하여 비행체 생성
-        const vehicle = this.vehicleFactory.createVehicle(vehicleId, playerId, spawnPosition, {
-            color: player.color,
-            vehicleType: vehicleType,
-            config: this.config
-        });
+        // 차량 생성 (VehicleManager 위임)
+        const vehicle = this.vehicleManager.createVehicleForPlayer(player.id, vehicleType, player.color);
 
         const vehicleConfig = this.config.vehicles[vehicleType] || this.config.vehicles.fighter;
 
         // 무기 장착 (기본 기관총) - 기체별 설정 적용
-        this.weaponSystem.equipWeapon(playerId, 'machinegun', {
+        this.weaponSystem.equipWeapon(player.id, 'machinegun', {
             damage: vehicleConfig.bulletDamage,
             speed: vehicleConfig.bulletSpeed,
             range: vehicleConfig.bulletRange,
@@ -199,13 +192,11 @@ export default class GameManager {
         });
         
         // 미사일 무기 장착
-        this.weaponSystem.equipWeapon(playerId, 'missile', {
+        this.weaponSystem.equipWeapon(player.id, 'missile', {
             ammo: vehicleConfig.missileCount || 4,
             maxAmmo: vehicleConfig.missileCount || 4,
             reloadTime: (vehicleConfig.missileReloadTime || 25) * 1000
         });
-
-        this.vehicles.set(vehicleId, vehicle);
 
         this.checkGameStart();
         this.syncGameState();
@@ -214,7 +205,7 @@ export default class GameManager {
             success: true, 
             player: player,
             vehicle: vehicle.serialize(),
-            weapons: this.weaponSystem.getPlayerWeapons(playerId)
+            weapons: this.weaponSystem.getPlayerWeapons(player.id)
         };
     }
 
@@ -225,13 +216,8 @@ export default class GameManager {
         const player = this.playerManager.getPlayer(playerId);
         if (!player) return false;
 
-        // 플레이어 차량 찾기 및 제거
-        for (const [vehicleId, vehicle] of this.vehicles) {
-            if (vehicle.playerId === playerId) {
-                this.vehicles.delete(vehicleId);
-                break;
-            }
-        }
+        // 차량 제거 (VehicleManager 위임)
+        this.vehicleManager.removeVehicleForPlayer(playerId);
 
         // 무기 제거
         this.weaponSystem.removePlayerWeapons(playerId);
@@ -249,7 +235,7 @@ export default class GameManager {
      * 플레이어 입력 처리
      */
     handlePlayerInput(playerId, inputs) {
-        const vehicle = this.getPlayerVehicle(playerId);
+        const vehicle = this.vehicleManager.getPlayerVehicle(playerId);
         if (!vehicle) return;
 
         // 차량 입력 처리
@@ -262,7 +248,7 @@ export default class GameManager {
                 'machinegun', 
                 vehicle.position, 
                 vehicle.rotation,
-                this.vehicles
+                this.vehicleManager.getAllVehicles()
             );
 
             if (projectile) {
@@ -296,7 +282,7 @@ export default class GameManager {
                 'missile', 
                 vehicle.position, 
                 vehicle.rotation,
-                this.vehicles,
+                this.vehicleManager.getAllVehicles(),
                 targetId
             );
 
@@ -318,7 +304,7 @@ export default class GameManager {
      * 가장 가까운 적 타겟을 찾음
      */
     findNearestTarget(playerId) {
-        const playerVehicle = this.getPlayerVehicle(playerId);
+        const playerVehicle = this.vehicleManager.getPlayerVehicle(playerId);
         if (!playerVehicle) return null;
 
         // 미사일 설정값 가져오기
@@ -337,7 +323,7 @@ export default class GameManager {
         let bestTarget = null;
         let minDistanceSq = Infinity;
 
-        for (const vehicle of this.vehicles.values()) {
+        for (const vehicle of this.vehicleManager.getAllVehicles()) {
             if (vehicle.playerId === playerId || !vehicle.active) {
                 continue;
             }
@@ -404,31 +390,14 @@ export default class GameManager {
      * 플레이어 차량 가져오기
      */
     getPlayerVehicle(playerId) {
-        for (const vehicle of this.vehicles.values()) {
-            if (vehicle.playerId === playerId) {
-                return vehicle;
-            }
-        }
-        return null;
+        return this.vehicleManager.getPlayerVehicle(playerId);
     }
 
     /**
      * 스폰 위치 계산
      */
     getSpawnPosition() {
-        const angle = Math.random() * Math.PI * 2;
-        const minDistance = this.config.world?.spawnDistance?.min || 50;
-        const maxDistance = this.config.world?.spawnDistance?.max || 150;
-        const distance = minDistance + Math.random() * (maxDistance - minDistance);
-        
-        const minHeight = this.config.world?.spawnHeight?.min || 50;
-        const maxHeight = this.config.world?.spawnHeight?.max || 70;
-        
-        return {
-            x: Math.cos(angle) * distance,
-            y: minHeight + Math.random() * (maxHeight - minHeight),
-            z: Math.sin(angle) * distance
-        };
+        return this.vehicleManager.getSpawnPosition();
     }
 
     /**
@@ -487,7 +456,7 @@ export default class GameManager {
         this.lastUpdateTime = now;
 
         if (this.gameState === 'playing') {
-            this.updateVehicles(deltaTime);
+            this.vehicleManager.update(deltaTime);
             this.updatePlayerTargetsAndLockOn(deltaTime);
             this.updateWeapons(deltaTime);
             this.updateEffects(deltaTime);
@@ -502,10 +471,10 @@ export default class GameManager {
      */
     updatePlayerTargetsAndLockOn(deltaTime) {
         for (const player of this.playerManager.getAllPlayers()) {
-            const playerVehicle = this.getPlayerVehicle(player.id);
+            const playerVehicle = this.vehicleManager.getPlayerVehicle(player.id);
             if (!playerVehicle) continue;
 
-            const enemies = Array.from(this.vehicles.values()).filter(v => v.playerId !== player.id && v.active);
+            const enemies = this.vehicleManager.getAllVehicles().filter(v => v.playerId !== player.id && v.active);
 
             this.targetingSystem.update(
                 player,
@@ -533,9 +502,8 @@ export default class GameManager {
      * 차량 업데이트
      */
     updateVehicles(deltaTime) {
-        for (const vehicle of this.vehicles.values()) {
-            vehicle.update(deltaTime);
-            
+        this.vehicleManager.update(deltaTime);
+        for (const vehicle of this.vehicleManager.getAllVehicles()) {
             // 비행체와 광고판 충돌 검사
             this.checkVehicleBillboardCollisions(vehicle);
         }
@@ -607,7 +575,7 @@ export default class GameManager {
      * 무기 시스템 업데이트
      */
     updateWeapons(deltaTime) {
-        const removedProjectiles = this.weaponSystem.updateProjectiles(deltaTime, this.vehicles);
+        const removedProjectiles = this.weaponSystem.updateProjectiles(deltaTime, this.vehicleManager.getAllVehicles());
         
         // 제거된 발사체들에 대한 이벤트 발생
         if (removedProjectiles.length > 0) {
@@ -631,7 +599,7 @@ export default class GameManager {
      * 충돌 검사
      */
     checkCollisions() {
-        const collisions = this.weaponSystem.checkCollisions(this.vehicles, this.billboards);
+        const collisions = this.weaponSystem.checkCollisions(this.vehicleManager.getAllVehicles(), this.billboards);
 
         for (const collision of collisions) {
             this.handleCollision(collision);
@@ -657,7 +625,7 @@ export default class GameManager {
      * 차량 피격 처리
      */
     handleVehicleHit(collision) {
-        const vehicle = this.vehicles.get(collision.targetId);
+        const vehicle = this.vehicleManager.getVehicle(collision.targetId);
         if (!vehicle) return;
 
         // 이미 비활성 차량인 경우 처리하지 않음
@@ -790,7 +758,7 @@ export default class GameManager {
         // 5. 리스폰 타이머 설정
         const respawnTime = this.config.game.respawnTime;
         setTimeout(() => {
-            this.respawnVehicle(billboard);
+            this.vehicleManager.respawnVehicle(billboard);
         }, respawnTime);
     }
 
@@ -838,7 +806,7 @@ export default class GameManager {
         // 5. 리스폰 타이머 설정
         const respawnTime = this.config.game.respawnTime || 5000;
         setTimeout(() => {
-            this.respawnVehicle(vehicle);
+            this.vehicleManager.respawnVehicle(vehicle);
         }, respawnTime);
 
         // 6. 게임 상태 동기화
@@ -849,17 +817,7 @@ export default class GameManager {
      * 차량 리스폰
      */
     respawnVehicle(vehicle) {
-        const spawnPosition = this.getSpawnPosition();
-        vehicle.respawn(spawnPosition);
-        
-        // 차량을 다시 보이게 만들기
-        vehicle.visible = true;
-        
-        // 리스폰 이벤트 발생 (shouldShow 플래그 포함)
-        this.eventEmitter.emit('vehicleRespawned', {
-            vehicle: vehicle.serialize(),
-            shouldShow: true // 클라이언트에서 다시 보이게 하라는 플래그
-        });
+        this.vehicleManager.respawnVehicle(vehicle);
     }
 
     /**
@@ -875,7 +833,7 @@ export default class GameManager {
      */
     getGameState() {
         return {
-            vehicles: Array.from(this.vehicles.values()).filter(v => v.active).map(v => v.serialize()),
+            vehicles: this.vehicleManager.getAllVehicles().filter(v => v.active).map(v => v.serialize()),
             players: this.playerManager.getAllPlayers().map(p => {
                 return {
                     id: p.id,

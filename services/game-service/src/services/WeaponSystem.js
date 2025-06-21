@@ -94,7 +94,7 @@ export class WeaponSystem {
         for (const [id, projectile] of this.projectiles) {
             // 미사일인 경우, 타겟 정보를 찾아서 update에 넘겨줌
             if (projectile.targetId && vehicles) {
-                const targetVehicle = vehicles.get(projectile.targetId);
+                const targetVehicle = vehicles.find(v => v.id === projectile.targetId);
                 projectile.update(deltaTime, targetVehicle);
             } else {
                 projectile.update(deltaTime);
@@ -122,7 +122,7 @@ export class WeaponSystem {
 
         for (const [projectileId, projectile] of this.projectiles) {
             // 차량과의 충돌 검사
-            for (const [vehicleId, vehicle] of vehicles) {
+            for (const vehicle of vehicles) {
                 // 자신의 발사체는 제외
                 if (vehicle.playerId === projectile.ownerId) continue;
                 
@@ -134,7 +134,7 @@ export class WeaponSystem {
                     collisions.push({
                         type: 'vehicle',
                         projectileId,
-                        targetId: vehicleId,
+                        targetId: vehicle.id,
                         damage: projectile.damage,
                         position: projectile.position,
                         ownerId: projectile.ownerId

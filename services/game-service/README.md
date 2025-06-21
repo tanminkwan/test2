@@ -1,6 +1,6 @@
 # 🎮 Game Service
 
-**Version:** v4.0  
+**Version:** v4.1  
 **Port:** 3001  
 **Database:** In-Memory  
 **Architecture:** Independent Microservice
@@ -15,8 +15,9 @@ Game Service는 실시간 멀티플레이어 게임 로직을 담당하는 독�
 - **실시간 멀티플레이어**: Socket.IO 기반 실시간 동기화
 - **3가지 비행체 타입**: Fighter, Heavy, Test 각각 다른 특성
 - **물리 기반 비행**: 현실적인 비행 역학 시뮬레이션
-- **무기 시스템**: 머신건 기반 전투 시스템
+- **무기 시스템**: 머신건, 미사일 기반 전투 시스템
 - **폭발 효과**: 피격 시 작은 폭발, 파괴 시 대형 폭발
+- **자동 리스폰**: 파괴 후 자동 리스폰 시스템
 
 ### 🎲 게임 시스템
 - **점수 시스템**: 킬/데스 통계 및 점수 집계
@@ -90,9 +91,17 @@ curl http://localhost:3001/api/status
 #### ⚡ Fighter (전투기)
 ```javascript
 {
-  health: 40,
+  health: 80,
   maxSpeed: 120,
-  fireRate: 100,  // ms
+  acceleration: 80,
+  turnSpeed: 2.0,
+  rollSpeed: 3.0,
+  pitchSpeed: 2.0,
+  yawSpeed: 2.0,
+  fireRate: 100,
+  bulletDamage: 10,
+  bulletSpeed: 200,
+  bulletRange: 300,
   engineCount: 1,
   engineColor: 0x0088ff,  // 파란색
   description: "균형잡힌 성능의 표준 전투기"
@@ -102,9 +111,17 @@ curl http://localhost:3001/api/status
 #### 🛡️ Heavy (중형기)
 ```javascript
 {
-  health: 60,
+  health: 150,
   maxSpeed: 80,
-  fireRate: 150,  // ms
+  acceleration: 50,
+  turnSpeed: 1.5,
+  rollSpeed: 2.0,
+  pitchSpeed: 1.5,
+  yawSpeed: 1.5,
+  fireRate: 150,
+  bulletDamage: 15,
+  bulletSpeed: 180,
+  bulletRange: 350,
   engineCount: 2,
   engineColor: 0xff4400,  // 주황색
   description: "높은 내구성, 느린 기동성"
@@ -116,10 +133,18 @@ curl http://localhost:3001/api/status
 {
   health: 20,
   maxSpeed: 100,
-  fireRate: 80,   // ms
+  acceleration: 60,
+  turnSpeed: 2.5,
+  rollSpeed: 3.5,
+  pitchSpeed: 2.5,
+  yawSpeed: 2.5,
+  fireRate: 80,
+  bulletDamage: 8,
+  bulletSpeed: 220,
+  bulletRange: 280,
   engineCount: 1,
   engineColor: 0x00ff00,  // 녹색
-  description: "빠른 테스트용, 높은 기동성"
+  description: "빠른 테스트용, 높은 기동성, 낮은 내구성"
 }
 ```
 
@@ -127,20 +152,49 @@ curl http://localhost:3001/api/status
 
 #### Vehicle (비행체)
 ```javascript
-class Vehicle {
-  constructor(id, playerId, position, config) {
-    this.id = id;
+class Vehicle extends GameEntity {
+  constructor(id, playerId, spawnPosition, options = {}) {
+    super(id, spawnPosition);
+    
     this.playerId = playerId;
-    this.position = position;
-    this.velocity = { x: 0, y: 0, z: 0 };
-    this.rotation = { x: 0, y: 0, z: 0 };
-    this.health = config.health;
-    this.maxHealth = config.health;
-    this.maxSpeed = config.maxSpeed;
-    this.fireRate = config.fireRate;
-    this.lastFireTime = 0;
-    this.isDestroyed = false;
-    this.respawnTime = null;
+    this.color = options.color || '#ff0000';
+    this.vehicleType = options.vehicleType || 'fighter';
+    
+    // 타입별 기본 설정
+    const typeConfig = this.getTypeConfig(this.vehicleType);
+    
+    this.health = typeConfig.health;
+    this.maxHealth = typeConfig.health;
+    this.maxSpeed = typeConfig.maxSpeed;
+    this.acceleration = typeConfig.acceleration;
+    this.turnSpeed = typeConfig.turnSpeed;
+    // ... 기타 속성들 ...
+    
+    // 활성 상태
+    this.active = true;
+    this.visible = true;
+  }
+
+  // 데미지 처리
+  takeDamage(damage) {
+    if (!this.active) return false;
+    
+    this.health -= damage;
+    
+    if (this.health <= 0) {
+      this.health = 0;
+      return true; // 파괴됨 (active 상태는 GameManager에서 변경)
+    }
+    
+    return false; // 파괴되지 않음
+  }
+
+  // 리스폰
+  respawn(spawnPosition = null) {
+    // ... 리스폰 로직 ...
+    this.health = this.maxHealth;
+    this.active = true;
+    this.visible = true;
   }
 }
 ```
@@ -669,6 +723,38 @@ io.engine.pingTimeout = 60000;
 io.engine.pingInterval = 25000;
 ```
 
+#### 5. 리스폰 문제
+**증상**: 기체가 파괴된 후 리스폰되지 않고 멈춰있음
+
+**해결방법**:
+```javascript
+// 1. Vehicle.js의 takeDamage 메소드에서 active 상태 변경 제거
+takeDamage(damage) {
+  if (!this.active) return false;
+  
+  this.health -= damage;
+  
+  if (this.health <= 0) {
+    this.health = 0;
+    return true; // 파괴됨 (active 상태는 GameManager에서 변경)
+  }
+  
+  return false;
+}
+
+// 2. GameManager.js의 handleVehicleDestroyed 메소드에서 가드 조건 수정
+handleVehicleDestroyed(vehicle, collision) {
+  if (!vehicle) { // vehicle.active 체크 제거
+    return;
+  }
+  
+  // 이제 GameManager가 active 상태 관리
+  vehicle.active = false;
+  
+  // ... 리스폰 타이머 설정 등의 로직 ...
+}
+```
+
 ## 📊 모니터링
 
 ### 성능 메트릭
@@ -776,3 +862,111 @@ MIT License
 **🎮 Game Service는 실시간 멀티플레이어 게임의 핵심 로직을 담당하는 고성능 서비스입니다.**
 
 **⚠️ 프로덕션 환경에서는 반드시 JWT_SECRET을 변경하고 성능 모니터링을 설정하세요!** 
+
+## 🔄 최근 업데이트 (v4.1)
+
+### 🐛 버그 수정
+
+#### 1. 리스폰 문제 해결
+기체가 파괴된 후 리스폰되지 않고 멈추는 버그를 수정했습니다.
+
+**원인**: 
+- `Vehicle.js`의 `takeDamage` 메소드에서 `this.active = false`로 설정하고,
+- `GameManager.js`의 `handleVehicleDestroyed` 메소드에서 `!vehicle.active` 조건으로 조기 반환하여 리스폰 로직이 실행되지 않았습니다.
+
+**해결**:
+```javascript
+// Vehicle.js - takeDamage 메소드
+takeDamage(damage) {
+  if (!this.active) return false;
+  
+  this.health -= damage;
+  
+  if (this.health <= 0) {
+    this.health = 0;
+    return true; // 파괴됨 (active 상태는 GameManager에서 변경)
+  }
+  
+  return false;
+}
+
+// GameManager.js - handleVehicleDestroyed 메소드
+handleVehicleDestroyed(vehicle, collision) {
+  if (!vehicle) { // vehicle.active 체크 제거
+    return;
+  }
+  
+  // 이제 GameManager가 active 상태 관리
+  vehicle.active = false;
+  
+  // ... 리스폰 타이머 설정 등의 로직 ...
+}
+```
+
+#### 2. 무기 데미지 설정 문제 해결
+기체 종류에 관계없이 모든 기관총이 동일한 데미지를 주는 문제를 수정했습니다.
+
+**원인**:
+- `MachineGun` 클래스에서 데미지가 하드코딩되어 기체 유형별 설정이 무시되었습니다.
+
+**해결**:
+```javascript
+// GameManager.js - addPlayer 메소드
+addPlayer(playerId, playerName, vehicleType = 'fighter') {
+  // ... 기존 코드 ...
+  
+  const vehicleConfig = this.config.vehicles[vehicleType] || this.config.vehicles.fighter;
+
+  // 무기 장착 (기본 기관총) - 기체별 설정 적용
+  this.weaponSystem.equipWeapon(playerId, 'machinegun', {
+    damage: vehicleConfig.bulletDamage,
+    speed: vehicleConfig.bulletSpeed,
+    range: vehicleConfig.bulletRange,
+    cooldown: 1000 / vehicleConfig.fireRate // 초당 발사 수 -> 쿨다운(ms)
+  });
+  
+  // ... 기존 코드 ...
+}
+```
+
+#### 3. 킬 카운트 문제 해결
+플레이어가 다른 플레이어를 파괴해도 킬 카운트가 증가하지 않는 문제를 수정했습니다.
+
+**원인**:
+- `WeaponSystem.js`에서 생성한 충돌 정보에는 `ownerId`가 포함되지만 `GameManager.js`에서는 `attackerId`를 사용했습니다.
+
+**해결**:
+```javascript
+// GameManager.js - handleVehicleDestroyed 메소드
+handleVehicleDestroyed(vehicle, collision) {
+  // ... 기존 코드 ...
+  
+  const victimId = vehicle.playerId;
+  const attackerId = collision.ownerId; // attackerId 대신 ownerId 사용
+  
+  // ... 기존 코드 ...
+}
+```
+
+#### 4. 폭발 효과 오류 수정
+차량 파괴 시 폭발 효과가 생성되지 않는 오류를 수정했습니다.
+
+**원인**:
+- `GameManager.js`의 `handleVehicleDestroyed` 메소드에서 존재하지 않는 `createEffect` 메소드를 호출했습니다.
+
+**해결**:
+```javascript
+// GameManager.js - handleVehicleDestroyed 메소드
+// 3. 서버 측 대형 폭발 효과 생성
+const collisionConfig = this.config.collision || {};
+const explosionRadius = collisionConfig.explosionRadiusLarge || 25;
+const explosionDuration = collisionConfig.explosionDurationLarge || 3000;
+const explosionIntensity = collisionConfig.explosionIntensityLarge || 1.5;
+
+this.effectSystem.createExplosion(
+  vehicle.position,
+  explosionRadius,
+  explosionDuration,
+  explosionIntensity
+);
+``` 

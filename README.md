@@ -82,7 +82,10 @@ sequenceDiagram
 - **실시간 멀티플레이어**: Socket.IO 기반 실시간 동기화
 - **3가지 비행체 타입**: 전투기(Fighter), 중형기(Heavy), 테스트기(Test)
 - **물리 기반 비행**: 현실적인 비행 역학 시뮬레이션
-- **무기 시스템**: 머신건 기반 전투 시스템
+- **무기 시스템**: 기관총 및 유도 미사일 시스템
+- **타겟팅 시스템**: 상황 인식 및 락온(Lock-on) 기능
+- **선물 상자 시스템**: 게임 월드에 주기적으로 생성되는 선물 상자를 획득하면 점수, 무기 등 다양한 보상을 얻을 수 있습니다.
+- **동적 환경**: 파괴 가능한 광고판(Billboard), 보상을 제공하는 선물 상자(GiftBox) 등 상호작용 가능한 오브젝트
 - **폭발 효과**: 피격 시 작은 폭발, 파괴 시 대형 폭발
 - **점수 시스템**: 킬/데스 통계 및 점수 집계
 - **자동 리스폰**: 5초 후 자동 부활
@@ -97,11 +100,13 @@ sequenceDiagram
 - **CORS 설정**: 적절한 Cross-Origin 정책
 
 ### 🏗️ 마이크로서비스 특징
-- **완전한 독립성**: 각 서비스별 독립적인 package.json과 의존성
+- **완전한 독립성**: 각 서비스별 독립적인 `package.json`과 의존성
 - **독립적 배포**: 서비스별로 따로 배포 가능
-- **SOLID 원칙 준수**: 확장 가능하고 유지보수가 용이한 설계
+- **SOLID 원칙 준수**:
+  - **단일 책임 원칙 (SRP)**: 기존의 거대했던 `GameManager`를 `PlayerManager`, `VehicleManager`, `WeaponSystem`, `TargetingManager`, `CollisionSystem` 등 각자의 역할에 충실한 여러 개의 작은 시스템으로 분리
+  - 이를 통해 코드의 응집도를 높이고, 유지보수성과 확장성을 크게 향상
 - **Factory Pattern**: 새로운 비행체 타입 쉽게 추가 가능
-- **Observer Pattern**: 이벤트 기반 시스템 아키텍처
+- **Observer Pattern**: `EventEmitter`를 활용한 이벤트 기반 시스템 아키텍처
 - **성능 모니터링**: 실시간 서버 성능 추적
 - **중앙집중식 설정**: YAML 기반 설정 관리
 - **PostgreSQL 데이터베이스**: 사용자 데이터 영구 저장
@@ -243,15 +248,42 @@ multiplayer-vehicle-game/
 │   │
 │   └── game-service/              # 게임 로직 마이크로서비스
 │       ├── src/
+│       ├── systems/               # SRP 원칙에 따라 분리된 게임 시스템
+│       │   ├── PlayerManager.js
+│       │   ├── VehicleManager.js
+│       │   ├── WeaponSystem.js
+│       │   ├── TargetingManager.js
+│       │   ├── CollisionSystem.js
+│       │   └── GiftBoxSystem.js     # 선물 상자 시스템
+│       ├── models/                # 게임 데이터 모델
 │       ├── package.json           # 독립적 의존성
-│       ├── .env                   # 환경 변수
-│       └── README.md
+│       └── ...
 │
-├── client/                        # 프론트엔드
-├── nginx.conf                     # API Gateway 설정
-├── package.json                   # 루트 스크립트 (개발 도구)
+├── client/                        # 3D 게임 클라이언트
+│   ├── src/
+│   └── ...
+│
+├── nginx.conf                     # Nginx API 게이트웨이 설정
+├── docker-compose.yml             # Docker 다중 컨테이너 실행 설정
 └── README.md
 ```
+
+## 🛠️ 주요 기술 스택
+
+- **Backend**: Node.js, Express
+- **Frontend**: HTML, CSS, JavaScript, Three.js
+- **Real-time Communication**: Socket.IO
+- **Database**: PostgreSQL
+- **API Gateway**: Nginx
+- **Containerization**: Docker
+
+## 🤝 기여하기
+
+프로젝트에 기여하고 싶으신 분은 언제든지 Pull Request를 보내주시거나 이슈를 등록해주세요.
+
+## 📄 라이선스
+
+본 프로젝트는 MIT 라이선스를 따릅니다.
 
 ## 🎯 게임 조작법
 

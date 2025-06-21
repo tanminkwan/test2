@@ -1,0 +1,6 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+error를 조치할 때는 항상 먼저 원인을 파악하고 원인을 설명한 후 조치를 해

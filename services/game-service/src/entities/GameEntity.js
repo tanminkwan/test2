@@ -1,3 +1,5 @@
+import * as THREE from 'three';
+
 /**
  * 기본 게임 엔티티 클래스 (Single Responsibility Principle)
  * 모든 게임 오브젝트의 기본 속성과 동작을 정의
@@ -5,9 +7,9 @@
 export default class GameEntity {
     constructor(id, position = { x: 0, y: 0, z: 0 }) {
         this.id = id;
-        this.position = { ...position };
+        this.position = new THREE.Vector3(position.x, position.y, position.z);
         this.rotation = { x: 0, y: 0, z: 0 };
-        this.velocity = { x: 0, y: 0, z: 0 };
+        this.velocity = new THREE.Vector3();
         this.scale = { x: 1, y: 1, z: 1 };
         this.active = true;
         this.createdAt = Date.now();
@@ -32,9 +34,7 @@ export default class GameEntity {
      * 위치 업데이트
      */
     updatePosition(deltaTime) {
-        this.position.x += this.velocity.x * deltaTime;
-        this.position.y += this.velocity.y * deltaTime;
-        this.position.z += this.velocity.z * deltaTime;
+        this.position.addScaledVector(this.velocity, deltaTime);
     }
 
     /**
@@ -72,9 +72,9 @@ export default class GameEntity {
     serialize() {
         return {
             id: this.id,
-            position: this.position,
+            position: { x: this.position.x, y: this.position.y, z: this.position.z },
             rotation: this.rotation,
-            velocity: this.velocity,
+            velocity: { x: this.velocity.x, y: this.velocity.y, z: this.velocity.z },
             scale: this.scale,
             active: this.active,
             createdAt: this.createdAt,
@@ -86,10 +86,7 @@ export default class GameEntity {
      * 다른 엔티티와의 거리 계산
      */
     distanceTo(other) {
-        const dx = this.position.x - other.position.x;
-        const dy = this.position.y - other.position.y;
-        const dz = this.position.z - other.position.z;
-        return Math.sqrt(dx * dx + dy * dy + dz * dz);
+        return this.position.distanceTo(other.position);
     }
 
     /**
@@ -104,11 +101,7 @@ export default class GameEntity {
         const r1 = radius1 !== null ? radius1 : defaultRadius;
         const r2 = radius2 !== null ? radius2 : defaultRadius;
         
-        const dx = this.position.x - other.position.x;
-        const dy = this.position.y - other.position.y;
-        const dz = this.position.z - other.position.z;
-        
-        const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        const distance = this.position.distanceTo(other.position);
         return distance < (r1 + r2);
     }
 } 

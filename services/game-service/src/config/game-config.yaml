@@ -42,12 +42,30 @@ network:
   maxPacketSize: 1024                # 최대 패킷 크기 (bytes)
   compressionEnabled: false          # 데이터 압축 활성화 (미래 기능)
   
+# 선물 상자 설정
+giftBoxes:
+  enabled: true
+  count: 5
+  health: 10
+  size: 5
+  rewards:
+    score: 20
+    missiles: 2
+  spawnOptions:
+    minHeight: 80
+    maxHeight: 150
+    areaRadius: 300 # 중심으로부터의 최대 스폰 반경
+  destruction:
+    explosionRadius: 10
+    explosionDuration: 1500
+    explosionIntensity: 1.0
+
 world:
   size: 400                          # 맵 크기 (정사각형, 단위: 게임 유닛)
   terrainDetail: 100                 # 지형 세부도 (높을수록 더 세밀한 지형)
   waterLevel: -5                     # 물 높이 (Y축 좌표)
   maxHeight: 200                     # 최대 비행 높이 (맵 경계)
-  gravity: -9.81                     # 중력 가속도 (m/s²)
+  gravity: 0                     # 중력 가속도 (m/s²)
   boundaryBuffer: 10                 # 맵 경계에서 여유 공간 (충돌 방지)
   spawnDistance:                     # 스폰 위치 설정
     min: 50                          # 맵 중심에서 최소 거리
@@ -55,6 +73,21 @@ world:
   spawnHeight:                       # 스폰 높이 설정
     min: 80                          # 최소 스폰 높이
     max: 120                         # 최대 스폰 높이
+
+# 지형 생성 설정
+terrain:
+  baseHeight: 0                      # 기본 지형 높이
+  noise1Scale: 0.008                 # 노이즈 1 스케일
+  noise1Factor: 25                   # 노이즈 1 강도
+  noise2Scale: 0.015                 # 노이즈 2 스케일
+  noise2Factor: 15                   # 노이즈 2 강도
+  noise3Scale: 0.03                  # 노이즈 3 스케일
+  noise3Factor: 8                    # 노이즈 3 강도
+  noise4Scale: 0.05                  # 노이즈 4 스케일
+  noise4Factor: 4                    # 노이즈 4 강도
+  flatness:                          # 지형 평탄도 검사 설정
+    checkPoints: 8                   # 평탄도 검사 포인트 수
+    maxHeightDiff: 10                # 허용 최대 높이 차이
   
 # 광고판 설정 (파괴 가능한 오브젝트)
 billboards:
@@ -87,6 +120,10 @@ billboards:
     back:                            # 뒷면 이미지 목록
       - "assets/billboards/back.svg"
       - "assets/billboards/kimhk.jpg"
+  destruction:                       # 파괴 효과 설정
+    explosionRadius: 20
+    explosionDuration: 3000
+    explosionIntensity: 1.5
   
 vehicles:
   colors:                            # 플레이어별 비행체 색상 목록
@@ -195,6 +232,31 @@ weapons:
     range: 300                       # 사거리 (기본값)
     bulletLifetime: 3                # 총알 지속 시간 (초)
     
+  missile:                           # 미사일 설정
+    damage: 30                       # 미사일 기본 데미지
+    speed: 150                       # 미사일 기본 속도
+    range: 600                       # 미사일 최대 사거리
+    cooldown: 2000                   # 발사 간 쿨다운(ms)
+    trackingPower: 3.5               # 추적 강도 (높을수록 더 빠르게 회전)
+    maxTurnRate: 0.3                 # 최대 회전 속도 (라디안/프레임)
+    lifeTime: 6000                   # 미사일 생존 시간(ms)
+    armingTime: 300                  # 발사체 무장 시간(ms)
+    explosionRadius: 8               # 폭발 반경
+    directHitDistance: 20            # 유도를 멈추고 직진하는 거리 (m)
+    splashDamage: true               # 범위 데미지 여부
+    trailEffect: "smoke"             # 미사일 궤적 효과
+    maxRange: 300                   # 타겟팅 유효 범위
+    targetingAngle: 45               # 타겟팅을 시도할 정면 시야각 (도 단위)
+    missileLockAngle: 15             # 미사일 락온이 가능한 유효 각도 (도 단위)
+    
+    visual:
+      length: 5                      # 미사일 길이
+      radius: 0.8                    # 미사일 반지름
+      engineGlow: "#FF6600"          # 엔진 불빛 색상
+      smokeColor: "#888888"          # 연기 색상
+      smokeRate: 0.05                # 연기 생성률
+      explosionSize: 3.0             # 폭발 효과 크기
+  
 physics:
   airResistance: 0.98                # 공기 저항 (0.98 = 2% 감속)
   groundFriction: 0.95               # 지면 마찰 (지면 충돌 시)
@@ -278,3 +340,16 @@ logging:
   maxLogSize: "10MB"                 # 로그 파일 최대 크기
   enablePerformanceLogs: true        # 성능 로그 활성화
   enableEventLogs: true              # 이벤트 로그 활성화 
+
+# 타겟팅 시스템 설정
+targeting:
+  maxDistance: 200                   # 락온 가능 최대 거리
+  lockOnTime: 2                      # 락온에 걸리는 시간 (초)
+  lockLostCooldown: 1000             # 락온 분실 후 쿨다운 (ms)
+  lockOnAngleBuffer: 2               # 락온 유지 각도 버퍼 (도)
+  lockOnDistanceGraceFactor: 1.1     # 락온 유지 거리 여유 계수 (1.1 = 10% 여유)
+  angleBrackets:                     # 거리별 락온 가능 각도
+    - [50, 8]                        # 50m 이내, 8도
+    - [100, 12]                      # 100m 이내, 12도
+    - [150, 18]                      # 150m 이내, 18도
+    - [200, 25]                      # 200m 이내, 25도

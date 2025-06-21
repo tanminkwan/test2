@@ -31,6 +31,7 @@ export class GameClient {
         this.bullets = new Map();
         this.explosions = new Map();
         this.billboards = new Map();
+        this.giftBoxes = new Map();
         
         // 플레이어 상태
         this.myPlayer = gameData.player;
@@ -130,6 +131,11 @@ export class GameClient {
                 }
             },
             
+            onMissileLaunched: (data) => {
+                console.log('Missile launched:', data);
+                this.createMissile(data.missileId, data.playerId, data.vehicleId);
+            },
+            
             onMuzzleFlash: (data) => {
                 // 서버에서 직접 총구 효과 이벤트를 받은 경우 - EffectManager로 위임
                 if (data.playerId && this.effectManager) {
@@ -192,6 +198,26 @@ export class GameClient {
                 }
             },
             
+            onGiftBoxDestroyed: (data) => {
+                const giftBox = this.giftBoxes.get(data.giftBoxId);
+                if (giftBox && this.effectManager) {
+                    // 폭발 효과 생성
+                    this.effectManager.createExplosion({
+                        position: giftBox.position,
+                        radius: 10,
+                        duration: 1500,
+                        intensity: 1.0
+                    });
+
+                    // 선물 상자 제거
+                    this.scene.remove(giftBox);
+                    this.giftBoxes.delete(data.giftBoxId);
+
+                    // UI 알림 (선택 사항)
+                    this.uiManager.showGameEvent('giftBoxDestroyed', data);
+                }
+            },
+            
             onVehicleDestroyed: (data) => {
                 console.log('Vehicle destroyed:', data);
                 
@@ -235,6 +261,12 @@ export class GameClient {
                 
                 // UI 알림
                 this.uiManager.showGameEvent('vehicleRespawned', data);
+            },
+            
+            onPlayerNotification: (data) => {
+                if (data.playerId === this.myPlayer.id) {
+                    this.uiManager.showNotification(data.message);
+                }
             },
             
             onGameStarted: (data) => {
@@ -591,15 +623,14 @@ export class GameClient {
         this.mouseX = mousePos.x;
         this.mouseY = mousePos.y;
         
-        this.sendInputs();
-        
-        // 발사 입력 리셋 (네트워크 전송 후)
-        if (this.inputs.fire) {
-            this.inputManager.resetFireInput();
-        }
-        
         // 내 비행체 부스터 효과 업데이트
         this.updateMyVehicleBooster();
+        
+        // 타겟팅 UI 업데이트
+        this.updateTargetingUI();
+        
+        // 입력 전송
+        this.sendInputs();
         
         // 카메라 업데이트
         this.updateCamera();
@@ -617,8 +648,29 @@ export class GameClient {
         // 렌더링 통계 리셋 (성능 최적화)
         this.renderer.info.reset();
         
+        // 선물 상자 애니메이션
+        this.updateGiftBoxesAnimation(deltaTime);
+        
         // 렌더링
         this.renderer.render(this.scene, this.camera);
+    }
+
+    /**
+     * 타겟팅 UI 업데이트
+     */
+    updateTargetingUI() {
+        if (!this.myPlayer || !this.uiManager || !this.latestGameState) return;
+        
+        const myPlayerData = this.latestGameState.players.find(p => p.id === this.myPlayer.id);
+        
+        if (myPlayerData) {
+            this.uiManager.updateTargetingIndicators(
+                myPlayerData, 
+                this.vehicles, 
+                this.camera, 
+                this.renderer.domElement
+            );
+        }
     }
 
     /**
@@ -736,6 +788,103 @@ export class GameClient {
     }
 
     /**
+     * 미사일 생성
+     */
+    createMissile(missileId, playerId, vehicleId) {
+        // 미사일 설정 가져오기 - 기본값은 빨간색 큰 발사체
+        const missileConfig = this.config?.effects?.missile || {};
+        
+        const missileGroup = new THREE.Group();
+        
+        // 미사일 본체 (총알보다 훨씬 크게)
+        const missileGeometry = new THREE.CylinderGeometry(0.5, 0.7, 4, 8);
+        const missileMaterial = new THREE.MeshBasicMaterial({
+            color: missileConfig.color || 0xff3300
+        });
+        const missileMesh = new THREE.Mesh(missileGeometry, missileMaterial);
+        missileMesh.rotation.x = Math.PI / 2;
+        missileGroup.add(missileMesh);
+        
+        // 미사일 트레일 (길고 눈에 띄는 트레일)
+        const trailGeometry = new THREE.CylinderGeometry(0.5, 0.2, 8, 8);
+        const trailMaterial = new THREE.MeshBasicMaterial({
+            color: missileConfig.trailColor || 0xff7700,
+            transparent: true,
+            opacity: 0.8
+        });
+        const trail = new THREE.Mesh(trailGeometry, trailMaterial);
+        trail.position.z = -5;
+        trail.rotation.x = Math.PI / 2;
+        missileGroup.add(trail);
+        
+        // 미사일 글로우 효과 (더 크게)
+        const glowGeometry = new THREE.SphereGeometry(1.0, 16, 16);
+        const glowMaterial = new THREE.MeshBasicMaterial({
+            color: missileConfig.glowColor || 0xff5500,
+            transparent: true,
+            opacity: 0.6
+        });
+        const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+        missileGroup.add(glow);
+        
+        // 추가: 미사일 날개
+        const finGeometry = new THREE.BoxGeometry(2, 0.1, 1);
+        const finMaterial = new THREE.MeshBasicMaterial({
+            color: 0xcccccc
+        });
+        
+        // 수평 날개
+        const horizontalFin = new THREE.Mesh(finGeometry, finMaterial);
+        horizontalFin.position.set(0, 0, 0);
+        missileGroup.add(horizontalFin);
+        
+        // 수직 날개
+        const verticalFin = new THREE.Mesh(finGeometry, finMaterial);
+        verticalFin.rotation.z = Math.PI / 2;
+        verticalFin.position.set(0, 0, 0);
+        missileGroup.add(verticalFin);
+        
+        // 발사한 비행체 찾아서 미사일 위치 설정
+        const vehicle = this.vehicles.get(vehicleId);
+        if (vehicle) {
+            missileGroup.position.copy(vehicle.position);
+            missileGroup.rotation.copy(vehicle.rotation);
+            
+            // 약간 아래쪽에서 발사되도록 오프셋
+            missileGroup.position.y -= 2;
+        } else {
+            console.warn(`Vehicle ${vehicleId} not found for missile attachment`);
+        }
+        
+        // 미사일 데이터 설정
+        missileGroup.userData = {
+            id: missileId,
+            playerId: playerId,
+            vehicleId: vehicleId,
+            type: 'missile'
+        };
+        
+        // 그림자 설정
+        missileGroup.castShadow = true;
+        
+        // 미사일 추가
+        this.scene.add(missileGroup);
+        this.bullets.set(missileId, missileGroup); // 총알과 같은 컬렉션에 저장
+        
+        // 미사일 발사 효과 추가 (작은 폭발)
+        if (this.effectManager && vehicle) {
+            this.effectManager.createExplosion({
+                position: vehicle.position,
+                radius: 2,
+                duration: 500,
+                intensity: 0.5
+            });
+        }
+        
+        return missileGroup;
+    }
+
+    /**
      * 지형 높이 계산 - WorldManager로 위임
      */
     getTerrainHeight(x, z) {
@@ -836,19 +985,56 @@ export class GameClient {
                         const newBullet = this.createBullet(projectileData);
                     } else {
                         // 기존 총알 위치 업데이트
-                bullet.position.set(
+                        bullet.position.set(
                             projectileData.position.x || 0,
                             projectileData.position.y || 0,
                             projectileData.position.z || 0
-                );
-                bullet.rotation.set(
+                        );
+                        bullet.rotation.set(
                             projectileData.rotation.x || 0,
                             projectileData.rotation.y || 0,
                             projectileData.rotation.z || 0
-                );
+                        );
                     }
-            }
-        });
+                } else if (projectileData.type === 'missile') {
+                    // 미사일 타입 처리
+                    const missile = this.bullets.get(projectileData.id);
+                    if (!missile) {
+                        // 새로운 미사일 생성 (createMissile 함수 사용)
+                        this.createMissile(projectileData.id, projectileData.ownerId, null);
+                    }
+                    
+                    // 기존 미사일 위치 업데이트
+                    if (missile) {
+                        missile.position.set(
+                            projectileData.position.x || 0,
+                            projectileData.position.y || 0,
+                            projectileData.position.z || 0
+                        );
+                        
+                        // 미사일이 이동 방향을 향하도록 회전
+                        if (projectileData.velocity) {
+                            // 속도 벡터로부터 회전 계산
+                            const direction = new THREE.Vector3(
+                                projectileData.velocity.x,
+                                projectileData.velocity.y,
+                                projectileData.velocity.z
+                            ).normalize();
+                            
+                            // lookAt은 Z축이 앞쪽을 향하게 함
+                            const target = new THREE.Vector3().copy(missile.position).add(direction);
+                            missile.lookAt(target);
+                        } else {
+                            // 기본 회전 설정
+                            missile.rotation.set(
+                                projectileData.rotation.x || 0,
+                                projectileData.rotation.y || 0,
+                                projectileData.rotation.z || 0
+                            );
+                        }
+                    }
+                }
+            });
         } else {
             // 서버에 발사체가 없으면 클라이언트의 모든 총알 제거
             for (const [bulletId, bullet] of this.bullets) {
@@ -935,6 +1121,11 @@ export class GameClient {
                     }
                 }
             });
+        }
+        
+        // 선물 상자 상태 업데이트
+        if (gameState.giftBoxes) {
+            this.updateGiftBoxes(gameState.giftBoxes);
         }
         
         // UIManager에 게임 상태 업데이트 알림
@@ -1219,5 +1410,126 @@ export class GameClient {
         const texture = new THREE.CanvasTexture(canvas);
         panel.material.map = texture;
         panel.material.needsUpdate = true;
+    }
+
+    updateBillboards(billboardData) {
+        const receivedIds = new Set(billboardData.map(b => b.id));
+
+        // 기존 빌보드 업데이트 또는 신규 생성
+        for (const data of billboardData) {
+            if (this.billboards.has(data.id)) {
+                // 업데이트 로직 (필요시)
+            } else {
+                this.createBillboard(data);
+            }
+        }
+
+        // 서버에서 사라진 빌보드 제거
+        for (const id of this.billboards.keys()) {
+            if (!receivedIds.has(id)) {
+                const billboard = this.billboards.get(id);
+                this.scene.remove(billboard);
+                this.billboards.delete(id);
+            }
+        }
+    }
+
+    updateGiftBoxes(giftBoxData) {
+        const receivedIds = new Set(giftBoxData.map(g => g.id));
+
+        // 기존 선물 상자 업데이트 또는 신규 생성
+        for (const data of giftBoxData) {
+            if (this.giftBoxes.has(data.id)) {
+                // 서버가 보낸 최신 위치를 저장합니다. 애니메이션은 이 위치를 기준으로 적용됩니다.
+                const giftBox = this.giftBoxes.get(data.id);
+                if (giftBox.userData.serverPosition) {
+                    giftBox.userData.serverPosition.set(data.position.x, data.position.y, data.position.z);
+                }
+            } else {
+                this.createGiftBox(data);
+            }
+        }
+
+        // 서버에서 사라진 선물 상자 제거
+        for (const id of this.giftBoxes.keys()) {
+            if (!receivedIds.has(id)) {
+                const giftBox = this.giftBoxes.get(id);
+                this.scene.remove(giftBox);
+                this.giftBoxes.delete(id);
+            }
+        }
+    }
+
+    createGiftBox(data) {
+        const size = data.size || 5;
+        const giftBoxGroup = new THREE.Group();
+
+        // 1. 박스 몸체 (빨간색)
+        const boxMaterial = new THREE.MeshStandardMaterial({
+            color: 0xdc143c, // 진홍색
+            roughness: 0.4,
+        });
+        const boxGeometry = new THREE.BoxGeometry(size, size, size);
+        const boxMesh = new THREE.Mesh(boxGeometry, boxMaterial);
+        giftBoxGroup.add(boxMesh);
+
+        // 2. 리본 (금색)
+        const ribbonWidth = size * 0.25;
+        const ribbonSlightlyLarger = size * 1.01; // Z-파이팅 방지
+        const ribbonMaterial = new THREE.MeshStandardMaterial({
+            color: 0xffd700, // 금색
+            metalness: 0.8,
+            roughness: 0.2,
+        });
+
+        // 가로 리본
+        const hRibbonGeometry = new THREE.BoxGeometry(ribbonSlightlyLarger, ribbonWidth, ribbonWidth);
+        const hRibbon = new THREE.Mesh(hRibbonGeometry, ribbonMaterial);
+        giftBoxGroup.add(hRibbon);
+
+        // 세로 리본
+        const vRibbonGeometry = new THREE.BoxGeometry(ribbonWidth, ribbonSlightlyLarger, ribbonWidth);
+        const vRibbon = new THREE.Mesh(vRibbonGeometry, ribbonMaterial);
+        giftBoxGroup.add(vRibbon);
+
+        // 3. 상단 리본 매듭
+        const bowSize = size * 0.4;
+        const bowGeometry = new THREE.SphereGeometry(bowSize, 8, 6);
+        const bow = new THREE.Mesh(bowGeometry, ribbonMaterial);
+        bow.position.y = size / 2;
+        bow.scale.set(1, 0.5, 1); // 살짝 납작하게
+        giftBoxGroup.add(bow);
+
+        // 모든 메시에 그림자 설정 적용
+        giftBoxGroup.traverse((child) => {
+            if (child.isMesh) {
+                child.castShadow = true;
+                child.receiveShadow = true;
+            }
+        });
+
+        // 최종 위치 설정 및 애니메이션을 위한 데이터 저장
+        giftBoxGroup.position.set(data.position.x, data.position.y, data.position.z);
+        giftBoxGroup.userData.serverPosition = new THREE.Vector3(data.position.x, data.position.y, data.position.z);
+        giftBoxGroup.userData.creationTime = this.clock.getElapsedTime();
+
+
+        this.scene.add(giftBoxGroup);
+        this.giftBoxes.set(data.id, giftBoxGroup);
+        return giftBoxGroup;
+    }
+
+    updateGiftBoxesAnimation(deltaTime) {
+        const elapsedTime = this.clock.getElapsedTime();
+        this.giftBoxes.forEach(giftBox => {
+            if (giftBox.userData.serverPosition) {
+                // 위아래로 흔들리는 효과
+                const bobbleY = Math.sin(elapsedTime * 1.5 + giftBox.userData.creationTime) * 0.5;
+                giftBox.position.y = giftBox.userData.serverPosition.y + bobbleY;
+
+                // 천천히 회전하는 효과
+                giftBox.rotation.y += deltaTime * 0.3;
+            }
+        });
     }
 } 

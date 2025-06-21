@@ -191,10 +191,14 @@ GET  /api/user/database/info           # DB 정보
 ### Game Service (포트 3001)
 
 #### 책임 영역
-- 실시간 게임 로직 처리
-- WebSocket 연결 관리
-- 게임 상태 동기화
-- 물리 시뮬레이션
+- 실시간 게임 로직 및 물리 시뮬레이션 총괄
+- WebSocket을 통한 클라이언트 연결 관리 및 실시간 상태 동기화
+- 플레이어(세션, 점수) 및 비행체(생성, 파괴, 상태) 관리
+- 무기 시스템(발사, 재장전) 및 발사체 추적
+- 충돌 감지 및 데미지 판정
+- 타겟팅 및 락온 시스템
+- 게임 내 이펙트(폭발, 연기 등) 및 동적 환경 요소(광고판) 관리
+- 선물 상자(생성, 획득) 관리
 
 #### 기술 스택
 ```json
@@ -211,44 +215,96 @@ GET  /api/user/database/info           # DB 정보
 }
 ```
 
-#### 게임 엔티티 구조
-```javascript
-// Vehicle Factory Pattern
-class VehicleFactory {
-    static createVehicle(type, id, playerId, position) {
-        const configs = {
-            fighter: { health: 40, maxSpeed: 120, fireRate: 100 },
-            heavy: { health: 60, maxSpeed: 80, fireRate: 150 },
-            test: { health: 20, maxSpeed: 100, fireRate: 80 }
-        };
-        return new Vehicle(id, playerId, position, configs[type]);
-    }
-}
+#### 게임 서비스 아키텍처 (v4.0 리팩토링 후)
 
-// Game State Manager
-class GameManager {
-    constructor() {
-        this.players = new Map();
-        this.vehicles = new Map();
-        this.projectiles = new Map();
-        this.gameLoop = null;
-    }
-}
+v4.0에서 `Game Service`는 거대한 `GameManager` 클래스를 여러 개의 전문화된 시스템으로 분해하는 대규모 리팩토링을 거쳤습니다. 이를 통해 단일 책임 원칙(SRP)과 관심사 분리(SoC)를 달성하여 유지보수성과 확장성을 크게 향상시켰습니다.
+
+각 시스템은 의존성 주입을 통해 서로를 참조하며, 시스템 간의 직접적인 결합을 최소화하기 위해 `EventEmitter`를 사용한 이벤트 기반 통신 모델을 채택했습니다.
+
+```mermaid
+graph TD
+    subgraph "Core Orchestrator"
+        A[GameManager]
+    end
+
+    subgraph "Domain Logic Managers"
+        B[PlayerManager]
+        C[VehicleManager]
+        F[GameStateManager]
+        H[BillboardManager]
+        M[GiftBoxSystem]
+    end
+
+    subgraph "Core Systems"
+        D[WeaponSystem]
+        E[CollisionSystem]
+        G[TargetingManager]
+        I[EffectSystem]
+    end
+    
+    subgraph "Infrastructure"
+        J[TerrainManager]
+        K[VehicleFactory]
+        L[EventEmitter]
+    end
+
+    A --> B
+    A --> C
+    A --> D
+    A --> E
+    A --> F
+    A --> G
+    A --> H
+    A --> I
+    A --> J
+    A --> K
+
+    C --> K
+    C --> J
+    E --> D
+
+    B -- "이벤트 발생/수신" --> L
+    C -- "이벤트 발생/수신" --> L
+    D -- "이벤트 발생/수신" --> L
+    E -- "이벤트 발생/수신" --> L
+    I -- "이벤트 발생/수신" --> L
+    H -- "이벤트 발생/수신" --> L
+    M -- "이벤트 발생/수신" --> L
+
+    A -- "모든 시스템 통합" --> L
+    
+    style A fill:#ff9999
+    style L fill:#f9f9f9,stroke:#333,stroke-width:2px
 ```
+
+**시스템별 책임:**
+- **`GameManager`**: 모든 시스템을 총괄하고 오케스트레이션하는 최상위 클래스. 게임 루프를 관리하고 각 시스템의 `update()`를 호출합니다.
+- **`PlayerManager`**: 플레이어의 생명주기(추가, 제거), 데이터(이름, 점수, 색상)를 관리합니다.
+- **`VehicleManager`**: `VehicleFactory`를 사용하여 플레이어의 비행체를 생성, 관리, 리스폰합니다.
+- **`WeaponSystem`**: 기관총, 미사일 등 무기의 발사, 탄약, 재장전 로직을 처리합니다.
+- **`CollisionSystem`**: 발사체, 비행체, 지형, 광고판 간의 충돌을 감지하고 `vehicleHit`, `billboardHit`과 같은 이벤트를 발생시킵니다.
+- **`TargetingManager`**: 적 탐지, 상황 인식 타겟(Awareness Target), 락온 타겟(Lock-on Target)을 관리합니다.
+- **`GameStateManager`**: 게임의 전반적인 상태(대기, 진행, 종료)를 관리합니다.
+- **`EffectSystem`**: 폭발, 총구 섬광, 피격 효과 등 시각적/물리적 효과를 생성하고 관리합니다.
+- **`BillboardManager`**: 게임 월드 내 동적 광고판을 생성, 관리, 파괴합니다.
+- **`TerrainManager`**: 3D 지형의 높이 정보를 제공하여 비행체와 지형 간의 상호작용을 지원합니다.
+- **`VehicleFactory`**: 설정 파일을 기반으로 다양한 종류의 비행체 인스턴스를 생성합니다.
+- **`EventEmitter`**: 시스템 간의 결합도를 낮추기 위한 중앙 이벤트 버스 역할을 합니다. 예를 들어, `CollisionSystem`이 충돌 이벤트를 발생시키면 `PlayerManager`는 점수를 업데이트하고 `EffectSystem`은 폭발 효과를 생성합니다.
+- **`GiftBoxSystem`**: 게임 월드에 주기적으로 선물 상자를 생성하고, 플레이어의 획득을 처리하며, 보상을 분배하는 역할을 담당합니다.
 
 #### WebSocket 이벤트
 ```javascript
 // 클라이언트 → 서버
-'join-game'           // 게임 참여
-'player-input'        // 플레이어 입력
-'fire-weapon'         // 무기 발사
+'join-game'           // 게임 참여. { name: string, vehicleType: string }
+'player-input'        // 플레이어 입력. { keys: object, fire: boolean, fireMissile: boolean }
 'disconnect'          // 연결 해제
 
 // 서버 → 클라이언트
-'game-state'          // 게임 상태 동기화
-'player-joined'       // 플레이어 참여 알림
-'player-left'         // 플레이어 퇴장 알림
-'vehicle-destroyed'   // 차량 파괴 알림
+'gameStateUpdate'     // 전체 게임 상태 (차량, 발사체, 플레이어, 효과 등)
+'vehicleDestroyed'    // 차량 파괴 알림. { vehicleId, playerId, killedBy, position }
+'missileLaunched'     // 미사일 발사 알림. { playerId, vehicleId, missileId, targetId }
+'billboardDestroyed'  // 광고판 파괴 알림. { billboardId, debris, destroyedBy }
+'muzzleFlash'         // 기관총 발사 시 총구 섬광. { playerId, vehicleId }
 ```
 
 ## 🔄 통신 패턴

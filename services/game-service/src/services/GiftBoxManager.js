@@ -28,11 +28,13 @@ export class GiftBoxManager {
      * 새로운 선물 상자 하나를 무작위 위치에 스폰합니다.
      */
     spawnNewGiftBox() {
-        const { minHeight, maxHeight } = this.config.spawnOptions;
-        const { size } = this.worldConfig;
+        const { minHeight, maxHeight, areaRadius } = this.config.spawnOptions;
 
-        const x = (Math.random() - 0.5) * size.x;
-        const z = (Math.random() - 0.5) * size.z;
+        const angle = Math.random() * Math.PI * 2;
+        const distance = Math.random() * areaRadius;
+        
+        const x = Math.cos(angle) * distance;
+        const z = Math.sin(angle) * distance;
         const y = Math.random() * (maxHeight - minHeight) + minHeight;
 
         const position = { x, y, z };

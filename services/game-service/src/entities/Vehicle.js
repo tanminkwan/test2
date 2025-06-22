@@ -65,7 +65,8 @@ export default class Vehicle extends GameEntity {
      * 비행체 타입별 설정 가져오기
      */
     getTypeConfig(vehicleType) {
-        const configs = {
+        // 기본 하드코딩된 설정 (fallback)
+        const defaultConfigs = {
             fighter: {
                 health: 80,
                 maxSpeed: 120,
@@ -107,7 +108,18 @@ export default class Vehicle extends GameEntity {
             }
         };
         
-        return configs[vehicleType] || configs.fighter;
+        const defaultConfig = defaultConfigs[vehicleType] || defaultConfigs.fighter;
+        
+        // game-config.yaml의 설정값이 있으면 우선 사용
+        if (this.config && this.config.vehicles && this.config.vehicles[vehicleType]) {
+            const configValues = this.config.vehicles[vehicleType];
+            return {
+                ...defaultConfig,
+                ...configValues
+            };
+        }
+        
+        return defaultConfig;
     }
 
     /**
@@ -134,7 +146,7 @@ export default class Vehicle extends GameEntity {
     updateMesh() {
         if (this.mesh) {
             this.mesh.position.copy(this.position);
-            this.mesh.rotation.set(this.rotation.x, this.rotation.y, this.rotation.z);
+            this.mesh.rotation.set(this.rotation.x, this.rotation.y, this.rotation.z, 'YXZ');
             this.mesh.updateMatrixWorld(); // 월드 매트릭스 업데이트
         }
     }

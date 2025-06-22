@@ -139,9 +139,9 @@ vehicles:
   fighter:                           # 전투기 설정 (빠르고 민첩)
     maxSpeed: 120                    # 최대 속도
     acceleration: 60                 # 가속도
-    turnSpeed: 1.5                   # 회전 속도 (요/피치/롤) - 미세 조정을 위해 감소
-    rollSpeed: 1.2                   # 롤 속도 - 미세 조정을 위해 감소
-    pitchSpeed: 1.2                  # 피치 속도 - 미세 조정을 위해 감소
+    turnSpeed: 1.2                   # 회전 속도 (요/피치/롤) - 미세 조정을 위해 감소
+    rollSpeed: 1.0                   # 롤 속도 - 미세 조정을 위해 감소
+    pitchSpeed: 1.0                  # 피치 속도 - 미세 조정을 위해 감소
     yawSpeed: 1.0                    # 요 속도 - 미세 조정을 위해 감소
     health: 80                       # 체력
     fireRate: 12                     # 초당 발사 수
@@ -181,10 +181,10 @@ vehicles:
   heavy:                             # 중형기 설정 (느리지만 강력)
     maxSpeed: 80                     # 최대 속도 (전투기보다 느림)
     acceleration: 35                 # 가속도 (전투기보다 느림)
-    turnSpeed: 1.2                   # 회전 속도 (전투기보다 느림)
-    rollSpeed: 1.0                   # 롤 속도
-    pitchSpeed: 1.0                  # 피치 속도
-    yawSpeed: 1.0                    # 요 속도
+    turnSpeed: 1.0                   # 회전 속도 (전투기보다 느림)
+    rollSpeed: 0.7                   # 롤 속도
+    pitchSpeed: 0.7                  # 피치 속도
+    yawSpeed: 0.7                    # 요 속도
     health: 150                      # 체력 (전투기보다 높음)
     fireRate: 8                      # 초당 발사 수 (전투기보다 낮음)
     bulletDamage: 15                 # 총알 데미지 (전투기보다 높음)

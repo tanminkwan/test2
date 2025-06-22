@@ -156,15 +156,16 @@ async function startServer() {
       console.log('✅ Database tables synchronized.');
     }
 
-    // 서버 시작 - localhost에서만 바인딩 (보안상 nginx를 통해서만 접근)
-    app.listen(PORT, '127.0.0.1', () => {
-      console.log(`🚀 User Service running on localhost:${PORT} (nginx proxy only)`);
+    // 서버 시작 - 환경변수 HOST를 사용하도록 수정
+    const host = process.env.HOST || '127.0.0.1';
+    app.listen(PORT, host, () => {
+      console.log(`🚀 User Service running on ${host}:${PORT}`);
       console.log(`📊 Health check: http://localhost:${PORT}/health`);
       console.log(`👤 API endpoints: http://localhost:${PORT}/api/users`);
       console.log(`🗄️  Database info: http://localhost:${PORT}/api/database/info`);
       console.log(`🔧 Environment: ${config.nodeEnv}`);
       console.log(`💾 Database: ${process.env.DB_TYPE || 'sqlite'}`);
-      console.log(`🔒 Security: Bound to localhost only (nginx reverse proxy required)`);
+      console.log(`🔒 Security: Bound to ${host} (nginx reverse proxy required)`);
       
       if (config.nodeEnv === 'development') {
         console.log('\n📋 Available endpoints:');

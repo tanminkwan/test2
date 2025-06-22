@@ -7,7 +7,7 @@ services:
     container_name: vehicle-game-postgres
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: 1q2w3e4r!!
+      POSTGRES_PASSWORD: "1q2w3e4r!!"
       POSTGRES_DB: postgres
     volumes:
       - user_service_data:/var/lib/postgresql/data
@@ -42,7 +42,7 @@ services:
       DB_PORT: 5432
       DB_NAME: vehicle_game
       DB_USER: app_user
-      DB_PASS: app123!@#
+      DB_PASS: "app123!@#"
       JWT_SECRET: your-super-secret-jwt-key-change-in-production
       JWT_EXPIRY: 24h
       ALLOW_EXTERNAL_ACCESS: false

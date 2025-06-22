@@ -54,7 +54,7 @@ giftBoxes:
   spawnOptions:
     minHeight: 80
     maxHeight: 150
-    areaRadius: 300 # 중심으로부터의 최대 스폰 반경
+    areaRadius: 180 # 중심으로부터의 최대 스폰 반경 (월드 크기 400의 절반보다 작게 설정)
   destruction:
     explosionRadius: 10
     explosionDuration: 1500
@@ -139,10 +139,10 @@ vehicles:
   fighter:                           # 전투기 설정 (빠르고 민첩)
     maxSpeed: 120                    # 최대 속도
     acceleration: 60                 # 가속도
-    turnSpeed: 3.5                   # 회전 속도 (요/피치/롤)
-    rollSpeed: 3.0                   # 롤 속도
-    pitchSpeed: 3.0                  # 피치 속도
-    yawSpeed: 2.5                    # 요 속도
+    turnSpeed: 1.5                   # 회전 속도 (요/피치/롤) - 미세 조정을 위해 감소
+    rollSpeed: 1.2                   # 롤 속도 - 미세 조정을 위해 감소
+    pitchSpeed: 1.2                  # 피치 속도 - 미세 조정을 위해 감소
+    yawSpeed: 1.0                    # 요 속도 - 미세 조정을 위해 감소
     health: 80                       # 체력
     fireRate: 12                     # 초당 발사 수
     bulletDamage: 8                  # 총알 데미지
@@ -181,10 +181,10 @@ vehicles:
   heavy:                             # 중형기 설정 (느리지만 강력)
     maxSpeed: 80                     # 최대 속도 (전투기보다 느림)
     acceleration: 35                 # 가속도 (전투기보다 느림)
-    turnSpeed: 2.0                   # 회전 속도 (전투기보다 느림)
-    rollSpeed: 1.5                   # 롤 속도
-    pitchSpeed: 1.8                  # 피치 속도
-    yawSpeed: 1.5                    # 요 속도
+    turnSpeed: 1.2                   # 회전 속도 (전투기보다 느림)
+    rollSpeed: 1.0                   # 롤 속도
+    pitchSpeed: 1.0                  # 피치 속도
+    yawSpeed: 1.0                    # 요 속도
     health: 150                      # 체력 (전투기보다 높음)
     fireRate: 8                      # 초당 발사 수 (전투기보다 낮음)
     bulletDamage: 15                 # 총알 데미지 (전투기보다 높음)

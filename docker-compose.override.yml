@@ -12,26 +12,30 @@ services:
       POSTGRES_LOG_STATEMENT: all
 
   user-service:
-    # 개발 환경에서는 소스 코드 볼륨 마운트
+    build:
+      context: .
+      target: user-service-dev
+    # 개발 환경에서는 소스 코드 볼륨 마운트 (rw 모드)
     volumes:
-      - ./services/user-service/src:/app/services/user-service/src:ro
+      - ./services/user-service/src:/app/services/user-service/src:rw
     environment:
       # 개발 환경 설정
       NODE_ENV: development
       DEBUG: "app:*"
-    # 개발 환경에서는 nodemon 사용
-    command: npm run dev
+    # CMD는 Dockerfile의 dev 스테이지에서 실행되므로 command 제거
 
   game-service:
-    # 개발 환경에서는 소스 코드 볼륨 마운트
+    build:
+      context: .
+      target: game-service-dev
+    # 개발 환경에서는 소스 코드 볼륨 마운트 (rw 모드)
     volumes:
-      - ./services/game-service/src:/app/services/game-service/src:ro
+      - ./services/game-service/src:/app/services/game-service/src:rw
     environment:
       # 개발 환경 설정
       NODE_ENV: development
       DEBUG: "game:*"
-    # 개발 환경에서는 nodemon 사용
-    command: npm run dev
+    # CMD는 Dockerfile의 dev 스테이지에서 실행되므로 command 제거
 
   nginx:
     # 개발 환경에서는 nginx 설정 파일 볼륨 마운트

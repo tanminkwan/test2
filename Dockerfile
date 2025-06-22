@@ -42,6 +42,14 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 # User Service 시작
 CMD ["npm", "start"]
 
+# User Service Development stage
+FROM base AS user-service-dev
+COPY services/user-service/package*.json /app/services/user-service/
+COPY services/user-service/src /app/services/user-service/src/
+WORKDIR /app/services/user-service
+RUN npm ci
+CMD ["npm", "run", "dev"]
+
 # Game Service stage
 FROM base AS game-service
 
@@ -67,6 +75,14 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 
 # Game Service 시작
 CMD ["npm", "start"]
+
+# Game Service Development stage
+FROM base AS game-service-dev
+COPY services/game-service/package*.json /app/services/game-service/
+COPY services/game-service/src /app/services/game-service/src/
+WORKDIR /app/services/game-service
+RUN npm ci
+CMD ["npm", "run", "dev"]
 
 # Development stage (선택사항 - 개발용)
 FROM base AS development

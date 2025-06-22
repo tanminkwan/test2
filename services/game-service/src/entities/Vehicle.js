@@ -146,7 +146,7 @@ export default class Vehicle extends GameEntity {
     updateMesh() {
         if (this.mesh) {
             this.mesh.position.copy(this.position);
-            this.mesh.rotation.set(this.rotation.x, this.rotation.y, this.rotation.z);
+            this.mesh.rotation.set(this.rotation.x, this.rotation.y, this.rotation.z, 'YXZ');
             this.mesh.updateMatrixWorld(); // 월드 매트릭스 업데이트
         }
     }

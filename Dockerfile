@@ -43,9 +43,10 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 CMD ["npm", "start"]
 
 # User Service Development stage
-FROM user-service AS user-service-dev
+FROM base AS user-service-dev
+COPY services/user-service/package*.json /app/services/user-service/
+COPY services/user-service/src /app/services/user-service/src/
 WORKDIR /app/services/user-service
-COPY services/user-service/package*.json ./
 RUN npm ci
 CMD ["npm", "run", "dev"]
 
@@ -76,9 +77,10 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 CMD ["npm", "start"]
 
 # Game Service Development stage
-FROM game-service AS game-service-dev
+FROM base AS game-service-dev
+COPY services/game-service/package*.json /app/services/game-service/
+COPY services/game-service/src /app/services/game-service/src/
 WORKDIR /app/services/game-service
-COPY services/game-service/package*.json ./
 RUN npm ci
 CMD ["npm", "run", "dev"]
 

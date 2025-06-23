@@ -22,7 +22,7 @@ scoring:
   
 # 충돌 및 물리 상수
 collision:
-  safeDistance: 15                   # 광고판 충돌 시 안전 거리
+  safeDistance: 20                   # 광고판 충돌 시 안전 거리
   velocityReflection: 0.5            # 충돌 시 속도 반사 계수
   explosionRadiusSmall: 5            # 작은 폭발 반지름 (피격 시)
   explosionRadiusLarge: 25           # 큰 폭발 반지름 (파괴 시)

@@ -81,9 +81,9 @@ export class CollisionSystem {
             const velocityMagnitude = vehicle.velocity.length();
             const velocityReflection = this.config.collision?.velocityReflection || 0.5;
 
-            vehicle.velocity.x = normalX * velocityMagnitude * velocityReflection;
-            vehicle.velocity.y = normalY * velocityMagnitude * velocityReflection;
-            vehicle.velocity.z = normalZ * velocityMagnitude * velocityReflection;
+            vehicle.velocity.x = -normalX * velocityMagnitude * velocityReflection;
+            vehicle.velocity.y = -normalY * velocityMagnitude * velocityReflection;
+            vehicle.velocity.z = -normalZ * velocityMagnitude * velocityReflection;
 
             this.eventEmitter.emit('vehicleBillboardCollision', {
                 vehicleId: vehicle.id,

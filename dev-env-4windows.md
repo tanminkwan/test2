@@ -98,6 +98,66 @@ cd C:\nginx
 # nginx version: nginx/1.24.0
 ```
 
+## 📊 통계 서비스용 추가 소프트웨어 설치
+
+통계 및 분석 마이크로서비스를 로컬 환경에서 실행하기 위해 다음 데이터베이스를 설치합니다.
+
+### 1. InfluxDB 설치 (시계열 데이터베이스)
+
+**다운로드**: [InfluxDB v2.7.5 for Windows](https://dl.influxdata.com/influxdb/releases/influxdb2-2.7.5-windows-amd64.zip)
+
+1.  **압축 해제**: 다운로드한 zip 파일을 `C:\InfluxDB` 와 같은 경로에 압축 해제합니다.
+2.  **환경 변수 설정 (선택사항)**: `C:\InfluxDB`를 시스템 환경 변수 `Path`에 추가하면 어느 위치에서나 `influx` 명령어를 사용할 수 있습니다.
+3.  **서버 실행**: PowerShell 또는 CMD에서 다음 명령어를 실행하여 서버를 시작합니다.
+    ```powershell
+    # InfluxDB 폴더로 이동
+    cd C:\InfluxDB
+
+    # 서버 실행
+    .\influxd.exe
+    ```
+4.  **초기 설정**: 웹 브라우저에서 `http://localhost:8086`으로 접속하여 초기 설정을 진행합니다.
+    - Username, Password, Organization Name, Bucket Name을 입력합니다. (예: `admin`, `admin123`, `game-org`, `game-stats`)
+    - 생성된 API Token을 안전한 곳에 복사해 둡니다. 이는 `.env` 파일에 사용됩니다.
+5.  **설치 확인**: 새 터미널을 열고 `influx` CLI 도구로 연결을 확인합니다.
+    ```powershell
+    cd C:\InfluxDB
+
+    # 설정된 정보로 CLI 구성 (YOUR_API_TOKEN을 복사한 토큰으로 변경)
+    .\influx.exe config create --config-name game-config \
+      --host-url http://localhost:8086 \
+      --org game-org \
+      --token "YOUR_API_TOKEN" \
+      --active
+
+    # bucket 목록 확인
+    .\influx.exe bucket list
+    ```
+
+### 2. Redis 설치 (메시지 큐 및 캐시)
+
+Redis는 공식적으로 Windows를 지원하지 않지만, Microsoft에서 아카이빙한 버전을 개발용으로 사용할 수 있습니다.
+
+**다운로드**: [Redis on Windows v3.0.504 (MSI)](https://github.com/microsoftarchive/redis/releases/download/v3.0.504/Redis-x64-3.0.504.msi)
+
+1.  **MSI 파일 실행**: 다운로드한 MSI 설치 프로그램을 실행합니다.
+2.  **설치 옵션**:
+    - "Add the Redis installation folder to the PATH environment variable" 체크박스를 선택합니다.
+    - Port는 기본값 `6379`를 사용합니다.
+3.  **설치 확인**: 설치가 완료되면 Redis는 Windows 서비스로 자동 등록되고 실행됩니다. 다음 명령어로 상태를 확인합니다.
+    ```powershell
+    # Redis CLI 실행
+    redis-cli
+
+    # 서버 PING 테스트
+    127.0.0.1:6379> ping
+    # 예상 응답: PONG
+
+    # 버전 확인
+    127.0.0.1:6379> info server
+    # redis_version:3.0.504 확인 후 exit 입력
+    ```
+
 ## 🗄️ PostgreSQL 설정
 
 ### 1. 데이터베이스 및 사용자 생성
@@ -142,7 +202,34 @@ psql -U app_user -d user_service -h localhost
 # user_service=>
 ```
 
-### 3. pgAdmin 4 설정 (선택사항)
+### 3. TimescaleDB 확장 설치
+
+TimescaleDB는 PostgreSQL을 시계열 데이터베이스로 확장해줍니다.
+
+1.  **설치 프로그램 다운로드**: [TimescaleDB for Windows (PostgreSQL 15)](https://timescalereleases.blob.core.windows.net/windows/timescaledb-2.11.2-pg15-win-x64.zip)
+    > **⚠️ 주의**: 다운로드하는 TimescaleDB 버전은 현재 설치된 PostgreSQL 버전과 일치해야 합니다. `psql --version`으로 확인하세요. (예: `pg15`는 PostgreSQL 15용)
+2.  **설치**:
+    - PowerShell을 **관리자 권한**으로 실행하고 PostgreSQL 서비스를 중지합니다. (`net stop postgresql-x64-15`)
+    - 다운로드한 zip 파일의 압축을 풉니다.
+    - 압축 푼 폴더에서 `setup.exe`를 실행하여 설치를 완료합니다.
+    - PowerShell에서 PostgreSQL 서비스를 다시 시작합니다. (`net start postgresql-x64-15`)
+3.  **데이터베이스에 확장 활성화**: `psql`을 통해 접속하여 통계용 데이터베이스에 TimescaleDB를 활성화합니다.
+    ```sql
+    -- 통계용 데이터베이스 생성 (기존 user_service와 별개)
+    CREATE DATABASE statistics_service;
+
+    -- 해당 DB에 접속
+    \c statistics_service
+
+    -- TimescaleDB 확장 생성
+    CREATE EXTENSION IF NOT EXISTS timescaledb;
+
+    -- 설치 확인
+    \dx
+    -- 출력된 목록에서 'timescaledb' 확장이 보이는지 확인합니다.
+    ```
+
+### 4. pgAdmin 4 설정 (선택사항)
 
 1. **pgAdmin 4 실행**
 2. **서버 추가**:

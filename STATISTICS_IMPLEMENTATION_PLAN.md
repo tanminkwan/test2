@@ -10,27 +10,45 @@
 
 ```mermaid
 graph TD
-    subgraph "Development Environment (Native Windows)"
-        Dev[Windows Terminal] -- Runs --> Services[Node.js Services]
-        Dev -- Manages --> DBs[Local Databases]
-        Code[VS Code] -- Edits --> ServicesSrc[Service Source Code]
+    subgraph "Tier 1: Client"
+        Client[Game Client]
     end
 
-    subgraph "Data & Service Layer"
-        GameSvc[Game Service] -- Publishes Events --> Redis
-        Redis[Redis Pub/Sub] -- Delivers Events --> StatsSvc[Statistics Service]
-        StatsSvc -- Writes --> InfluxDB[InfluxDB<br/>(Time-Series)]
-        StatsSvc -- Writes --> PostgreSQL_TS[PostgreSQL + TimescaleDB<br/>(Analytics)]
-        StatsSvc -- Caches --> RedisCache[Redis<br/>(Cache)]
+    subgraph "Tier 2: Gateway"
+        Nginx[Nginx API Gateway]
     end
 
-    subgraph "Gateway & Client"
-        Nginx[Nginx] -- Routes API --> StatsSvc
-        Nginx -- Serves --> Client[Game Client]
-        Client -- Fetches Data --> Nginx
+    subgraph "Tier 3: Application Services"
+        GameSvc[Game Service]
+        StatsSvc[Statistics Service]
     end
 
-    style Dev fill:#cde4ff
+    subgraph "Tier 4: Data & Messaging"
+        Redis[Redis Pub/Sub]
+        InfluxDB["InfluxDB<br/>Time-Series"]
+        PostgreSQL_TS["PostgreSQL + TimescaleDB<br/>Analytics & Sessions"]
+        RedisCache[Redis<br/>Real-time Cache]
+    end
+    
+    %% Define connections between tiers
+    Client -- "HTTP / WebSocket" --> Nginx
+    
+    Nginx -- "/ (client files)" --> Client
+    Nginx -- "/api/game/*" --> GameSvc
+    Nginx -- "/api/statistics/*" --> StatsSvc
+    
+    GameSvc -- "Publishes Game Events" --> Redis
+    StatsSvc -- "Subscribes to Events" --> Redis
+
+    StatsSvc -- "Writes Time-Series Metrics" --> InfluxDB
+    StatsSvc -- "Writes Session & Analytics Data" --> PostgreSQL_TS
+    StatsSvc -- "Caches Leaderboards & Hot Data" --> RedisCache
+
+    style Client fill:#cde4ff
+    style Nginx fill:#e5e5e5
+    style GameSvc fill:#d4edda
+    style StatsSvc fill:#d1ecf1
+    style Redis fill:#f8d7da
 ```
 
 ---

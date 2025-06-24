@@ -55,22 +55,57 @@ graph TD
 
 ## 📝 단계별 실행 계획
 
-### 1단계: Game Service → Redis 비동기 이벤트 전송 (성능 영향 없음)
+### 1단계: Game Service → Redis 비동기 이벤트 전송 (성능 영향 없음, 인터페이스 계층 및 우선순위 config 포함)
 
 - **목표:**
-    - game-service에서 발생하는 모든 게임 이벤트를 Redis Pub/Sub으로 비동기(Fire & Forget) 방식으로 전송한다.
-    - Redis가 비정상(죽음/연결불가)일 경우, 이벤트를 별도의 파일 로그(JSONL 등)에 남긴다.
+    - game-service에서 발생하는 모든 게임 이벤트를 **이벤트 발행 인터페이스 계층**을 통해 비동기(Fire & Forget) 방식으로 전송한다.
+    - 1단계에서는 Redis Pub/Sub을 기본 타겟으로 사용하지만, 이 계층을 통해 향후 Kafka, 파일, 기타 메시지 브로커 등 다양한 타겟으로 확장 가능하도록 설계한다.
+    - **인터페이스 계층에 어댑트되는 구현체 중 하나가 file log 방식이며, Redis가 끊기거나 연결 불가/에러 발생 시 즉시 file log 방식으로 자동 전환(fallback)되어야 한다.**
+    - **이벤트 발행 우선순위 및 각 구현체의 속성은 별도의 yaml config 파일(`event-publisher-config.yaml`)에서 정의하며, game-config와 분리하여 관리한다.**
     - 이 파일 로그는 추후 batch로 통계에 반영할 예정이지만, 1단계에서는 파일 적재만 신경쓰고 통계 반영은 신경쓰지 않는다.
     - Redis 전송/로그 적재 작업은 game-service의 실시간 성능(게임 플레이)에 절대 영향을 주지 않아야 한다.
 
 - **주요 기술:**
     - Node.js, ioredis, 비동기 파일 입출력(fs/promises)
+    - **이벤트 발행 인터페이스(추상화) 계층**: 다양한 백엔드(Redis, Kafka, 파일 등)로의 확장성 확보 및 file log 방식의 어댑터 구현
+    - **우선순위 및 속성 config**: yaml 포맷, game-config와 분리
+
+- **이벤트 발행 config 예시 (`event-publisher-config.yaml`)**
+
+```yaml
+publishers:
+  - type: redis
+    host: 127.0.0.1
+    port: 6379
+    channel: game_events
+    password: ""
+    db: 0
+    retryCount: 3
+    retryDelayMs: 1000
+  - type: file
+    logDir: ./logs/events
+    filePrefix: game_events_
+    fileExt: .jsonl
+    maxFileSize: 10485760 # 10MB
+    flushIntervalMs: 100
+    rotationPolicy: size
+    maxRetry: 3
+    encoding: utf8
+```
+
+- **주요 속성 설명:**
+    - `publishers`: 우선순위대로 나열 (첫 번째가 실패하면 두 번째로 자동 전환)
+    - `type`: redis, file 등 구현체 구분
+    - redis 관련: host, port, channel, password, db, retryCount, retryDelayMs 등
+    - file 관련: logDir, filePrefix, fileExt, maxFileSize, flushIntervalMs, rotationPolicy(size/time), maxRetry, encoding 등
 
 | 단계 | 작업 내용 | 결과물 확인 방법 |
 |---|---|---|
-| **1.1** | **Redis Publisher 구현**<br/>- ioredis로 Redis Pub/Sub 비동기 발행 모듈 작성<br/>- 이벤트 발생 시 await 없이 Fire & Forget 방식으로 Redis에 전송 | 테스트 코드에서 Redis에 메시지가 정상적으로 발행되는지 확인 (`redis-cli MONITOR` 등) |
-| **1.2** | **Fallback File Logger 구현**<br/>- Redis 연결 실패 시 이벤트를 JSONL 형식으로 파일에 기록<br/>- 파일 기록도 비동기로 처리 | Redis를 중지한 상태에서 이벤트 발생 시 파일에 이벤트가 정상적으로 기록되는지 확인 |
-| **1.3** | **EventManager 통합**<br/>- EventManager에서 이벤트 발생 시 Redis Publisher와 File Logger를 활용<br/>- 두 작업 모두 await 없이 비동기로 처리 | 게임 플레이 중 이벤트가 발생해도 게임 성능 저하 없이 Redis 또는 파일에 이벤트가 기록되는지 확인 |
+| **1.1** | **이벤트 발행 인터페이스 계층 설계/구현**<br/>- Redis, 파일, 기타 타겟을 위한 공통 인터페이스(추상 클래스/함수) 정의<br/>- 실제 구현체(RedisPublisher, FileLogger 등)는 이 인터페이스를 구현 | 각 구현체 단위 테스트 및 인터페이스 교체 시 정상 동작 확인 |
+| **1.2** | **event-publisher-config.yaml 설계/적용**<br/>- 이벤트 발행 우선순위 및 각 구현체 속성을 yaml로 정의<br/>- game-config와 분리하여 관리 | config 파일에 우선순위 및 속성 정의, 서비스에서 정상적으로 읽어오는지 확인 |
+| **1.3** | **Redis Publisher 구현**<br/>- ioredis로 Redis Pub/Sub 비동기 발행 모듈 작성<br/>- 이벤트 발생 시 await 없이 Fire & Forget 방식으로 Redis에 전송 | 테스트 코드에서 Redis에 메시지가 정상적으로 발행되는지 확인 (`redis-cli MONITOR` 등) |
+| **1.4** | **File Logger(Fallback) 구현 및 전환 로직**<br/>- Redis 연결 실패(끊김/에러) 시 이벤트를 JSONL 형식으로 파일에 기록<br/>- 이 전환(fallback)은 자동으로 즉시 이루어져야 하며, 파일 기록도 비동기로 처리 | Redis를 중지한 상태에서 이벤트 발생 시 파일에 이벤트가 정상적으로 기록되는지 확인 |
+| **1.5** | **EventManager 통합**<br/>- EventManager에서 이벤트 발생 시 인터페이스 계층을 통해 Redis Publisher와 File Logger를 활용<br/>- 두 작업 모두 await 없이 비동기로 처리, Redis 장애 시 자동으로 file log로 전환되는지 확인 | 게임 플레이 중 이벤트가 발생해도 게임 성능 저하 없이 Redis 또는 파일에 이벤트가 기록되는지 확인 |
 
 ---
 

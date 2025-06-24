@@ -55,21 +55,26 @@ graph TD
 
 ## 📝 단계별 실행 계획
 
-### Phase 1: 개발 환경 구축 및 서비스 기초 공사 (예상 소요: 1일)
+### 1단계: Game Service → Redis 비동기 이벤트 전송 (성능 영향 없음)
 
-- **목표:** Windows에 개발에 필요한 데이터베이스와 도구들을 직접 설치하고, 신규 통계 서비스를 실행할 수 있는 환경을 완성한다.
-- **주요 기술:** Native Windows binaries, PostgreSQL, TimescaleDB, InfluxDB, Redis, Node.js
+- **목표:**
+    - game-service에서 발생하는 모든 게임 이벤트를 Redis Pub/Sub으로 비동기(Fire & Forget) 방식으로 전송한다.
+    - Redis가 비정상(죽음/연결불가)일 경우, 이벤트를 별도의 파일 로그(JSONL 등)에 남긴다.
+    - 이 파일 로그는 추후 batch로 통계에 반영할 예정이지만, 1단계에서는 파일 적재만 신경쓰고 통계 반영은 신경쓰지 않는다.
+    - Redis 전송/로그 적재 작업은 game-service의 실시간 성능(게임 플레이)에 절대 영향을 주지 않아야 한다.
+
+- **주요 기술:**
+    - Node.js, ioredis, 비동기 파일 입출력(fs/promises)
 
 | 단계 | 작업 내용 | 결과물 확인 방법 |
 |---|---|---|
-| **1.1** | **Windows 개발 환경 설정**<br/>- `dev-env-4windows.md` 파일에 PostgreSQL, TimescaleDB, InfluxDB, Redis의 Windows 버전 설치 가이드 추가 | 각 데이터베이스의 CLI에 접속하여 버전 정보와 서비스 상태를 확인. |
-| **1.2** | **신규 `statistics-service` 생성**<br/>- `services/statistics-service` 디렉토리 생성<br/>- `package.json`, 기본 `index.js`, `Dockerfile` (프로덕션용) 파일 생성 | `npm run install:statistics` 스크립트 실행 성공.<br/>`node services/statistics-service/src/index.js` 명령어로 서비스가 로컬에서 실행되는 것을 확인. |
-| **1.3** | **`docker-compose.yml` 확장 (프로덕션용)**<br/>- 프로덕션 환경을 위해 `statistics-service`, `redis`, `influxdb`, `postgres+timescaledb` 서비스 정의 | `docker-compose -f docker-compose.prod.yml up` 실행 시 모든 컨테이너가 오류 없이 실행되는 것을 `docker ps`로 확인. (개발 단계에서는 실행하지 않음) |
-| **1.4** | **데이터베이스 초기화 스크립트**<br/>- TimescaleDB 활성화 및 통계용 테이블 생성을 위한 `init.sql` 파일 작성 | psql에서 `\dx` 명령어로 `timescaledb` 확장이 설치 및 활성화되었는지 확인. `\dt`로 통계용 테이블들이 생성되었는지 확인. |
+| **1.1** | **Redis Publisher 구현**<br/>- ioredis로 Redis Pub/Sub 비동기 발행 모듈 작성<br/>- 이벤트 발생 시 await 없이 Fire & Forget 방식으로 Redis에 전송 | 테스트 코드에서 Redis에 메시지가 정상적으로 발행되는지 확인 (`redis-cli MONITOR` 등) |
+| **1.2** | **Fallback File Logger 구현**<br/>- Redis 연결 실패 시 이벤트를 JSONL 형식으로 파일에 기록<br/>- 파일 기록도 비동기로 처리 | Redis를 중지한 상태에서 이벤트 발생 시 파일에 이벤트가 정상적으로 기록되는지 확인 |
+| **1.3** | **EventManager 통합**<br/>- EventManager에서 이벤트 발생 시 Redis Publisher와 File Logger를 활용<br/>- 두 작업 모두 await 없이 비동기로 처리 | 게임 플레이 중 이벤트가 발생해도 게임 성능 저하 없이 Redis 또는 파일에 이벤트가 기록되는지 확인 |
 
 ---
 
-### Phase 2: 비동기 이벤트 파이프라인 구축 (예상 소요: 2일)
+### 2단계: 비동기 이벤트 파이프라인 구축 (예상 소요: 2일)
 
 - **목표:** `game-service`가 Redis Pub/Sub을 통해 이벤트를 비동기적으로 발행(Fire & Forget)하고, `statistics-service`가 이를 구독하여 수신하는 파이프라인을 완성한다.
 - **주요 기술:** Redis Pub/Sub, ioredis (npm package)

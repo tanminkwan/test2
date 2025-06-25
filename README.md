@@ -50,10 +50,9 @@ graph TB
     G --> R
     S --> T
     H --> T
-    H --> J
+    H --> I
     H --> R
     S --> J
-    S --> R
     
     style E fill:#ff9999
     style F fill:#99ccff
@@ -77,6 +76,12 @@ graph TB
   - 고성능 시계열 데이터베이스로 대량 데이터 수집에 최적화
   - 게임 서버 메트릭, 실시간 이벤트 데이터, 모니터링 데이터 저장
   - 빠른 쓰기 및 집계 쿼리에 특화
+- **Redis**:
+  - 인메모리 데이터 구조 저장소로 고성능 캐싱 및 메시징에 활용
+  - 게임 서비스의 이벤트 발행/구독(Pub/Sub) 시스템 제공
+  - 세션 캐싱 및 임시 데이터 저장
+  - 실시간 게임 상태 공유
+  - 예: 게임 이벤트 메시징, 실시간 점수 업데이트, 임시 세션 데이터
 
 ### 서비스 역할 분담
 
@@ -415,6 +420,17 @@ GET  /api/status                 # 서버 상태
 WebSocket /socket.io/            # 실시간 게임 통신
 ```
 
+### 통계 API (Statistics Service)
+```
+GET  /api/statistics/players/:id       # 특정 플레이어 통계
+GET  /api/statistics/leaderboard       # 리더보드 조회
+GET  /api/statistics/sessions/:id      # 특정 게임 세션 통계
+GET  /api/statistics/weapons           # 무기 사용 통계
+GET  /api/statistics/vehicles          # 차량 유형별 통계
+GET  /api/statistics/maps              # 맵별 통계
+GET  /api/statistics/trends            # 시간대별 통계 추이
+```
+
 ## ⚙️ 개발 스크립트
 
 ### 루트 레벨 스크립트
@@ -422,63 +438,17 @@ WebSocket /socket.io/            # 실시간 게임 통신
 # 서비스 실행
 npm run start:user              # User Service 실행
 npm run start:game              # Game Service 실행
+npm run start:statistics        # Statistics Service 실행
 npm run dev:all                 # 모든 서비스 동시 개발 모드
 
 # 의존성 관리
 npm run install:user            # User Service 의존성 설치
 npm run install:game            # Game Service 의존성 설치
+npm run install:statistics      # Statistics Service 의존성 설치
 npm run install:all             # 모든 서비스 의존성 설치
 
 # 정리
 npm run clean                   # 모든 node_modules 삭제
-```
-
-## 🛠️ 문제 해결
-
-### 환경 변수 관련 문제
-
-#### .env 파일 특수문자 문제
-**증상**: 비밀번호에 `#` 문자가 있을 때 주석으로 인식
-**해결**: 비밀번호를 따옴표로 감싸기
-```env
-DB_PASS="app123!@#"  # ✅ 올바름
-DB_PASS=app123!@#    # ❌ 틀림 (# 이후 주석으로 인식)
-```
-
-#### JWT 토큰 불일치
-**증상**: "invalid signature" 오류
-**원인**: User Service와 Game Service의 JWT_SECRET 불일치
-**해결**: 두 서비스의 .env 파일에서 동일한 JWT_SECRET 사용
-
-### 데이터베이스 관련 문제
-
-#### 사용자 인증 실패
-**증상**: `사용자 "app_user"의 password 인증에 실패했습니다`
-**해결**: PostgreSQL에서 사용자 및 데이터베이스 생성 확인
-```sql
--- 사용자 존재 확인
-\du
-
--- 데이터베이스 존재 확인
-\l
-
--- 필요시 재생성
-DROP USER IF EXISTS app_user;
-CREATE USER app_user WITH PASSWORD 'app123!@#';
-GRANT ALL PRIVILEGES ON DATABASE user_service TO app_user;
-```
-
-### 의존성 관련 문제
-
-#### 패키지 누락 오류
-**증상**: `Cannot find package 'uuid'` 등
-**해결**: 각 서비스에서 의존성 재설치
-```bash
-cd services/game-service
-npm install
-
-cd ../user-service
-npm install
 ```
 
 ## 📊 성능 최적화
@@ -499,6 +469,7 @@ npm install
 - **의존성 격리**: 한 서비스의 장애가 다른 서비스에 영향 없음
 - **개발 효율성**: 팀별로 독립적인 개발 및 배포 가능
 - **이벤트 처리 최적화**: 배치 처리를 통한 데이터베이스 작업 최적화
+- **통계 데이터 캐싱**: 자주 조회되는 통계 데이터 캐싱으로 성능 향상
 
 ## 🔧 배포
 
@@ -510,6 +481,9 @@ docker build -t user-service .
 
 cd ../game-service
 docker build -t game-service .
+
+cd ../statistics-service
+docker build -t statistics-service .
 
 cd ../event-processor-service
 docker build -t event-processor-service .
@@ -525,6 +499,9 @@ cd services/user-service
 NODE_ENV=production npm start
 
 cd ../game-service
+NODE_ENV=production npm start
+
+cd ../statistics-service
 NODE_ENV=production npm start
 ```
 
@@ -550,4 +527,7 @@ MIT License
 - **Nginx (Port 80)**: 외부 접근 허용 - API Gateway 역할
 - **User Service (Port 3002)**: localhost만 허용 - nginx를 통해서만 접근
 - **Game Service (Port 3001)**: localhost만 허용 - nginx를 통해서만 접근
+- **Statistics Service (Port 3004)**: localhost만 허용 - nginx를 통해서만 접근
 - **PostgreSQL**: localhost만 허용 - User Service를 통해서만 접근
+- **TimescaleDB**: localhost만 허용 - Statistics Service와 Event Processor를 통해서만 접근
+- **InfluxDB**: localhost만 허용 - Statistics Service와 Event Processor를 통해서만 접근

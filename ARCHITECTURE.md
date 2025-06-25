@@ -40,15 +40,16 @@ graph TB
     end
     
     subgraph "Independent Microservices"
-        E[User Service<br/>Port 3002<br/>독립 package.json<br/>PostgreSQL]
+        E[User Service<br/>Port 3002<br/>독립 package.json]
         F[Game Service<br/>Port 3001<br/>독립 package.json<br/>In-Memory]
         H[Event Processor<br/>Port 3003<br/>독립 package.json]
     end
     
     subgraph "Data Layer"
         G[PostgreSQL<br/>user_service DB<br/>사용자 데이터]
-        I[InfluxDB<br/>시계열 데이터]
-        K[Redis<br/>향후 확장<br/>세션 캐시]
+        T[TimescaleDB<br/>통계 및 분석용<br/>구조화된 시계열 데이터]
+        I[InfluxDB<br/>실시간 메트릭<br/>고성능 시계열 데이터]
+        K[Redis<br/>이벤트 발행/구독<br/>세션 캐시]
     end
     
     subgraph "Static Assets"
@@ -65,8 +66,9 @@ graph TB
     D --> J
     
     E --> G
-    F --> I
     F --> K
+    H --> G
+    H --> T
     H --> I
     H --> K
     
@@ -74,6 +76,7 @@ graph TB
     style E fill:#99ccff
     style F fill:#99ff99
     style G fill:#ffcc99
+    style T fill:#ffccaa
     style I fill:#ccccff
     style J fill:#cccccc
     style K fill:#ffccff
@@ -326,14 +329,31 @@ graph TD
 #### 기술 스택
 - Node.js, Express
 - Redis (이벤트 구독)
-- PostgreSQL
-- InfluxDB
+- PostgreSQL (사용자 관련 데이터)
+- TimescaleDB (구조화된 시계열 데이터)
+- InfluxDB (고성능 메트릭 데이터)
 
 #### 주요 컴포넌트
 - EventProcessor: 이벤트 처리 로직
 - DatabaseManager: 데이터베이스 연결 및 쿼리 관리
 - RedisSubscriber: Redis 이벤트 구독 처리
 - LogFileReader: 로그 파일 읽기 및 처리
+- TimeSeriesManager: 시계열 데이터 관리
+
+#### 데이터베이스 역할 분담
+- **PostgreSQL**: 사용자 계정, 인증, 권한 및 기본 게임 데이터 저장
+- **TimescaleDB**: 
+  - PostgreSQL 확장으로 작동하는 시계열 데이터베이스
+  - 관계형 데이터와 시계열 데이터를 함께 처리해야 하는 경우 사용
+  - 플레이어 통계, 게임 세션 기록, 장기 분석 데이터 등 구조화된 시계열 데이터 저장
+  - SQL 쿼리를 통한 복잡한 분석 및 리포트 생성
+  - 예: 플레이어별 게임 성과 추이, 무기 사용 통계, 차량 유형별 성능 분석
+
+- **InfluxDB**: 
+  - 순수 시계열 데이터베이스로 고성능 데이터 수집에 최적화
+  - 게임 서버 메트릭, 실시간 이벤트 데이터, 모니터링 데이터 저장
+  - 대량의 시계열 데이터 빠른 쓰기 및 집계 쿼리에 특화
+  - 예: 서버 성능 지표, 실시간 플레이어 활동, 게임 이벤트 발생 빈도
 
 ## 🔄 통신 패턴
 

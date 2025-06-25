@@ -30,8 +30,10 @@ graph TB
     end
     
     subgraph "Database"
-        I[PostgreSQL<br/>vehicle_game DB]
-        J[InfluxDB<br/>시계열 데이터]
+        I[PostgreSQL<br/>사용자 데이터]
+        T[TimescaleDB<br/>구조화된 시계열 데이터<br/>통계 및 분석]
+        J[InfluxDB<br/>고성능 시계열 데이터<br/>실시간 메트릭]
+        R[Redis<br/>이벤트 발행/구독]
     end
     
     A --> E
@@ -44,17 +46,33 @@ graph TB
     E --> H
     
     F --> I
-    G --> H
+    G --> R
     H --> I
+    H --> T
     H --> J
+    H --> R
     
     style E fill:#ff9999
     style F fill:#99ccff
     style G fill:#99ff99
     style H fill:#ffcc99
     style I fill:#f9f9f9
+    style T fill:#ffccaa
     style J fill:#ccccff
+    style R fill:#ffccff
 ```
+
+### 데이터베이스 역할 분담
+
+- **PostgreSQL**: 사용자 계정, 인증, 권한 및 기본 게임 데이터 저장
+- **TimescaleDB**: 
+  - PostgreSQL 확장으로, 관계형 데이터와 시계열 데이터를 함께 처리
+  - 플레이어 통계, 게임 세션 기록, 장기 분석 데이터 저장
+  - SQL 쿼리를 통한 복잡한 분석 및 리포트 생성
+- **InfluxDB**: 
+  - 고성능 시계열 데이터베이스로 대량 데이터 수집에 최적화
+  - 게임 서버 메트릭, 실시간 이벤트 데이터, 모니터링 데이터 저장
+  - 빠른 쓰기 및 집계 쿼리에 특화
 
 ### 🔐 인증 플로우
 

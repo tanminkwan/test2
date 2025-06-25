@@ -26,10 +26,12 @@ graph TB
     subgraph "Independent Microservices"
         F[User Service<br/>Port 3002<br/>독립 package.json]
         G[Game Service<br/>Port 3001<br/>독립 package.json]
+        H[Event Processor<br/>Port 3003<br/>독립 package.json]
     end
     
     subgraph "Database"
-        H[PostgreSQL<br/>vehicle_game DB]
+        I[PostgreSQL<br/>vehicle_game DB]
+        J[InfluxDB<br/>시계열 데이터]
     end
     
     A --> E
@@ -39,13 +41,19 @@ graph TB
     
     E --> F
     E --> G
+    E --> H
     
-    F --> H
+    F --> I
+    G --> H
+    H --> I
+    H --> J
     
     style E fill:#ff9999
     style F fill:#99ccff
     style G fill:#99ff99
     style H fill:#ffcc99
+    style I fill:#f9f9f9
+    style J fill:#ccccff
 ```
 
 ### 🔐 인증 플로우
@@ -109,7 +117,9 @@ sequenceDiagram
 - **Observer Pattern**: `EventEmitter`를 활용한 이벤트 기반 시스템 아키텍처
 - **성능 모니터링**: 실시간 서버 성능 추적
 - **중앙집중식 설정**: YAML 기반 설정 관리
+- **데이터 처리 파이프라인**: 이벤트 프로세서를 통한 게임 이벤트 처리 및 분석
 - **PostgreSQL 데이터베이스**: 사용자 데이터 영구 저장
+- **InfluxDB**: 시계열 데이터 저장 및 분석
 
 ## 🚀 빠른 시작
 
@@ -246,18 +256,31 @@ multiplayer-vehicle-game/
 │   │   ├── .env                   # 환경 변수
 │   │   └── README.md
 │   │
-│   └── game-service/              # 게임 로직 마이크로서비스
+│   ├── game-service/              # 게임 로직 마이크로서비스
+│   │   ├── src/
+│   │   ├── systems/               # SRP 원칙에 따라 분리된 게임 시스템
+│   │   │   ├── PlayerManager.js
+│   │   │   ├── VehicleManager.js
+│   │   │   ├── WeaponSystem.js
+│   │   │   ├── TargetingManager.js
+│   │   │   ├── CollisionSystem.js
+│   │   │   └── GiftBoxSystem.js     # 선물 상자 시스템
+│   │   ├── models/                # 게임 데이터 모델
+│   │   ├── package.json           # 독립적 의존성
+│   │   └── ...
+│   │
+│   └── event-processor-service/   # 이벤트 처리 마이크로서비스
 │       ├── src/
-│       ├── systems/               # SRP 원칙에 따라 분리된 게임 시스템
-│       │   ├── PlayerManager.js
-│       │   ├── VehicleManager.js
-│       │   ├── WeaponSystem.js
-│       │   ├── TargetingManager.js
-│       │   ├── CollisionSystem.js
-│       │   └── GiftBoxSystem.js     # 선물 상자 시스템
-│       ├── models/                # 게임 데이터 모델
+│       │   ├── services/          # 이벤트 처리 서비스
+│       │   │   ├── EventProcessor.js
+│       │   │   └── DatabaseManager.js
+│       │   ├── utils/             # 유틸리티
+│       │   │   ├── RedisSubscriber.js
+│       │   │   ├── LogFileReader.js
+│       │   │   └── logger.js
+│       │   └── config/            # 설정
 │       ├── package.json           # 독립적 의존성
-│       └── ...
+│       └── README.md
 │
 ├── client/                        # 3D 게임 클라이언트
 │   ├── src/
@@ -272,8 +295,8 @@ multiplayer-vehicle-game/
 
 - **Backend**: Node.js, Express
 - **Frontend**: HTML, CSS, JavaScript, Three.js
-- **Real-time Communication**: Socket.IO
-- **Database**: PostgreSQL
+- **Real-time Communication**: Socket.IO, Redis
+- **Database**: PostgreSQL, InfluxDB
 - **API Gateway**: Nginx
 - **Containerization**: Docker
 
@@ -446,6 +469,7 @@ npm install
 - **독립적 스케일링**: 각 서비스별로 독립적으로 확장 가능
 - **의존성 격리**: 한 서비스의 장애가 다른 서비스에 영향 없음
 - **개발 효율성**: 팀별로 독립적인 개발 및 배포 가능
+- **이벤트 처리 최적화**: 배치 처리를 통한 데이터베이스 작업 최적화
 
 ## 🔧 배포
 
@@ -457,6 +481,9 @@ docker build -t user-service .
 
 cd ../game-service
 docker build -t game-service .
+
+cd ../event-processor-service
+docker build -t event-processor-service .
 
 # Docker Compose로 전체 시스템 실행
 docker-compose up -d

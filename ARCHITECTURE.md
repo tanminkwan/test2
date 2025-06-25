@@ -42,15 +42,17 @@ graph TB
     subgraph "Independent Microservices"
         E[User Service<br/>Port 3002<br/>독립 package.json<br/>PostgreSQL]
         F[Game Service<br/>Port 3001<br/>독립 package.json<br/>In-Memory]
+        H[Event Processor<br/>Port 3003<br/>독립 package.json]
     end
     
     subgraph "Data Layer"
         G[PostgreSQL<br/>user_service DB<br/>사용자 데이터]
-        H[Redis<br/>(향후 확장)<br/>세션 캐시]
+        I[InfluxDB<br/>시계열 데이터]
+        K[Redis<br/>향후 확장<br/>세션 캐시]
     end
     
     subgraph "Static Assets"
-        I[Client Files<br/>HTML/CSS/JS<br/>3D Models/Textures]
+        J[Client Files<br/>HTML/CSS/JS<br/>3D Models/Textures]
     end
     
     A --> D
@@ -59,16 +61,22 @@ graph TB
     
     D --> E
     D --> F
-    D --> I
+    D --> H
+    D --> J
     
     E --> G
-    F -.-> H
+    F --> I
+    F --> K
+    H --> I
+    H --> K
     
     style D fill:#ff9999
     style E fill:#99ccff
     style F fill:#99ff99
     style G fill:#ffcc99
-    style I fill:#cccccc
+    style I fill:#ccccff
+    style J fill:#cccccc
+    style K fill:#ffccff
 ```
 
 ## 🔧 마이크로서비스 독립성
@@ -306,6 +314,26 @@ graph TD
 'billboardDestroyed'  // 광고판 파괴 알림. { billboardId, debris, destroyedBy }
 'muzzleFlash'         // 기관총 발사 시 총구 섬광. { playerId, vehicleId }
 ```
+
+### Event Processor Service (포트 3003)
+
+#### 책임 영역
+- 게임 이벤트 수집 및 처리
+- 시계열 데이터 저장 및 분석
+- 실시간 통계 생성
+- 배치 처리를 통한 데이터베이스 작업 최적화
+
+#### 기술 스택
+- Node.js, Express
+- Redis (이벤트 구독)
+- PostgreSQL
+- InfluxDB
+
+#### 주요 컴포넌트
+- EventProcessor: 이벤트 처리 로직
+- DatabaseManager: 데이터베이스 연결 및 쿼리 관리
+- RedisSubscriber: Redis 이벤트 구독 처리
+- LogFileReader: 로그 파일 읽기 및 처리
 
 ## 🔄 통신 패턴
 

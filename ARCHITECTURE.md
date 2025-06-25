@@ -43,6 +43,7 @@ graph TB
         E[User Service<br/>Port 3002<br/>독립 package.json]
         F[Game Service<br/>Port 3001<br/>독립 package.json<br/>In-Memory]
         H[Event Processor<br/>Port 3003<br/>독립 package.json]
+        S[Statistics Service<br/>Port 3004<br/>독립 package.json]
     end
     
     subgraph "Data Layer"
@@ -62,19 +63,22 @@ graph TB
     
     D --> E
     D --> F
-    D --> H
+    D --> S
     D --> J
     
     E --> G
     F --> K
-    H --> G
+    S --> T
     H --> T
     H --> I
     H --> K
+    S --> I
     
     style D fill:#ff9999
     style E fill:#99ccff
     style F fill:#99ff99
+    style S fill:#ccff99
+    style H fill:#ffcc99
     style G fill:#ffcc99
     style T fill:#ffccaa
     style I fill:#ccccff
@@ -329,7 +333,6 @@ graph TD
 #### 기술 스택
 - Node.js, Express
 - Redis (이벤트 구독)
-- PostgreSQL (사용자 관련 데이터)
 - TimescaleDB (구조화된 시계열 데이터)
 - InfluxDB (고성능 메트릭 데이터)
 
@@ -339,6 +342,39 @@ graph TD
 - RedisSubscriber: Redis 이벤트 구독 처리
 - LogFileReader: 로그 파일 읽기 및 처리
 - TimeSeriesManager: 시계열 데이터 관리
+
+### Statistics Service (포트 3004)
+
+#### 책임 영역
+- 통계 데이터 API 제공
+- 플레이어 성과 통계 조회
+- 게임 세션 통계 조회
+- 리더보드 및 순위표 제공
+- 데이터 시각화를 위한 집계 데이터 제공
+
+#### 기술 스택
+- Node.js, Express
+- TimescaleDB (구조화된 통계 데이터 쿼리)
+- InfluxDB (실시간 메트릭 데이터 쿼리)
+- Redis (캐싱)
+
+#### 주요 컴포넌트
+- StatisticsController: API 엔드포인트 처리
+- QueryBuilder: 복잡한 통계 쿼리 생성
+- CacheManager: 통계 데이터 캐싱
+- LeaderboardManager: 순위표 생성 및 관리
+- DataAggregator: 시계열 데이터 집계
+
+#### API 엔드포인트
+```
+GET /api/statistics/players/:id          # 특정 플레이어 통계
+GET /api/statistics/leaderboard          # 리더보드 조회
+GET /api/statistics/sessions/:id         # 특정 게임 세션 통계
+GET /api/statistics/weapons              # 무기 사용 통계
+GET /api/statistics/vehicles             # 차량 유형별 통계
+GET /api/statistics/maps                 # 맵별 통계
+GET /api/statistics/trends               # 시간대별 통계 추이
+```
 
 #### 데이터베이스 역할 분담
 - **PostgreSQL**: 사용자 계정, 인증, 권한 및 기본 게임 데이터 저장

@@ -27,6 +27,7 @@ graph TB
         F[User Service<br/>Port 3002<br/>독립 package.json]
         G[Game Service<br/>Port 3001<br/>독립 package.json]
         H[Event Processor<br/>Port 3003<br/>독립 package.json]
+        S[Statistics Service<br/>Port 3004<br/>독립 package.json]
     end
     
     subgraph "Database"
@@ -43,18 +44,21 @@ graph TB
     
     E --> F
     E --> G
-    E --> H
+    E --> S
     
     F --> I
     G --> R
-    H --> I
+    S --> T
     H --> T
     H --> J
     H --> R
+    S --> J
+    S --> R
     
     style E fill:#ff9999
     style F fill:#99ccff
     style G fill:#99ff99
+    style S fill:#ccff99
     style H fill:#ffcc99
     style I fill:#f9f9f9
     style T fill:#ffccaa
@@ -73,6 +77,13 @@ graph TB
   - 고성능 시계열 데이터베이스로 대량 데이터 수집에 최적화
   - 게임 서버 메트릭, 실시간 이벤트 데이터, 모니터링 데이터 저장
   - 빠른 쓰기 및 집계 쿼리에 특화
+
+### 서비스 역할 분담
+
+- **User Service**: 사용자 인증 및 계정 관리
+- **Game Service**: 실시간 게임 로직 및 게임플레이 처리
+- **Event Processor**: 게임 이벤트 수집 및 시계열 데이터 저장 (백엔드 전용)
+- **Statistics Service**: 통계 데이터 API 제공 및 리더보드 관리 (클라이언트 접근용)
 
 ### 🔐 인증 플로우
 

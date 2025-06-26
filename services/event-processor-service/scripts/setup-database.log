@@ -1,0 +1,40 @@
+DO
+ALTER ROLE
+GRANT
+You are now connected to database "game_statistics" as user "postgres".
+psql:C:/pypjt/test2/services/event-processor-service/scripts/create-user.sql:31: 알림:  "timescaledb" 확장 모듈이 이미 있음, 건너뜀
+CREATE EXTENSION
+GRANT
+GRANT
+GRANT
+ALTER DEFAULT PRIVILEGES
+ALTER DEFAULT PRIVILEGES
+You are now connected to database "postgres" as user "postgres".
+ usename  | usecreatedb | usesuper 
+----------+-------------+----------
+ app_user | t           | f
+(1 row)
+
+=========================================
+Event Processor Service 데이터베이스 설정 완료!
+사용자: app_user
+비밀번호: app123!@#
+데이터베이스: game_statistics
+테스트: psql -U app_user -h localhost -d game_statistics
+=========================================
+psql:C:/pypjt/test2/services/event-processor-service/scripts/create-tables.sql:5: 알림:  "timescaledb" 확장 모듈이 이미 있음, 건너뜀
+CREATE EXTENSION
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+psql:C:/pypjt/test2/services/event-processor-service/scripts/create-tables.sql:89: 경고:  column type "character varying" used for "event_type" does not follow best practices
+HINT:  Use datatype TEXT instead.
+psql:C:/pypjt/test2/services/event-processor-service/scripts/create-tables.sql:89: 경고:  column type "character varying" used for "vehicle_id" does not follow best practices
+HINT:  Use datatype TEXT instead.
+psql:C:/pypjt/test2/services/event-processor-service/scripts/create-tables.sql:89: 오류:  cannot create a unique index without the column "timestamp" (used in partitioning)
+HINT:  If you're creating a hypertable on a table with a primary key, ensure the partitioning column is part of the primary or composite key.

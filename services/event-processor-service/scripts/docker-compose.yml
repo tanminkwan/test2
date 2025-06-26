@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: timescale/timescaledb:latest-pg13
+    container_name: event-processor-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=1q2w3e4r!!
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    networks:
+      - event-processor-network
+    restart: unless-stopped
+
+  influxdb:
+    image: influxdb:2.0
+    container_name: event-processor-influxdb
+    ports:
+      - "8086:8086"
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=admin
+      - DOCKER_INFLUXDB_INIT_PASSWORD=1q2w3e4r!!
+      - DOCKER_INFLUXDB_INIT_ORG=game-org
+      - DOCKER_INFLUXDB_INIT_BUCKET=game-metrics
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=your-influx-token
+    volumes:
+      - influxdb_data:/var/lib/influxdb2
+    networks:
+      - event-processor-network
+    restart: unless-stopped
+
+  redis:
+    image: redis:6.2-alpine
+    container_name: event-processor-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --requirepass "1q2w3e4r!!"
+    volumes:
+      - redis_data:/data
+    networks:
+      - event-processor-network
+    restart: unless-stopped
+
+networks:
+  event-processor-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  influxdb_data:
+  redis_data: 

@@ -11,6 +11,7 @@ import { VehicleFactory } from './VehicleFactory.js';
 import { BillboardManager } from './BillboardManager.js';
 import { TargetingManager } from './TargetingManager.js';
 import { GiftBoxManager } from './GiftBoxManager.js';
+import eventPublisherManager from '../utils/EventPublisherManager.js';
 
 /**
  * 게임의 모든 시스템을 총괄하고 오케스트레이션하는 최상위 클래스
@@ -201,6 +202,16 @@ export default class GameManager {
             this.handleBillboardDestroyed(billboard, collision);
         } else {
             this.effectSystem.createImpactEffect(collision.position, 'billboard');
+            
+            // 광고판 히트 이벤트 발행
+            eventPublisherManager.publishEvent('billboardHit', {
+                billboardId: billboard.id,
+                hitBy: collision.ownerId || 'unknown',
+                position: collision.position,
+                damage: collision.damage,
+                health: billboard.health,
+                timestamp: Date.now()
+            });
         }
     }
 
@@ -215,6 +226,16 @@ export default class GameManager {
             this.handleGiftBoxDestroyed(giftBox, collision);
         } else {
             this.effectSystem.createImpactEffect(collision.position, 'giftbox');
+            
+            // 아이템 상자 히트 이벤트 발행
+            eventPublisherManager.publishEvent('itemBoxHit', {
+                itemBoxId: giftBox.id,
+                hitBy: collision.ownerId || 'unknown',
+                position: collision.position,
+                damage: collision.damage,
+                health: giftBox.health,
+                timestamp: Date.now()
+            });
         }
     }
 
@@ -227,6 +248,15 @@ export default class GameManager {
                 billboardId: billboard.id,
                 debris: debrisData,
                 destroyedBy: collision.ownerId || 'unknown'
+            });
+            
+            // 광고판 파괴 이벤트 발행
+            eventPublisherManager.publishEvent('billboardDestroyed', {
+                billboardId: billboard.id,
+                destroyedBy: collision.ownerId || 'unknown',
+                position: billboard.position,
+                timestamp: Date.now(),
+                reward: this.config.billboardDestroyReward || 50
             });
         }
         this.billboardManager.removeBillboard(billboard.id);
@@ -250,6 +280,18 @@ export default class GameManager {
         this.eventEmitter.emit('giftBoxDestroyed', {
             giftBoxId: giftBox.id,
             destroyedBy: ownerId
+        });
+        
+        // 아이템 상자 파괴 이벤트 발행
+        eventPublisherManager.publishEvent('itemBoxDestroyed', {
+            itemBoxId: giftBox.id,
+            destroyedBy: ownerId,
+            position: giftBox.position,
+            rewards: {
+                missiles: rewards.missiles,
+                score: rewards.score
+            },
+            timestamp: Date.now()
         });
 
         // 4. 기존 상자 제거 및 새 상자 스폰

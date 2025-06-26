@@ -10,6 +10,7 @@ import { fileURLToPath } from 'url';
 import jwt from 'jsonwebtoken';
 
 import GameManager from './services/GameManager.js';
+import eventPublisherManager from './utils/EventPublisherManager.js';
 
 // ES6 모듈에서 __dirname 대체
 const __filename = fileURLToPath(import.meta.url);
@@ -216,46 +217,57 @@ io.on('connection', (socket) => {
 function setupGameEventListeners() {
     gameEventEmitter.on('gameStarted', (data) => {
         io.emit('gameStarted', data);
+        eventPublisherManager.publishEvent('gameStarted', data);
     });
     
     gameEventEmitter.on('gameEnded', () => {
         io.emit('gameEnded');
+        eventPublisherManager.publishEvent('gameEnded', {});
     });
     
     gameEventEmitter.on('bulletCreated', (data) => {
         io.emit('bulletCreated', data);
+        eventPublisherManager.publishEvent('bulletCreated', data);
     });
     
     gameEventEmitter.on('bulletDestroyed', (data) => {
         io.emit('bulletDestroyed', data);
+        eventPublisherManager.publishEvent('bulletDestroyed', data);
     });
     
     gameEventEmitter.on('muzzleFlash', (data) => {
         io.emit('muzzleFlash', data);
+        eventPublisherManager.publishEvent('muzzleFlash', data);
     });
     
     gameEventEmitter.on('missileLaunched', (data) => {
         io.emit('missileLaunched', data);
+        eventPublisherManager.publishEvent('missileLaunched', data);
     });
     
     gameEventEmitter.on('projectilesRemoved', (projectileIds) => {
         io.emit('projectilesRemoved', projectileIds);
+        eventPublisherManager.publishEvent('projectilesRemoved', { projectileIds });
     });
     
     gameEventEmitter.on('effectsRemoved', (effectIds) => {
         io.emit('effectsRemoved', effectIds);
+        eventPublisherManager.publishEvent('effectsRemoved', { effectIds });
     });
     
     gameEventEmitter.on('vehicleDestroyed', (data) => {
         io.emit('vehicleDestroyed', data);
+        eventPublisherManager.publishEvent('vehicleDestroyed', data);
     });
     
     gameEventEmitter.on('vehicleRespawned', (data) => {
         io.emit('vehicleRespawned', data);
+        eventPublisherManager.publishEvent('vehicleRespawned', data);
     });
     
     gameEventEmitter.on('gameStateUpdate', (gameState) => {
         io.emit('gameStateUpdate', gameState);
+        // 게임 상태 업데이트는 너무 빈번하므로 로깅하지 않음
     });
 }
 
@@ -349,16 +361,34 @@ server.listen(PORT, HOST, () => {
 // 우아한 종료 처리
 process.on('SIGINT', () => {
     console.log('\n🛑 Shutting down server...');
-    server.close(() => {
-        console.log('✅ Server closed');
-        process.exit(0);
+    eventPublisherManager.close().then(() => {
+        console.log('✅ Event publishers closed');
+        server.close(() => {
+            console.log('✅ Server closed');
+            process.exit(0);
+        });
+    }).catch(err => {
+        console.error('❌ Error closing event publishers:', err);
+        server.close(() => {
+            console.log('✅ Server closed');
+            process.exit(1);
+        });
     });
 });
 
 process.on('SIGTERM', () => {
     console.log('\n🛑 Received SIGTERM, shutting down gracefully...');
-    server.close(() => {
-        console.log('✅ Server closed');
-        process.exit(0);
+    eventPublisherManager.close().then(() => {
+        console.log('✅ Event publishers closed');
+        server.close(() => {
+            console.log('✅ Server closed');
+            process.exit(0);
+        });
+    }).catch(err => {
+        console.error('❌ Error closing event publishers:', err);
+        server.close(() => {
+            console.log('✅ Server closed');
+            process.exit(1);
+        });
     });
 }); 

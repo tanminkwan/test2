@@ -1,0 +1,100 @@
+version: '3.8'
+
+services:
+  event-processor:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: event-processor-service:latest
+    container_name: event-processor-service
+    restart: unless-stopped
+    ports:
+      - "3003:3003"
+    environment:
+      - NODE_ENV=production
+      - PORT=3003
+      - SERVICE_NAME=event-processor-service
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_CHANNEL=game-events
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=game_statistics
+      - INFLUX_URL=http://influxdb:8086
+      - INFLUX_TOKEN=${INFLUX_TOKEN}
+      - INFLUX_ORG=${INFLUX_ORG}
+      - INFLUX_BUCKET=${INFLUX_BUCKET}
+      - LOG_LEVEL=info
+      - LOG_FILE_DIR=/usr/src/app/logs
+      - BATCH_SIZE=100
+      - BATCH_INTERVAL_MS=1000
+      - LOG_RECOVERY_ENABLED=true
+      - LOG_RECOVERY_DIR=/logs/events
+    volumes:
+      - event_processor_logs:/usr/src/app/logs
+      - game_logs:/logs
+    depends_on:
+      - redis
+      - postgres
+      - influxdb
+    networks:
+      - game_network
+
+  redis:
+    image: redis:7-alpine
+    container_name: game-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    networks:
+      - game_network
+
+  postgres:
+    image: timescale/timescaledb:latest-pg14
+    container_name: game-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=game_statistics
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/setup-tables.sql:/docker-entrypoint-initdb.d/setup-tables.sql
+    networks:
+      - game_network
+
+  influxdb:
+    image: influxdb:2.7
+    container_name: game-influxdb
+    restart: unless-stopped
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=${INFLUX_USERNAME:-admin}
+      - DOCKER_INFLUXDB_INIT_PASSWORD=${INFLUX_PASSWORD:-adminpassword}
+      - DOCKER_INFLUXDB_INIT_ORG=${INFLUX_ORG:-game-org}
+      - DOCKER_INFLUXDB_INIT_BUCKET=${INFLUX_BUCKET:-game-metrics}
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUX_TOKEN:-my-super-secret-token}
+    ports:
+      - "8086:8086"
+    volumes:
+      - influxdb_data:/var/lib/influxdb2
+    networks:
+      - game_network
+
+volumes:
+  redis_data:
+  postgres_data:
+  influxdb_data:
+  event_processor_logs:
+  game_logs:
+
+networks:
+  game_network:
+    driver: bridge 

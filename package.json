@@ -6,16 +6,23 @@
   "scripts": {
     "start:game": "cd services/game-service && npm start",
     "start:user": "cd services/user-service && npm start",
+    "start:event-processor": "cd services/event-processor-service && npm start",
+    "start:test-publisher": "node services/test-event-publisher/src/index.js",
     "dev:game": "cd services/game-service && npm run dev",
     "dev:user": "cd services/user-service && npm run dev",
-    "dev:all": "concurrently \"npm run dev:game\" \"npm run dev:user\"",
+    "dev:event-processor": "cd services/event-processor-service && npm run dev",
+    "dev:all": "concurrently \"npm run dev:game\" \"npm run dev:user\" \"npm run dev:event-processor\"",
     "install:game": "cd services/game-service && npm install",
     "install:user": "cd services/user-service && npm install",
-    "install:all": "npm run install:game && npm run install:user",
-    "clean": "rmdir /s services\\game-service\\node_modules services\\user-service\\node_modules node_modules 2>nul || echo Clean completed"
+    "install:event-processor": "cd services/event-processor-service && npm install",
+    "install:all": "npm run install:game && npm run install:user && npm run install:event-processor",
+    "clean": "rmdir /s services\\game-service\\node_modules services\\user-service\\node_modules node_modules 2>nul || echo Clean completed",
+    "test:publishers": "node scripts/test-event-publishers.js",
+    "test:redis": "node scripts/test-redis-publisher.js"
   },
   "devDependencies": {
-    "concurrently": "^8.2.0"
+    "concurrently": "^8.2.0",
+    "nodemon": "^3.0.2"
   },
   "keywords": ["multiplayer", "game", "microservices"],
   "author": "Game Developer",

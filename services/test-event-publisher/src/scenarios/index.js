@@ -3,6 +3,8 @@ import { PlayerScoreScenario } from './player-score.js';
 import { GameStateScenario } from './game-state.js';
 import { ExplosionScenario } from './explosion.js';
 import { BillboardDestroyedScenario } from './billboard-destroyed.js';
+import { ItemBoxDestroyedScenario } from './item-box-destroyed.js';
+import { PlayerSessionScenario } from './player-session.js';
 
 /**
  * 사용 가능한 모든 시나리오를 로드합니다.
@@ -14,6 +16,8 @@ export function loadScenarios() {
     'player-score': new PlayerScoreScenario(),
     'game-state': new GameStateScenario(),
     'explosion': new ExplosionScenario(),
-    'billboard-destroyed': new BillboardDestroyedScenario()
+    'billboard-destroyed': new BillboardDestroyedScenario(),
+    'item-box-destroyed': new ItemBoxDestroyedScenario(),
+    'player-session': new PlayerSessionScenario()
   };
 } 

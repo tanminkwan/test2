@@ -1,0 +1,16 @@
+node_modules
+npm-debug.log
+logs
+*.log
+.env
+.env.*
+.git
+.gitignore
+README.md
+dev-env-4windows.md
+docker-compose*.yml
+Dockerfile*
+scripts/
+tests/
+.vscode/
+.idea/ 

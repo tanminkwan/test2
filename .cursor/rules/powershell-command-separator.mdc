@@ -1,0 +1,12 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# PowerShell 명령어 연결 규칙
+
+- PowerShell에서는 여러 명령어를 한 줄에서 연결할 때 &&(AND) 연산자를 사용하면 안 된다.
+- 반드시 세미콜론(;)을 명령어 구분자로 사용해야 한다.
+- 예시: `cd some/dir; node app.js` (O)
+- 잘못된 예시: `cd some/dir && node app.js` (X)
+- 이 규칙은 모든 자동화, 스크립트, 터미널 명령 실행에 반드시 적용된다.

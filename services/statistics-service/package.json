@@ -1,0 +1,33 @@
+{
+  "name": "statistics-service",
+  "version": "1.0.0",
+  "description": "Statistics service for multiplayer vehicle game",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "test": "jest"
+  },
+  "keywords": [
+    "statistics",
+    "analytics",
+    "microservice"
+  ],
+  "author": "Game Developer",
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.0.3",
+    "express": "^4.18.2",
+    "influx": "^5.9.3",
+    "pg": "^8.10.0",
+    "pino": "^8.11.0",
+    "pino-pretty": "^10.0.0",
+    "yaml": "^2.2.2"
+  },
+  "devDependencies": {
+    "jest": "^29.5.0",
+    "nodemon": "^2.0.22",
+    "supertest": "^6.3.3"
+  }
+} 

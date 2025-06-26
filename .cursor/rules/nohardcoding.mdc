@@ -1,0 +1,6 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+하드코딩하지마. 설정 값은 config 파일에 저장하는 방식을 써

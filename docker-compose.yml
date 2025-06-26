@@ -107,9 +107,94 @@ services:
     networks:
       - vehicle-game-network
 
+  # Event Processor Service
+  event-processor-service:
+    build:
+      context: ./services/event-processor-service
+    environment:
+      - PORT=3003
+      - NODE_ENV=development
+      - REDIS_HOST=redis
+      - POSTGRES_HOST=postgres
+      - INFLUXDB_URL=http://influxdb:8086
+    depends_on:
+      - redis
+      - postgres
+      - influxdb
+    networks:
+      - backend
+    volumes:
+      - ./services/event-processor-service:/usr/src/app
+      - /usr/src/app/node_modules
+
+  # Statistics Service
+  statistics-service:
+    build:
+      context: ./services/statistics-service
+    ports:
+      - "3004:3004"
+    environment:
+      - PORT=3004
+      - NODE_ENV=development
+      - POSTGRES_HOST=postgres
+      - INFLUXDB_URL=http://influxdb:8086
+      - CACHE_ENABLED=true
+      - CACHE_TTL=300
+    depends_on:
+      - postgres
+      - influxdb
+    networks:
+      - backend
+    volumes:
+      - ./services/statistics-service:/usr/src/app
+      - /usr/src/app/node_modules
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:14
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=vehicle_game
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - backend
+
+  # Redis for Caching and Pub/Sub
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - backend
+
+  # InfluxDB for Time Series Data
+  influxdb:
+    image: influxdb:2.0
+    ports:
+      - "8086:8086"
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=admin
+      - DOCKER_INFLUXDB_INIT_PASSWORD=adminpassword
+      - DOCKER_INFLUXDB_INIT_ORG=vehicle_game
+      - DOCKER_INFLUXDB_INIT_BUCKET=game_metrics
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=my-super-secret-token
+    volumes:
+      - influxdb_data:/var/lib/influxdb2
+    networks:
+      - backend
+
 networks:
   vehicle-game-network:
     driver: bridge
+  frontend:
+  backend:
 
 volumes:
-  user_service_data: 
+  user_service_data:
+  postgres_data:
+  influxdb_data: 
